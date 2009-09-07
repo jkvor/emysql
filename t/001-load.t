@@ -50,7 +50,6 @@ main(_) ->
 		ok
 	 end)(),
 	
-	
 	(fun() ->
 		Conn1 = mysql_conn_mgr:lock_connection(test1),
 		#state{pools=Pools} = mysql_conn_mgr:info(),
@@ -69,7 +68,7 @@ main(_) ->
 		#state{pools=Pools} = mysql_conn_mgr:info(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		[etap:is(C#connection.state, locked, "connection is locked") || C <- Pool1#pool.connections],
-		etap:is(mysql_conn_mgr:lock_connection(test1), undefined, "all connections are locked"),
+		etap:is(mysql_conn_mgr:lock_connection(test1), unavailable, "all connections are locked"),
 		ok
 	 end)(),
 

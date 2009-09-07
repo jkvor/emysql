@@ -26,10 +26,27 @@
 -export([field_list/0, rows/0, as_record/2]).
 -include("emysql.hrl").
 
+%% @spec field_list() -> Result
+%%		 Result = [field()]
 field_list() -> FieldList.
 
+%% @spec rows() -> Result
+%%		 Result = [Row]
+%%		 Row = [any()]
 rows() -> Rows.
 
+%% @spec as_record(RecordName, Fields) -> Result
+%%		 RecordName = atom() (the name of the record to generate)
+%%		 Fields = [atom()] (the field names to generate for each record)
+%%		 Result = [Row]
+%%		 Row = [record()]
+%% @doc package row data as records
+%%
+%% -module(fetch_example).
+%%
+%% fetch_foo() ->
+%%	  Res = mysql:execute(pool1, "select * from foo"),
+%%	  Res:as_record(foo, record_info(fields, foo)).
 as_record(RecordName, Fields) when is_atom(RecordName), is_list(Fields) ->
 	{Lookup, _} = lists:mapfoldl(
 		fun(#field{name=Name}, Acc) ->

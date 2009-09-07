@@ -3,31 +3,23 @@
 %%! -pa ../emysql ./ebin -sasl sasl_error_logger false
 
 -include_lib("emysql/include/emysql.hrl").
+-include_lib("emysql/t/mysql_test.hrl").
 -record(foo, {extra, name, id}).
 
 main(_) ->
     etap:plan(unknown),
 	error_logger:tty(false),
-	
 	application:start(crypto),
-	application:load(emysql),
-	application:set_env(emysql, pools, [
-		{test1, [
-			{size, 1},
-			{user, "test"},
-			{password, "test"},
-			{host, "localhost"},
-			{port, 3306},
-			{database, "testdatabase"},
-			{encoding, 'utf8'}
-		]}
-	]),	
-	application:start(emysql),
+	mysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+	?DROP_TABLES(test1),
 
-	ShowTables = mysql:execute(test1, "SHOW TABLES"),
-	[mysql:execute(test1, "DROP TABLE " ++ Table) || [Table] <- ShowTables:rows()],
-
-	Foo = mysql:execute(test1, "CREATE TABLE foo (id int(32) NOT NULL AUTO_INCREMENT, name varchar(50) NOT NULL, falafel varchar(20) NULL, hummus float DEFAULT 0.0, PRIMARY KEY (id))"),
+	Foo = mysql:execute(test1, "CREATE TABLE foo (
+									id int(32) NOT NULL AUTO_INCREMENT, 
+									name varchar(50) NOT NULL, 
+									falafel varchar(20) NULL, 
+									hummus float DEFAULT 0.0, 
+									PRIMARY KEY (id)
+								)"),
 	etap:is(is_record(Foo, mysql_ok_packet), true, "create table returned ok packet"),
 	
 	[begin
@@ -36,9 +28,23 @@ main(_) ->
 	 end || I <- lists:seq(1,5)],
 
 	AllFoo = mysql:execute(test1, "SELECT * FROM foo"),
-	io:format("~p~n", [AllFoo:field_list()]),
-	io:format("~p~n", [AllFoo:rows()]),
-	A = AllFoo:as_record(foo, record_info(fields, foo)),
-	io:format("~p~n", [A]),
+	ExpectedRows = [
+	 [1,"abc1",undefined,0],
+	 [2,"abc2",undefined,0],
+	 [3,"abc3",undefined,0],
+	 [4,"abc4",undefined,0],
+	 [5,"abc5",undefined,0]
+	],
+	etap:is(AllFoo:rows(), ExpectedRows, "row data matches"),
+
+	AllRecs = AllFoo:as_record(foo, record_info(fields, foo)),
+	ExpectedRecs = [
+	 {foo,undefined,"abc1",1},
+	 {foo,undefined,"abc2",2},
+	 {foo,undefined,"abc3",3},
+	 {foo,undefined,"abc4",4},
+	 {foo,undefined,"abc5",5}
+	],
+	etap:is(AllRecs, ExpectedRecs, "record data matches"),
 	
     etap:end_tests().

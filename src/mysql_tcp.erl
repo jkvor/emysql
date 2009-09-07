@@ -176,13 +176,18 @@ type_cast_row_data(Data, #field{type=Type})
 		{error, _} ->
 			Data
 	end;
+	
+type_cast_row_data(Data, #field{type=Type})
+	when Type == ?FIELD_TYPE_BIT ->
+	case Data of
+		[1] -> 1;
+		[0] -> 0
+	end;
 			
 % ?FIELD_TYPE_NEWDATE
-% ?FIELD_TYPE_BIT
 % ?FIELD_TYPE_ENUM
 % ?FIELD_TYPE_SET
 % ?FIELD_TYPE_GEOMETRY
-	
 type_cast_row_data(Data, _) -> Data.
 
 try_formats([], Data) -> Data;

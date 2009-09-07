@@ -26,11 +26,13 @@
 -behaviour(application).
 
 -export([start/2, stop/1, init/1, modules/0]).
--export([execute/2, execute/3]).
+-export([prepare/2, execute/2, execute/3]).
+
+-include("emysql.hrl").
 
 start(_, _) ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
-
+	
 stop(_) -> ok.
 
 init(_) ->
@@ -39,17 +41,39 @@ init(_) ->
    ]}}.
 
 modules() ->
-    {ok, Modules} = application_controller:get_key(emysql, modules), 
-	Modules.
+    {ok, Modules} = application_controller:get_key(emysql, modules), Modules.
 
-execute(PoolId, Query) ->
+%% @spec prepare(Name, Statement) -> ok
+%%		 Name = atom()
+%%		 Statement = binary() | string()
+prepare(Name, Statement) when is_atom(Name) andalso (is_list(Statement) orelse is_binary(Statement)) ->
+	Pools = mysql_conn_mgr:add_statement(Name, Statement),
+	[[begin
+		Connection1 = mysql_conn_mgr:lock_connection(Connection),
+		monitor_work(Connection1, mysql_tcp:timeout(), {mysql_conn, prepare, [Connection1, Name, Statement]})
+	  end || Connection <- Pool#pool.connections] || Pool <- Pools],
+	ok.
+	
+%% @spec execute(PoolId, Query) -> Result
+%%		 PoolId = atom()
+%%		 Query = binary() | string()
+%%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()
+execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, mysql_tcp:timeout()).
 	
-execute(PoolId, Query, Timeout) ->
+%% @spec execute(PoolId, Query, Timeout) -> Result
+%%		 PoolId = atom()
+%%		 Query = binary() | string()
+%%		 Timeout = integer() (millisecond query timeout)
+%%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()
+execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	Connection = mysql_conn_mgr:lock_connection(PoolId),
 	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query]}).
 	
-monitor_work(Connection, Timeout, {M,F,A}) ->
+%%--------------------------------------------------------------------
+%%% Internal functions
+%%--------------------------------------------------------------------
+monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
 	Parent = self(),
 	Pid = spawn(
 		fun() ->
@@ -69,5 +93,5 @@ monitor_work(Connection, Timeout, {M,F,A}) ->
 		erlang:demonitor(Mref),
 		mysql_conn_mgr:reset_connection(Connection),
 		exit(mysql_timeout)
-	end.
-		
+	end;
+monitor_work(Reason, _, _) -> Reason.

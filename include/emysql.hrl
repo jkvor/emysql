@@ -22,9 +22,9 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--record(state, {pools=[], statements=[]}).
+-record(state, {pools=[], statements=gb_trees:empty()}).
 -record(pool, {pool_id, size, user, password, host, port, database, encoding, connections=[]}).
--record(connection, {pool_id, state=available, socket, version, thread_id, caps, language}).
+-record(connection, {id, pool_id, state=available, socket, version, thread_id, caps, language}).
 -record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, language, status, seq_num}).
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).
