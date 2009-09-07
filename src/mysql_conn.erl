@@ -24,7 +24,7 @@
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(mysql_conn).
 -export([set_database/2, set_encoding/2]).
--export([execute/2, execute/3, prepare/3, unprepare/2]).
+-export([execute/3, prepare/3, unprepare/2]).
 
 -include("emysql.hrl").
 
@@ -37,18 +37,13 @@ set_encoding(Connection, Encoding) ->
 	Packet = <<?COM_QUERY, "set names '", (erlang:atom_to_binary(Encoding, utf8))/binary, "'">>,
 	mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 
-execute(Connection, Query) when is_list(Query); is_binary(Query) ->
-	execute(Connection, Query, []);
-	
-execute(Connection, StmtName) when is_atom(StmtName) ->
-	execute(Connection, StmtName, []).
-	
 execute(Connection, Query, []) when is_list(Query); is_binary(Query) ->
 	Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
 	mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 	
 execute(Connection, StmtName, []) when is_atom(StmtName) ->
-	Packet = <<?COM_QUERY, "EXECUTE ", StmtName>>,
+	StmtNameBin = atom_to_binary(StmtName, utf8),
+	Packet = <<?COM_QUERY, "EXECUTE ", StmtNameBin/binary>>,
 	mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 	
 execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
@@ -64,7 +59,7 @@ execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) a
 execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 	case set_params(Connection, 1, Args, undefined) of
 		OK when is_record(OK, mysql_ok_packet) ->
-			ParamNamesBin = list_to_binary(string:join([[$@, I+48] || I <- lists:seq(1, length(Args))], ", ")),
+			ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
 			StmtNameBin = atom_to_binary(StmtName, utf8),
 			Packet = <<?COM_QUERY, "EXECUTE ", StmtNameBin/binary, " USING ", ParamNamesBin/binary>>,
 			mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);

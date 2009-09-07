@@ -26,7 +26,7 @@
 -behaviour(application).
 
 -export([start/2, stop/1, init/1, modules/0]).
--export([prepare/2, execute/2, execute/3]).
+-export([prepare/2, execute/2, execute/3, execute/4]).
 
 -include("emysql.hrl").
 
@@ -54,21 +54,43 @@ prepare(Name, Statement) when is_atom(Name) andalso (is_list(Statement) orelse i
 	  end || Connection <- Pool#pool.connections] || Pool <- Pools],
 	ok.
 	
-%% @spec execute(PoolId, Query) -> Result
-%%		 PoolId = atom()
-%%		 Query = binary() | string()
-%%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
-	execute(PoolId, Query, mysql_tcp:timeout()).
+	execute(PoolId, Query, []);
 	
-%% @spec execute(PoolId, Query, Timeout) -> Result
+execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
+	execute(PoolId, StmtName, []).
+		
+execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
+	execute(PoolId, Query, Args, mysql_tcp:timeout());
+	
+execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
+	execute(PoolId, StmtName, Args, mysql_tcp:timeout());
+	
+execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
+	execute(PoolId, Query, [], Timeout);
+	
+execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_integer(Timeout) ->
+	execute(PoolId, StmtName, [], Timeout).
+
+%% @spec execute(PoolId, Query, Args, Timeout) -> Result
 %%		 PoolId = atom()
 %%		 Query = binary() | string()
+%%		 Args = [any()]
+%%		 Timeout = integer() (millisecond query timeout)
+%%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()	
+execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+	Connection = mysql_conn_mgr:lock_connection(PoolId),
+	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query, Args]});
+	
+%% @spec execute(PoolId, StmtName, Args, Timeout) -> Result
+%%		 PoolId = atom()
+%%		 StmtName = atom()
+%%		 Args = [any()]
 %%		 Timeout = integer() (millisecond query timeout)
 %%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()
-execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
+execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	Connection = mysql_conn_mgr:lock_connection(PoolId),
-	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query]}).
+	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, StmtName, Args]}).
 	
 %%--------------------------------------------------------------------
 %%% Internal functions

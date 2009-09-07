@@ -42,19 +42,19 @@ recv_packet(Sock) ->
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
-	error_logger:info_msg("recv'd ok packet: ~p~n", [Rest]),
+	error_logger:debug_msg("recv'd ok packet: ~p~n", [Rest]),
 	{AffectedRows, Rest1} = mysql_util:length_coded_binary(Rest),
 	{InsertId, Rest2} = mysql_util:length_coded_binary(Rest1),
 	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
 	mysql_ok_packet:new(SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, binary_to_list(Msg));
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
-	error_logger:info_msg("recv'd error packet: ~p~n", [Rest]),
+	error_logger:debug_msg("recv'd error packet: ~p~n", [Rest]),
 	<<Code:16/little, _:1/binary, State:5/binary, Msg/binary>> = Rest,
 	mysql_error_packet:new(SeqNum, Code, binary_to_list(State), binary_to_list(Msg));
 	
 package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
-	error_logger:info_msg("recv'd result packet: ~p~n", [Data]),
+	error_logger:debug_msg("recv'd result packet: ~p~n", [Data]),
 	{FieldCount, Rest1} = mysql_util:length_coded_binary(Data),
 	{Extra, _} = mysql_util:length_coded_binary(Rest1),
 	{SeqNum1, FieldList} = recv_field_list(Sock, SeqNum+1),
@@ -120,6 +120,9 @@ decode_row_data(Bin, [Field|Rest], Acc) ->
 	{Data, Tail} = mysql_util:length_coded_string(Bin),
 	decode_row_data(Tail, Rest, [type_cast_row_data(Data, Field)|Acc]).
 
+type_cast_row_data(undefined, _) ->
+	undefined;
+	
 type_cast_row_data(Data, #field{type=Type}) 
 	when Type == ?FIELD_TYPE_VARCHAR;
 		 Type == ?FIELD_TYPE_TINY_BLOB;

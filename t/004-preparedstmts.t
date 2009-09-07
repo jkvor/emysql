@@ -31,5 +31,17 @@ main(_) ->
 	
 	etap:is(length((mysql:execute(test1, "SELECT * FROM foo")):rows()), 4, "correct number of rows were inserted"),
 	
+	etap:is(mysql:prepare(foo_all, "SELECT * FROM foo"), ok, "prepared statement"),
+	etap:is(mysql:prepare(foo_by_id_name, "SELECT * FROM foo WHERE id = ? and name like ?"), ok, "prepared statement"),
+	
+	etap:is(mysql:execute(test1, foo_all), mysql:execute(test1, foo_all, []), "statements with and without empty args list matches"),
+	etap:is(mysql:execute(test1, "SELECT * FROM foo"), mysql:execute(test1, "SELECT * FROM foo", []), "queries with and without empty args list matches"),
+	
+	etap:is(
+		mysql:execute(test1, foo_by_id_name, [1, "conn%"]), 
+		mysql:execute(test1, "SELECT * FROM foo WHERE id = 1 and name like 'conn%'"),
+		"statement and query with same args return matching results"
+	),
+	
 	etap:end_tests().
 	
