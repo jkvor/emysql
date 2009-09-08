@@ -56,12 +56,11 @@ waiting() ->
 	gen_server:call(?MODULE, waiting, infinity).
 		
 lock_connection(PoolId) when is_atom(PoolId) ->
-	do_gen_call({lock_connection, PoolId});
-
-lock_connection(Connection) when is_record(Connection, connection) ->
-	do_gen_call({lock_connection, Connection#connection.pool_id, Connection}).
+	do_gen_call({lock_connection, PoolId}).
 
 wait_for_connection(Arg) when is_atom(Arg); is_record(Arg, connection) ->
+	%% try to lock a connection. if no connections are available then
+	%% wait to be notified of the next available connection
 	case lock_connection(Arg) of
 		unavailable ->
 			gen_server:call(?MODULE, start_wait, infinity),
@@ -69,7 +68,15 @@ wait_for_connection(Arg) when is_atom(Arg); is_record(Arg, connection) ->
 				{connection, Connection} -> Connection
 			after 5000 ->
 				gen_server:call(?MODULE, cancel_wait, infinity),
-				exit(connection_lock_timeout)
+				%% in the case where a connection was unlocked and
+				%% sent to this pid AFTER it had timed out, but
+				%% BEFORE the cancellation took affect check once
+				%% more for the connection in the inbox
+				receive 
+					{connection, Connection} -> Connection 
+				after 0 ->
+					exit(connection_lock_timeout)
+				end
 			end;
 		Connection ->
 			Connection
@@ -81,6 +88,10 @@ unlock_connection(Connection) ->
 replace_connection(OldConn, NewConn) ->
 	do_gen_call({replace_connection, OldConn, NewConn}).
 
+%% the stateful loop functions of the gen_server never
+%% want to call exit/1 because it would crash the gen_server.
+%% instead we want to return error tuples and then throw
+%% the error once outside of the gen_server process
 do_gen_call(Msg) ->
 	case gen_server:call(?MODULE, Msg, infinity) of
 		{error, Reason} ->
@@ -139,18 +150,21 @@ handle_call(waiting, _From, State) ->
 	{reply, State#state.waiting, State};
 		
 handle_call(start_wait, {From, _Mref}, State) ->
+	%% place to calling pid at the end of the waiting queue
 	State1 = State#state{
 		waiting = queue:in(From, State#state.waiting)
 	},
 	{reply, ok, State1};
 	
 handle_call(cancel_wait, {From, _Mref}, State) ->
+	%% remove the calling pid from the queue
 	State1 = State#state{
 		waiting = queue:filter(fun(Pid) -> Pid =/= From end, State#state.waiting)
 	},
 	{reply, ok, State1};
 	
 handle_call({lock_connection, PoolId}, _From, State) ->
+	%% find the next available connection in the pool identified by PoolId
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
 		[Pool, OtherPools, Conn, OtherConns] ->
 			NewConn = Conn#connection{state=locked},
@@ -160,19 +174,11 @@ handle_call({lock_connection, PoolId}, _From, State) ->
 			{reply, Other, State}
 	end;
 	
-handle_call({lock_connection, _PoolId, Connection}, _From, State) ->
-	case find_connection_in_pool(State#state.pools, Connection) of
-		[Pool, OtherPools, Conn, OtherConns] ->
-			NewConn = Conn#connection{state=locked},
-			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
-			{reply, NewConn, State1};
-		Other ->
-			{reply, Other, State}		
-	end;
-	
 handle_call({unlock_connection, Connection}, _From, State) ->
+	%% check if any processes are waiting for a connection
 	case queue:is_empty(State#state.waiting) of
 		true ->
+			%% if not processes are waiting then unlock the connection
 			case find_connection_in_pool(State#state.pools, Connection) of
 				[Pool, OtherPools, Conn, OtherConns] ->
 					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available}|OtherConns]}|OtherPools]},
@@ -181,12 +187,27 @@ handle_call({unlock_connection, Connection}, _From, State) ->
 					{reply, Other, State}
 			end;
 		false ->
+			%% if the waiting queue is not empty then remove the head of
+			%% the queue and check if that process is still waiting
+			%% for a connection. If so, send the connection. Regardless,
+			%% update the queue in state once the head has been removed.
 			{{value, Pid}, Waiting} = queue:out(State#state.waiting),
-			erlang:send(Pid, {connection, Connection}),
+			case erlang:process_info(Pid, current_function) of
+				{current_function,{mysql_conn_mgr,wait_for_connection,1}} ->
+					erlang:send(Pid, {connection, Connection});
+				_ ->
+					ok
+			end,
 			{reply, ok, State#state{waiting = Waiting}}
 	end;
 
 handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
+	%% if an error occurs while doing work over a connection then
+	%% the connection must be closed and a new one created in its
+	%% place. The calling process is responsible for creating the
+	%% new connection, closing the old one and replacing it in state. 
+	%% This function expects a new, available connection to be 
+	%% passed in to serve as the replacement for the old one.
 	case find_connection_in_pool(State#state.pools, OldConn) of
 		[Pool, OtherPools, _Conn, OtherConns] ->
 			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
@@ -236,6 +257,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 initialize_pools() ->
+	%% if the emysql application values are not present in the config
+	%% file we will initialize and empty set of pools. Otherwise, the
+	%% values defined in the config are used to initialize the state.
 	case application:get_env(emysql, pools) of
 		undefined ->
 			[];
