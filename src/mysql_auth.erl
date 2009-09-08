@@ -50,7 +50,7 @@ recv_greeting(Sock) ->
 		    {Salt2, <<>>} = mysql_util:asciz(Rest6),
 			#greeting{
 				protocol_version = ProtocolVersion,
-				server_version = parse_server_version(ServerVersion),
+				server_version = ServerVersion,
 				thread_id = TreadID,
 				salt1 = Salt,
 				salt2 = Salt2,

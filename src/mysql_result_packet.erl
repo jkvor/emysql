@@ -61,7 +61,7 @@ zip() ->
 as_record(RecordName, Fields, Fun) when is_atom(RecordName), is_list(Fields), is_function(Fun) ->
 	{Lookup, _} = lists:mapfoldl(
 		fun(#field{name=Name}, Acc) ->
-			{{list_to_atom(Name), Acc}, Acc+1}
+			{{binary_to_atom(Name, utf8), Acc}, Acc+1}
 		end, 1, FieldList),
 	[begin
 		RecordData = [case proplists:get_value(Field, Lookup) of

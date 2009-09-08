@@ -9,6 +9,7 @@ main(_) ->
     etap:plan(unknown),
 	error_logger:tty(false),
 	application:start(crypto),
+	mysql_statements:start_link(),
 	mysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 
@@ -63,8 +64,8 @@ main(_) ->
 	etap:is(lists:nth(9, Row), {time,{12,12,12}}, "time matches"),
 	etap:is(lists:nth(10, Row), {datetime,{{2009,1,1},{12,12,12}}}, "datetime matches"),
 	etap:is(lists:nth(11, Row), 2009, "year matches"),
-	etap:is(lists:nth(12, Row), "asdf", "varchar matches"),
+	etap:is(lists:nth(12, Row), <<"asdf">>, "varchar matches"),
 	etap:is(lists:nth(13, Row), 1, "bit matches"),
-	etap:is(lists:nth(14, Row), "asdf", "blob matches"),
+	etap:is(lists:nth(14, Row), <<"asdf">>, "blob matches"),
 		
     etap:end_tests().

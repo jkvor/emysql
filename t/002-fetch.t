@@ -10,6 +10,7 @@ main(_) ->
     etap:plan(unknown),
 	error_logger:tty(false),
 	application:start(crypto),
+	mysql_statements:start_link(),
 	mysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 
@@ -29,21 +30,21 @@ main(_) ->
 
 	AllFoo = mysql:execute(test1, "SELECT * FROM foo"),
 	ExpectedRows = [
-	 [1,"abc1",undefined,0],
-	 [2,"abc2",undefined,0],
-	 [3,"abc3",undefined,0],
-	 [4,"abc4",undefined,0],
-	 [5,"abc5",undefined,0]
+		[1,<<"abc1">>,undefined,0],
+        [2,<<"abc2">>,undefined,0],
+        [3,<<"abc3">>,undefined,0],
+        [4,<<"abc4">>,undefined,0],
+        [5,<<"abc5">>,undefined,0]
 	],
 	etap:is(AllFoo:rows(), ExpectedRows, "row data matches"),
 
 	AllRecs = AllFoo:as_record(foo, record_info(fields, foo)),
 	ExpectedRecs = [
-	 {foo,undefined,"abc1",1},
-	 {foo,undefined,"abc2",2},
-	 {foo,undefined,"abc3",3},
-	 {foo,undefined,"abc4",4},
-	 {foo,undefined,"abc5",5}
+	 {foo,undefined,<<"abc1">>,1},
+	 {foo,undefined,<<"abc2">>,2},
+	 {foo,undefined,<<"abc3">>,3},
+	 {foo,undefined,<<"abc4">>,4},
+	 {foo,undefined,<<"abc5">>,5}
 	],
 	etap:is(AllRecs, ExpectedRecs, "record data matches"),
 	

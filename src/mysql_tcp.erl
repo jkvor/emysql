@@ -140,51 +140,51 @@ type_cast_row_data(Data, #field{type=Type})
 		 Type == ?FIELD_TYPE_LONGLONG;
 		 Type == ?FIELD_TYPE_INT24;
 		 Type == ?FIELD_TYPE_YEAR ->
-	list_to_integer(Data);
+	list_to_integer(binary_to_list(Data));
 	
 type_cast_row_data(Data, #field{type=Type, decimals=Decimals}) 
 	when Type == ?FIELD_TYPE_DECIMAL;
 		 Type == ?FIELD_TYPE_NEWDECIMAL ->
-	try_formats([lists:concat([[$~], Decimals, [$d]]), "~d"], Data);
+	try_formats([lists:concat([[$~], Decimals, [$d]]), "~d"], binary_to_list(Data));
 
 type_cast_row_data(Data, #field{type=Type, decimals=Decimals}) 
 	when Type == ?FIELD_TYPE_FLOAT;
 		 Type == ?FIELD_TYPE_DOUBLE ->
-	try_formats([lists:concat([[$~], Decimals, [$f]]), "~f", "~d"], Data);
+	try_formats([lists:concat([[$~], Decimals, [$f]]), "~f", "~d"], binary_to_list(Data));
 	
 type_cast_row_data(Data, #field{type=Type}) 
 	when Type == ?FIELD_TYPE_DATE ->
-	case io_lib:fread("~d-~d-~d", Data) of
+	case io_lib:fread("~d-~d-~d", binary_to_list(Data)) of
 		{ok, [Year, Month, Day], _} ->
 			{date, {Year, Month, Day}};
 		{error, _} ->
-			Data
+			binary_to_list(Data)
 	end;
 	
 type_cast_row_data(Data, #field{type=Type}) 
 	when Type == ?FIELD_TYPE_TIME ->
-	case io_lib:fread("~d:~d:~d", Data) of
+	case io_lib:fread("~d:~d:~d", binary_to_list(Data)) of
 		{ok, [Hour, Minute, Second], _} ->
 			{time, {Hour, Minute, Second}};
 		{error, _} ->
-			Data
+			binary_to_list(Data)
 	end;
 		
 type_cast_row_data(Data, #field{type=Type}) 
 	when Type == ?FIELD_TYPE_TIMESTAMP;
 		 Type == ?FIELD_TYPE_DATETIME ->
-	case io_lib:fread("~d-~d-~d ~d:~d:~d", Data) of
+	case io_lib:fread("~d-~d-~d ~d:~d:~d", binary_to_list(Data)) of
 		{ok, [Year, Month, Day, Hour, Minute, Second], _} ->
 			{datetime, {{Year, Month, Day}, {Hour, Minute, Second}}};
 		{error, _} ->
-			Data
+			binary_to_list(Data)
 	end;
 	
 type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_BIT ->
 	case Data of
-		[1] -> 1;
-		[0] -> 0
+		<<1>> -> 1;
+		<<0>> -> 0
 	end;
 			
 % ?FIELD_TYPE_NEWDATE

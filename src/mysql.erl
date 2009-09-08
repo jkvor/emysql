@@ -26,7 +26,7 @@
 -behaviour(application).
 
 -export([start/2, stop/1, init/1, modules/0]).
--export([prepare/2, execute/2, execute/3, execute/4]).
+-export([prepare/2, execute/2, execute/3, execute/4, execute/5]).
 
 -include("emysql.hrl").
 
@@ -37,22 +37,18 @@ stop(_) -> ok.
 
 init(_) ->
    {ok, {{one_for_one, 10, 10}, [
-       {mysql_conn_mgr, {mysql_conn_mgr, start_link, []}, permanent, 5000, worker, [mysql_conn_mgr]}
+		{mysql_statements, {mysql_statements, start_link, []}, permanent, 5000, worker, [mysql_statements]},
+		{mysql_conn_mgr, {mysql_conn_mgr, start_link, []}, permanent, 5000, worker, [mysql_conn_mgr]}
    ]}}.
 
 modules() ->
     {ok, Modules} = application_controller:get_key(emysql, modules), Modules.
 
-%% @spec prepare(Name, Statement) -> ok
-%%		 Name = atom()
+%% @spec prepare(StmtName, Statement) -> ok
+%%		 StmtName = atom()
 %%		 Statement = binary() | string()
-prepare(Name, Statement) when is_atom(Name) andalso (is_list(Statement) orelse is_binary(Statement)) ->
-	Pools = mysql_conn_mgr:add_statement(Name, Statement),
-	[[begin
-		Connection1 = mysql_conn_mgr:lock_connection(Connection),
-		monitor_work(Connection1, mysql_tcp:timeout(), {mysql_conn, prepare, [Connection1, Name, Statement]})
-	  end || Connection <- Pool#pool.connections] || Pool <- Pools],
-	ok.
+prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
+	mysql_statements:add(StmtName, Statement).
 	
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
@@ -79,7 +75,7 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %%		 Timeout = integer() (millisecond query timeout)
 %%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()	
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
-	Connection = mysql_conn_mgr:lock_connection(PoolId),
+	Connection = mysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query, Args]});
 	
 %% @spec execute(PoolId, StmtName, Args, Timeout) -> Result
@@ -89,12 +85,34 @@ execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Quer
 %%		 Timeout = integer() (millisecond query timeout)
 %%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()
 execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
-	Connection = mysql_conn_mgr:lock_connection(PoolId),
+	Connection = mysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, StmtName, Args]}).
+	
+%%
+%% NON-BLOCKING CONNECTION LOCKING
+%% non-blocking means the process will not attempt to wait in line
+%% until a connection is available. If no connections are available
+%% then the result of these functions will be the atom unavailable.
+%%
+execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+	case mysql_conn_mgr:lock_connection(PoolId) of
+		Connection when is_record(Connection, connection) ->
+			monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query, Args]});
+		Other ->
+			Other
+	end;
+
+execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
+	case mysql_conn_mgr:lock_connection(PoolId) of
+		Connection when is_record(Connection, connection) ->
+			monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, StmtName, Args]});
+		Other ->
+			Other
+	end.
 	
 %%--------------------------------------------------------------------
 %%% Internal functions
-%%--------------------------------------------------------------------
+%%--------------------------------------------------------------------	
 monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
 	Parent = self(),
 	Pid = spawn(
@@ -104,7 +122,7 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 	Mref = erlang:monitor(process, Pid),
 	receive
 		{'DOWN', Mref, process, Pid, Reason} ->
-			mysql_conn_mgr:reset_connection(Connection),
+			reset_connection(Connection),
 			exit(Reason);
 		{Pid, Result} ->
 			erlang:demonitor(Mref),
@@ -113,7 +131,22 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 			Result
 	after Timeout ->
 		erlang:demonitor(Mref),
-		mysql_conn_mgr:reset_connection(Connection),
+		reset_connection(Connection),
 		exit(mysql_timeout)
 	end;
 monitor_work(Reason, _, _) -> Reason.
+
+reset_connection(Conn) ->
+	Pools = mysql_conn_mgr:pools(),
+	%% DEALLOCATE PREPARED STATEMENTS
+	[(catch mysql_conn:unprepare(Conn, Name)) || Name <- mysql_statements:remove(Conn#connection.id)],
+	%% CLOSE SOCKET
+	gen_tcp:close(Conn#connection.socket),
+	%% OPEN NEW SOCKET
+	case mysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
+		{Pool, _} ->
+			NewConn = mysql_conn_mgr:open_connection(Pool),
+			mysql_conn_mgr:replace_connection(Conn, NewConn);
+		undefined ->
+			exit(pool_not_found)
+	end.	

@@ -51,9 +51,8 @@ length_coded_string(Bin) ->
 		{Length, Rest} ->
 		    case Rest of
 		        <<String:Length/binary, Rest1/binary>> -> 
-					{binary_to_list(String), Rest1};
-		        Bad -> 
-					error_logger:error_msg("rest ~p, ~p~n", [Length, Bad]),
+					{String, Rest1};
+		        _ -> 
 					exit(poorly_formatted_length_coded_string)
 		    end
 	end.

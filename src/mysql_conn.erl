@@ -42,6 +42,7 @@ execute(Connection, Query, []) when is_list(Query); is_binary(Query) ->
 	mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 	
 execute(Connection, StmtName, []) when is_atom(StmtName) ->
+	prepare_statement(Connection, StmtName),
 	StmtNameBin = atom_to_binary(StmtName, utf8),
 	Packet = <<?COM_QUERY, "EXECUTE ", StmtNameBin/binary>>,
 	mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
@@ -57,6 +58,7 @@ execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) a
 	end;
 
 execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
+	prepare_statement(Connection, StmtName),
 	case set_params(Connection, 1, Args, undefined) of
 		OK when is_record(OK, mysql_ok_packet) ->
 			ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
@@ -87,3 +89,16 @@ set_params(Connection, Num, [Val|Tail], _) ->
 	Result = mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0),
 	set_params(Connection, Num+1, Tail, Result).
 
+prepare_statement(Connection, StmtName) ->
+	case mysql_statements:fetch(StmtName) of
+		undefined ->
+			exit(statement_has_not_been_prepared);
+		{Version, Statement} ->
+			case mysql_statements:version(Connection#connection.id, StmtName) of
+				Version ->
+					ok;
+				_ ->
+					prepare(Connection, StmtName, Statement),
+					mysql_statements:prepare(Connection#connection.id, StmtName, Version)
+			end
+	end.

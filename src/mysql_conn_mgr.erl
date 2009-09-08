@@ -28,11 +28,13 @@
 -export([start_link/0, start_link/8, init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([info/0, add_statement/2, lock_connection/1, unlock_connection/1, reset_connection/1]).
-
--export([lock_connection_callback/3, unlock_connection_callback/3, reset_connection_callback/3]).
+-export([pools/0, waiting/0, lock_connection/1, wait_for_connection/1, 
+		 unlock_connection/1, replace_connection/2, find_pool/3, 
+		 open_connection/1]).
 
 -include("emysql.hrl").
+
+-record(state, {pools, waiting=queue:new()}).
 
 %%====================================================================
 %% API
@@ -47,23 +49,37 @@ start_link() ->
 start_link(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [PoolId, Size, User, Password, Host, Port, Database, Encoding], []).
 	
-info() ->
-	gen_server:call(?MODULE, info, infinity).
-	
-add_statement(Name, Statement) ->
-	do_gen_call({add_statement, Name, Statement}).
-	
+pools() ->
+	gen_server:call(?MODULE, pools, infinity).
+
+waiting() ->
+	gen_server:call(?MODULE, waiting, infinity).
+		
 lock_connection(PoolId) when is_atom(PoolId) ->
 	do_gen_call({lock_connection, PoolId});
 
 lock_connection(Connection) when is_record(Connection, connection) ->
 	do_gen_call({lock_connection, Connection#connection.pool_id, Connection}).
+
+wait_for_connection(Arg) when is_atom(Arg); is_record(Arg, connection) ->
+	case lock_connection(Arg) of
+		unavailable ->
+			gen_server:call(?MODULE, start_wait, infinity),
+			receive
+				{connection, Connection} -> Connection
+			after 5000 ->
+				gen_server:call(?MODULE, cancel_wait, infinity),
+				exit(connection_lock_timeout)
+			end;
+		Connection ->
+			Connection
+	end.
 	
 unlock_connection(Connection) ->
 	do_gen_call({unlock_connection, Connection}).
 	
-reset_connection(Connection) ->
-	do_gen_call({reset_connection, Connection}).
+replace_connection(OldConn, NewConn) ->
+	do_gen_call({replace_connection, OldConn, NewConn}).
 
 do_gen_call(Msg) ->
 	case gen_server:call(?MODULE, Msg, infinity) of
@@ -86,30 +102,26 @@ do_gen_call(Msg) ->
 %%--------------------------------------------------------------------
 init([]) ->
 	Pools = initialize_pools(),
-	State = #state{
-		pools = [open_connections(Pool) || Pool <- Pools]
-	},
-	{ok, State};
+	Pools1 = [open_connections(Pool) || Pool <- Pools],
+	{ok, #state{pools=Pools1}};
 	
 init([PoolId, Size, User, Password, Host, Port, Database, Encoding]) ->
-	State = #state{
-		pools = [
-			open_connections(
-				#pool{
-					pool_id = PoolId, 
-					size = Size,
-					user = User,
-					password = Password, 
-					host = Host, 
-					port = Port, 
-					database = Database, 
-					encoding = Encoding, 
-					connections=[]
-				}
-			)
-		]
-	},
-	{ok, State}.
+	Pools = [
+		open_connections(
+			#pool{
+				pool_id = PoolId, 
+				size = Size,
+				user = User,
+				password = Password, 
+				host = Host, 
+				port = Port, 
+				database = Database, 
+				encoding = Encoding, 
+				connections=[]
+			}
+		)
+	],
+	{ok, #state{pools=Pools}}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -120,29 +132,68 @@ init([PoolId, Size, User, Password, Host, Port, Database, Encoding]) ->
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
 %%--------------------------------------------------------------------
-handle_call(info, _From, State) ->
-	{reply, State, State};
+handle_call(pools, _From, State) ->
+	{reply, State#state.pools, State};
 	
-handle_call({add_statement, Name, Statement}, _From, #state{pools=Pools, statements=Statements}=State) ->
-	Statement1 = gb_trees:enter(Name, Statement, Statements),
-	State1 = State#state{statements=Statement1},
-	{reply, Pools, State1};
+handle_call(waiting, _From, State) ->
+	{reply, State#state.waiting, State};
+		
+handle_call(start_wait, {From, _Mref}, State) ->
+	State1 = State#state{
+		waiting = queue:in(From, State#state.waiting)
+	},
+	{reply, ok, State1};
+	
+handle_call(cancel_wait, {From, _Mref}, State) ->
+	State1 = State#state{
+		waiting = queue:filter(fun(Pid) -> Pid =/= From end, State#state.waiting)
+	},
+	{reply, ok, State1};
 	
 handle_call({lock_connection, PoolId}, _From, State) ->
-	{Result, State1} = apply_to_connection(State, #connection{pool_id=PoolId}, lock_connection_callback),
-	{reply, Result, State1};
+	case find_next_connection_in_pool(State#state.pools, PoolId) of
+		[Pool, OtherPools, Conn, OtherConns] ->
+			NewConn = Conn#connection{state=locked},
+			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
+			{reply, NewConn, State1};
+		Other ->
+			{reply, Other, State}
+	end;
 	
 handle_call({lock_connection, _PoolId, Connection}, _From, State) ->
-	{Result, State1} = apply_to_connection(State, Connection, lock_connection_callback),
-	{reply, Result, State1};
+	case find_connection_in_pool(State#state.pools, Connection) of
+		[Pool, OtherPools, Conn, OtherConns] ->
+			NewConn = Conn#connection{state=locked},
+			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
+			{reply, NewConn, State1};
+		Other ->
+			{reply, Other, State}		
+	end;
 	
 handle_call({unlock_connection, Connection}, _From, State) ->
-	{Result, State1} = apply_to_connection(State, Connection, unlock_connection_callback),
-	{reply, Result, State1};
-	
-handle_call({reset_connection, Connection}, _From, State) ->
-	{Result, State1} = apply_to_connection(State, Connection, reset_connection_callback),
-	{reply, Result, State1};
+	case queue:is_empty(State#state.waiting) of
+		true ->
+			case find_connection_in_pool(State#state.pools, Connection) of
+				[Pool, OtherPools, Conn, OtherConns] ->
+					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available}|OtherConns]}|OtherPools]},
+					{reply, ok, State1};
+				Other ->
+					{reply, Other, State}
+			end;
+		false ->
+			{{value, Pid}, Waiting} = queue:out(State#state.waiting),
+			erlang:send(Pid, {connection, Connection}),
+			{reply, ok, State#state{waiting = Waiting}}
+	end;
+
+handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
+	case find_connection_in_pool(State#state.pools, OldConn) of
+		[Pool, OtherPools, _Conn, OtherConns] ->
+			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
+			{reply, ok, State1};
+		Other ->
+			{reply, Other, State}	
+	end;
 	
 handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
 
@@ -260,54 +311,39 @@ find_next_available([Conn|Tail], Rest) ->
 find_next_available([], _) ->
 	undefined.
 
-apply_to_connection(State, Connection, Function) ->
-	case find_pool(Connection#connection.pool_id, State#state.pools, []) of
+find_connection_in_pool(Pools, Connection) ->
+	case find_pool(Connection#connection.pool_id, Pools, []) of
 		{Pool, OtherPools} ->
 			if
 				length(Pool#pool.connections) > 0 ->
-					case Connection#connection.id of
-						undefined when Function == lock_connection_callback ->
-							case find_next_available(Pool#pool.connections) of
-								undefined ->
-									{unavailable, State};
-								{Conn, OtherConns} ->
-									apply(?MODULE, Function, [State, {Pool, OtherPools}, {Conn, OtherConns}])
-							end;
-						ConnID ->
-							case find_connection(ConnID, Pool#pool.connections, []) of
-								{Conn, OtherConns} ->
-									apply(?MODULE, Function, [State, {Pool, OtherPools}, {Conn, OtherConns}]);
-								undefined ->
-									{{error, connection_not_found}, State}
-							end
+					case find_connection(Connection#connection.id, Pool#pool.connections, []) of
+						{Conn, OtherConns} ->
+							[Pool, OtherPools, Conn, OtherConns];
+						undefined ->
+							{error, connection_not_found}
 					end;
 				true ->
-					{{error, connection_pool_is_empty}, State}
+					{error, connection_pool_is_empty}
 			end;
 		undefined ->
-			{{error, pool_not_found}, State}
+			{error, pool_not_found}
 	end.
-	
-lock_connection_callback(State, {Pool, OtherPools}, {Conn, OtherCons}) ->
-	case Conn#connection.state of
-		available ->
-			NewConn = Conn#connection{state=locked},
-			new_connection_value(State, {Pool, OtherPools}, {NewConn, OtherCons});
-		locked ->
-			{unavailable, State}
-	end.
-	
-unlock_connection_callback(State, {Pool, OtherPools}, {Conn, OtherCons}) -> 
-	new_connection_value(State, {Pool, OtherPools}, {Conn#connection{state = available}, OtherCons}).
 
-reset_connection_callback(State, {Pool, OtherPools}, {Conn, OtherCons}) ->
-	%% DEALLOCATE PREPARED STATEMENTS
-	[(catch mysql_conn:unprepare(Conn, Name)) || {Name, _} <- gb_trees:to_list(State#state.statements)],
-	%% CLOSE SOCKET
-	gen_tcp:close(Conn#connection.socket),
-	%% OPEN NEW SOCKET
-	NewCon = open_connection(Pool),
-	new_connection_value(State, {Pool, OtherPools}, {NewCon, OtherCons}).
-		
-new_connection_value(State, {Pool, OtherPools}, {Conn, OtherCons}) ->
-	{Conn, State#state{pools = [Pool#pool{connections = [Conn|OtherCons]}|OtherPools]}}.
+find_next_connection_in_pool(Pools, PoolId) ->
+	case find_pool(PoolId, Pools, []) of
+		{Pool, OtherPools} ->
+			if
+				length(Pool#pool.connections) > 0 ->
+					case find_next_available(Pool#pool.connections) of
+						undefined ->
+							unavailable;
+						{Conn, OtherConns} ->
+							[Pool, OtherPools, Conn, OtherConns]
+					end;
+				true ->
+					{error, connection_pool_is_empty}
+			end;
+		undefined ->
+			{error, pool_not_found}
+	end.
+	

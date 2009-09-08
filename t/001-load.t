@@ -38,7 +38,7 @@ main(_) ->
 	
 	%% CHECK INITIAL STATE FOR CORRECT POOL AND CONNECTION RECORDS
 	(fun() ->
-		#state{pools=Pools} = mysql_conn_mgr:info(),
+		Pools = mysql_conn_mgr:pools(),
 		etap:is(length(Pools), 2, "state contains correct number of pools"),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		{value, Pool2} = lists:keysearch(test2, 2, Pools),
@@ -52,7 +52,7 @@ main(_) ->
 	
 	(fun() ->
 		Conn1 = mysql_conn_mgr:lock_connection(test1),
-		#state{pools=Pools} = mysql_conn_mgr:info(),
+		Pools = mysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		[if
 			C =:= Conn1 ->
@@ -65,7 +65,7 @@ main(_) ->
 	
 	(fun() ->
 		Conn2 = mysql_conn_mgr:lock_connection(test1),
-		#state{pools=Pools} = mysql_conn_mgr:info(),
+		Pools = mysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		[etap:is(C#connection.state, locked, "connection is locked") || C <- Pool1#pool.connections],
 		etap:is(mysql_conn_mgr:lock_connection(test1), unavailable, "all connections are locked"),
