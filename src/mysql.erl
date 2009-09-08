@@ -114,6 +114,8 @@ execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_a
 %%% Internal functions
 %%--------------------------------------------------------------------	
 monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
+	%% spawn a new process to do work, then monitor that process until
+	%% it either dies, returns data or times out.
 	Parent = self(),
 	Pid = spawn(
 		fun() ->
@@ -122,14 +124,21 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 	Mref = erlang:monitor(process, Pid),
 	receive
 		{'DOWN', Mref, process, Pid, Reason} ->
+			%% if the process dies, reset the connection
+			%% and re-throw the error on the current pid
 			reset_connection(Connection),
 			exit(Reason);
 		{Pid, Result} ->
+			%% if the process returns data, unlock the
+			%% connection and collect the normal 'DOWN'
+			%% message send from the child process
 			erlang:demonitor(Mref),
 			mysql_conn_mgr:unlock_connection(Connection),
 			receive {'DOWN', Mref, process, Pid, normal} -> ok after 0 -> ok end,
 			Result
 	after Timeout ->
+		%% if we timeout waiting for the process to return,
+		%% then reset the connection and throw a timeout error
 		erlang:demonitor(Mref),
 		reset_connection(Connection),
 		exit(mysql_timeout)
@@ -137,6 +146,10 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 monitor_work(Reason, _, _) -> Reason.
 
 reset_connection(Conn) ->
+	%% if a process dies or times out while doing work
+	%% the socket must be closed and the connection reset
+	%% in the conn_mgr state. Also a new connection needs
+	%% to be opened to replace the old one.
 	Pools = mysql_conn_mgr:pools(),
 	%% DEALLOCATE PREPARED STATEMENTS
 	[(catch mysql_conn:unprepare(Conn, Name)) || Name <- mysql_statements:remove(Conn#connection.id)],
