@@ -28,9 +28,9 @@
 -export([start_link/0, start_link/8, init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([pools/0, waiting/0, lock_connection/1, wait_for_connection/1, 
-		 unlock_connection/1, replace_connection/2, find_pool/3, 
-		 open_connection/1]).
+-export([pools/0, waiting/0, add_connections/2, remove_connections/2,
+         lock_connection/1, wait_for_connection/1, 
+		 unlock_connection/1, replace_connection/2, find_pool/3]).
 
 -include("emysql.hrl").
 
@@ -54,7 +54,13 @@ pools() ->
 
 waiting() ->
 	gen_server:call(?MODULE, waiting, infinity).
+	
+add_connections(PoolId, Conns) when is_atom(PoolId), is_list(Conns) ->
+	do_gen_call({add_connections, PoolId, Conns}).
 		
+remove_connections(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+	do_gen_call({remove_connections, PoolId, Num}).
+	
 lock_connection(PoolId) when is_atom(PoolId) ->
 	do_gen_call({lock_connection, PoolId}).
 
@@ -149,6 +155,34 @@ handle_call(pools, _From, State) ->
 handle_call(waiting, _From, State) ->
 	{reply, State#state.waiting, State};
 		
+handle_call({add_connections, PoolId, Conns}, _From, State) ->
+	case find_pool(PoolId, State#state.pools, []) of
+		{Pool, OtherPools} ->
+			OtherConns = Pool#pool.connections,
+			State1 = State#state{
+				pools = [Pool#pool{connections = lists:append(Conns, OtherConns)}|OtherPools]
+			},
+			{reply, ok, State1};
+		undefined ->
+			{reply, {error, pool_not_found}, State}
+	end;
+
+handle_call({remove_connections, PoolId, Num}, _From, State) ->
+	case find_pool(PoolId, State#state.pools, []) of
+		{Pool, OtherPools} ->
+			if
+				Num > length(Pool#pool.connections) ->
+					State1 = State#state{pools = [Pool#pool{connections = []}]},
+					{reply, Pool#pool.connections, State1};
+				true ->
+					{Conns, OtherConns} = lists:split(Num, Pool#pool.connections),
+					State1 = State#state{pools = [Pool#pool{connections = OtherConns}|OtherPools]},
+					{reply, Conns, State1}
+			end;
+		undefined ->
+			{reply, {error, pool_not_found}, State}
+	end;
+
 handle_call(start_wait, {From, _Mref}, State) ->
 	%% place to calling pid at the end of the waiting queue
 	State1 = State#state{
@@ -280,32 +314,12 @@ initialize_pools() ->
 	end.
 
 open_connections(#pool{connections=Conns}=Pool) when Pool#pool.size > 0, length(Conns) < Pool#pool.size ->
-	Conn = open_connection(Pool),
+	Conn = mysql_conn:open_connection(Pool),
 	open_connections(Pool#pool{
 		connections = [Conn|Conns]
 	});	
 open_connections(Pool) ->
 	Pool.
-	
-open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
-	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
-		{ok, Sock} ->
-			Greeting = mysql_auth:do_handshake(Sock, User, Password),
-			Connection = #connection{
-				id = erlang:port_to_list(Sock),
-				pool_id = PoolId,
-				socket = Sock,
-				version = Greeting#greeting.server_version,
-				thread_id = Greeting#greeting.thread_id,
-				caps = Greeting#greeting.caps,
-				language = Greeting#greeting.language
-			},
-			mysql_conn:set_database(Connection, Database),
-			mysql_conn:set_encoding(Connection, Encoding),
-			Connection;
-		{error, Reason} ->
-			exit({failed_to_connect_to_database, Reason})
-	end.
 	
 find_pool(_, [], _) -> undefined;
 

@@ -90,5 +90,12 @@ main(_) ->
 	]),	
 	application:start(emysql),
 	etap:is((catch mysql_conn_mgr:lock_connection(test1)), {'EXIT', connection_pool_is_empty}, "connection_pool_is_empty error returned successfully"),
-
+		
+	etap:is(mysql:increment_pool_size(test1, 5), ok, "increment pool size"),
+	etap:is(length((hd(mysql_conn_mgr:pools()))#pool.connections), 5, "correct number of connections are open"),
+	etap:is(mysql:decrement_pool_size(test1, 3), ok, "decrement pool size"),
+	etap:is(length((hd(mysql_conn_mgr:pools()))#pool.connections), 2, "correct number of connections are open"),
+	etap:is(mysql:decrement_pool_size(test1, 100), ok, "decrement pool size"),
+	etap:is(length((hd(mysql_conn_mgr:pools()))#pool.connections), 0, "correct number of connections are open"),
+	
     etap:end_tests().

@@ -25,6 +25,8 @@
 -module(mysql_conn).
 -export([set_database/2, set_encoding/2]).
 -export([execute/3, prepare/3, unprepare/2]).
+-export([open_connection/1, reset_connection/2, close_connection/1]).
+-export([open_n_connections/2]).
 
 -include("emysql.hrl").
 
@@ -76,6 +78,56 @@ prepare(Connection, Name, Statement) ->
 unprepare(Connection, Name) ->
 	Packet = <<?COM_QUERY, "DEALLOCATE PREPARE ", (atom_to_binary(Name, utf8))/binary>>,
 	mysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
+
+open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
+	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
+		{ok, Sock} ->
+			Greeting = mysql_auth:do_handshake(Sock, User, Password),
+			Connection = #connection{
+				id = erlang:port_to_list(Sock),
+				pool_id = PoolId,
+				socket = Sock,
+				version = Greeting#greeting.server_version,
+				thread_id = Greeting#greeting.thread_id,
+				caps = Greeting#greeting.caps,
+				language = Greeting#greeting.language
+			},
+			mysql_conn:set_database(Connection, Database),
+			mysql_conn:set_encoding(Connection, Encoding),
+			Connection;
+		{error, Reason} ->
+			exit({failed_to_connect_to_database, Reason})
+	end.
+	
+reset_connection(Pools, Conn) ->
+	%% if a process dies or times out while doing work
+	%% the socket must be closed and the connection reset
+	%% in the conn_mgr state. Also a new connection needs
+	%% to be opened to replace the old one.
+	close_connection(Conn),
+	%% OPEN NEW SOCKET
+	case mysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
+		{Pool, _} ->
+			NewConn = open_connection(Pool),
+			mysql_conn_mgr:replace_connection(Conn, NewConn);
+		undefined ->
+			exit(pool_not_found)
+	end.
+
+close_connection(Conn) ->
+	%% DEALLOCATE PREPARED STATEMENTS
+	[(catch unprepare(Conn, Name)) || Name <- mysql_statements:remove(Conn#connection.id)],
+	%% CLOSE SOCKET
+	gen_tcp:close(Conn#connection.socket),
+	ok.
+	
+open_n_connections(PoolId, N) ->
+	case mysql_conn_mgr:find_pool(PoolId, mysql_conn_mgr:pools(), []) of
+		{Pool, _} ->
+			[open_connection(Pool) || _ <- lists:seq(1, N)];
+		_ ->
+			exit(pool_not_found)
+	end.
 	
 %%--------------------------------------------------------------------
 %%% Internal functions

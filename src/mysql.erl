@@ -26,7 +26,8 @@
 -behaviour(application).
 
 -export([start/2, stop/1, init/1, modules/0]).
--export([prepare/2, execute/2, execute/3, execute/4, execute/5]).
+-export([prepare/2, increment_pool_size/2, decrement_pool_size/2, 
+ 	     execute/2, execute/3, execute/4, execute/5]).
 
 -include("emysql.hrl").
 
@@ -49,6 +50,15 @@ modules() ->
 %%		 Statement = binary() | string()
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
 	mysql_statements:add(StmtName, Statement).
+	
+increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+	Conns = mysql_conn:open_n_connections(PoolId, Num),
+	mysql_conn_mgr:add_connections(PoolId, Conns).
+	
+decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+	Conns = mysql_conn_mgr:remove_connections(PoolId, Num),
+	[mysql_conn:close_connection(Conn) || Conn <- Conns],
+	ok.
 	
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
@@ -126,7 +136,7 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		{'DOWN', Mref, process, Pid, Reason} ->
 			%% if the process dies, reset the connection
 			%% and re-throw the error on the current pid
-			reset_connection(Connection),
+			mysql_conn:reset_connection(mysql_conn_mgr:pools(), Connection),
 			exit(Reason);
 		{Pid, Result} ->
 			%% if the process returns data, unlock the
@@ -140,26 +150,7 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		%% if we timeout waiting for the process to return,
 		%% then reset the connection and throw a timeout error
 		erlang:demonitor(Mref),
-		reset_connection(Connection),
+		mysql_conn:reset_connection(mysql_conn_mgr:pools(), Connection),
 		exit(mysql_timeout)
 	end;
 monitor_work(Reason, _, _) -> Reason.
-
-reset_connection(Conn) ->
-	%% if a process dies or times out while doing work
-	%% the socket must be closed and the connection reset
-	%% in the conn_mgr state. Also a new connection needs
-	%% to be opened to replace the old one.
-	Pools = mysql_conn_mgr:pools(),
-	%% DEALLOCATE PREPARED STATEMENTS
-	[(catch mysql_conn:unprepare(Conn, Name)) || Name <- mysql_statements:remove(Conn#connection.id)],
-	%% CLOSE SOCKET
-	gen_tcp:close(Conn#connection.socket),
-	%% OPEN NEW SOCKET
-	case mysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
-		{Pool, _} ->
-			NewConn = mysql_conn_mgr:open_connection(Pool),
-			mysql_conn_mgr:replace_connection(Conn, NewConn);
-		undefined ->
-			exit(pool_not_found)
-	end.	
