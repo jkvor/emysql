@@ -22,7 +22,7 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql_auth).
+-module(emysql_auth).
 -export([do_handshake/3]).
 -compile(export_all).
 
@@ -31,26 +31,26 @@
 do_handshake(Sock, User, Password) ->
 	Greeting = recv_greeting(Sock),
 	case auth(Sock, Greeting#greeting.seq_num+1, User, Password, Greeting#greeting.salt1, Greeting#greeting.salt2) of
-		OK when is_record(OK, mysql_ok_packet) ->
+		OK when is_record(OK, ok_packet) ->
 			ok;
-		Err when is_record(Err, mysql_error_packet) ->
+		Err when is_record(Err, error_packet) ->
 			exit({failed_to_authenticate, Err})
 	end,
 	Greeting.
 
 recv_greeting(Sock) ->
-	GreetingPacket = mysql_tcp:recv_packet(Sock),
+	GreetingPacket = emysql_tcp:recv_packet(Sock),
 	case GreetingPacket#packet.data of
 		<<255, _/binary>> ->
-			Error = mysql_tcp:package_server_response(Sock, GreetingPacket),
+			Error = emysql_tcp:package_server_response(Sock, GreetingPacket),
 			exit({Error:code(), Error:msg()});
 		<<ProtocolVersion:8/integer, Rest1/binary>> ->
-			{ServerVersion, Rest2} = mysql_util:asciz(Rest1),
+			{ServerVersion, Rest2} = emysql_util:asciz(Rest1),
 		    <<TreadID:32/little, Rest3/binary>> = Rest2,
-		    {Salt, Rest4} = mysql_util:asciz(Rest3),
+		    {Salt, Rest4} = emysql_util:asciz(Rest3),
 		    <<ServerCaps:16/little, Rest5/binary>> = Rest4,
 		    <<ServerLanguage:8/little, ServerStatus:16/little, _:13/binary-unit:8, Rest6/binary>> = Rest5,
-		    {Salt2, <<>>} = mysql_util:asciz(Rest6),
+		    {Salt2, <<>>} = emysql_util:asciz(Rest6),
 			#greeting{
 				protocol_version = ProtocolVersion,
 				server_version = ServerVersion,
@@ -80,11 +80,11 @@ auth(Sock, SeqNum, User, Password, Salt1, Salt2) ->
     Caps = ?LONG_PASSWORD bor ?LONG_FLAG bor ?TRANSACTIONS bor
         ?CLIENT_MULTI_STATEMENTS bor ?CLIENT_MULTI_RESULTS bor 
         ?PROTOCOL_41 bor ?SECURE_CONNECTION bor DBCaps,
-    Maxsize = mysql_tcp:packet_size(),
+    Maxsize = emysql_tcp:packet_size(),
     UserB = list_to_binary(User),
     PasswordL = size(ScrambleBuff),
     Packet = <<Caps:32/little, Maxsize:32/little, 8:8, 0:23/integer-unit:8, UserB/binary, 0:8, PasswordL:8, ScrambleBuff/binary, DatabaseB/binary>>,
-	mysql_tcp:send_and_recv_packet(Sock, Packet, SeqNum).
+	emysql_tcp:send_and_recv_packet(Sock, Packet, SeqNum).
 	
 password(Password, Salt) ->
     Stage1 = crypto:sha(Password),
@@ -95,4 +95,4 @@ password(Password, Salt) ->
             Stage2
         )
     ),
-    mysql_util:bxor_binary(Res, Stage1).
+    emysql_util:bxor_binary(Res, Stage1).

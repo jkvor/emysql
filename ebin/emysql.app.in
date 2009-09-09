@@ -10,7 +10,7 @@ cat > ebin/emysql.app << EOF
     {modules, [
 ${MODULES}
     ]},
-	{mod, {mysql, []}},
+	{mod, {emysql, []}},
     {registered, []},
     {applications, [kernel, stdlib, crypto]}
 ]}.

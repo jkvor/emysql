@@ -1,4 +1,4 @@
 -define(DROP_TABLES(PoolId), begin
-	ShowTables = mysql:execute(PoolId, "SHOW TABLES"),
-	[mysql:execute(PoolId, "DROP TABLE " ++ Table) || [Table] <- ShowTables:rows()]
+	ShowTables = emysql:execute(PoolId, "SHOW TABLES"),
+	[emysql:execute(PoolId, <<"DROP TABLE `", Table/binary, "`">>) || [Table] <- ShowTables:rows()]
 end).

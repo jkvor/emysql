@@ -9,8 +9,8 @@ main(_) ->
     etap:plan(unknown),
 	error_logger:tty(false),
 	application:start(crypto),
-	mysql_statements:start_link(),
-	mysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+	emysql_statements:start_link(),
+	emysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 
 	TblDef = "CREATE TABLE foo (
@@ -28,8 +28,8 @@ main(_) ->
 		foo_varchar VARCHAR(255),
 		foo_bit BIT,
 		foo_blob BLOB )",
-	Foo = mysql:execute(test1, TblDef),
-	etap:is(is_record(Foo, mysql_ok_packet), true, "create table ok"),
+	Foo = emysql:execute(test1, TblDef),
+	etap:is(is_record(Foo, ok_packet), true, "create table ok"),
 	
 	FooInsert = "INSERT INTO foo VALUES (
 		1.0,
@@ -47,10 +47,10 @@ main(_) ->
 		true,
 		'asdf'
 	)",
-	Insert = mysql:execute(test1, FooInsert),
-	etap:is(is_record(Insert, mysql_ok_packet), true, "insert data ok"),
+	Insert = emysql:execute(test1, FooInsert),
+	etap:is(is_record(Insert, ok_packet), true, "insert data ok"),
 
-	Select = mysql:execute(test1, "SELECT * FROM foo"),
+	Select = emysql:execute(test1, "SELECT * FROM foo"),
 	[Row] = Select:rows(),
 	
 	etap:is(lists:nth(1, Row), 1, "decimal matches"),

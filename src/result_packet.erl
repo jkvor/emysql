@@ -22,7 +22,7 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql_result_packet, [SeqNum, FieldList, Rows, Extra]).
+-module(result_packet, [SeqNum, FieldList, Rows, Extra]).
 -export([field_list/0, field_names/0, rows/0, zip/0, zip/1, as_record/2, as_record/3]).
 -include("emysql.hrl").
 
@@ -56,7 +56,7 @@ zip() ->
 %% -module(fetch_example).
 %%
 %% fetch_foo() ->
-%%	  Res = mysql:execute(pool1, "select * from foo"),
+%%	  Res = emysql:execute(pool1, "select * from foo"),
 %%	  Res:as_record(foo, record_info(fields, foo)).	
 as_record(RecordName, Fields, Fun) when is_atom(RecordName), is_list(Fields), is_function(Fun) ->
 	{Lookup, _} = lists:mapfoldl(

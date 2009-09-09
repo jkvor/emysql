@@ -10,7 +10,7 @@ main(_) ->
 	etap_application:load_ok(crypto, "Application 'crypto' loaded"),
 	etap_application:load_ok(emysql, "Application 'emysql' loaded"),
 	
-	[etap_can:loaded_ok(Module, lists:concat(["Module '", Module, "' loaded."])) || Module <- mysql:modules()],
+	[etap_can:loaded_ok(Module, lists:concat(["Module '", Module, "' loaded."])) || Module <- emysql:modules()],
 
 	application:set_env(emysql, pools, [
 		{test1, [
@@ -38,7 +38,7 @@ main(_) ->
 	
 	%% CHECK INITIAL STATE FOR CORRECT POOL AND CONNECTION RECORDS
 	(fun() ->
-		Pools = mysql_conn_mgr:pools(),
+		Pools = emysql_conn_mgr:pools(),
 		etap:is(length(Pools), 2, "state contains correct number of pools"),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		{value, Pool2} = lists:keysearch(test2, 2, Pools),
@@ -51,8 +51,8 @@ main(_) ->
 	 end)(),
 	
 	(fun() ->
-		Conn1 = mysql_conn_mgr:lock_connection(test1),
-		Pools = mysql_conn_mgr:pools(),
+		Conn1 = emysql_conn_mgr:lock_connection(test1),
+		Pools = emysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		[if
 			C =:= Conn1 ->
@@ -64,16 +64,16 @@ main(_) ->
 	 end)(),
 	
 	(fun() ->
-		Conn2 = mysql_conn_mgr:lock_connection(test1),
-		Pools = mysql_conn_mgr:pools(),
+		Conn2 = emysql_conn_mgr:lock_connection(test1),
+		Pools = emysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		[etap:is(C#connection.state, locked, "connection is locked") || C <- Pool1#pool.connections],
-		etap:is(mysql_conn_mgr:lock_connection(test1), unavailable, "all connections are locked"),
+		etap:is(emysql_conn_mgr:lock_connection(test1), unavailable, "all connections are locked"),
 		ok
 	 end)(),
 
-	etap:is((catch mysql_conn_mgr:lock_connection(undefined)), {'EXIT', pool_not_found}, "pool_not_found error returned successfully"),
-	etap:is((catch mysql_conn_mgr:unlock_connection(#connection{pool_id=test1})), {'EXIT', connection_not_found}, "connection_not_found error returned successfully"),
+	etap:is((catch emysql_conn_mgr:lock_connection(undefined)), {'EXIT', pool_not_found}, "pool_not_found error returned successfully"),
+	etap:is((catch emysql_conn_mgr:unlock_connection(#connection{pool_id=test1})), {'EXIT', connection_not_found}, "connection_not_found error returned successfully"),
 		
 	application:stop(emysql),
 	application:load(emysql),
@@ -89,13 +89,32 @@ main(_) ->
 		]}
 	]),	
 	application:start(emysql),
-	etap:is((catch mysql_conn_mgr:lock_connection(test1)), {'EXIT', connection_pool_is_empty}, "connection_pool_is_empty error returned successfully"),
+	etap:is((catch emysql_conn_mgr:lock_connection(test1)), {'EXIT', connection_pool_is_empty}, "connection_pool_is_empty error returned successfully"),
 		
-	etap:is(mysql:increment_pool_size(test1, 5), ok, "increment pool size"),
-	etap:is(length((hd(mysql_conn_mgr:pools()))#pool.connections), 5, "correct number of connections are open"),
-	etap:is(mysql:decrement_pool_size(test1, 3), ok, "decrement pool size"),
-	etap:is(length((hd(mysql_conn_mgr:pools()))#pool.connections), 2, "correct number of connections are open"),
-	etap:is(mysql:decrement_pool_size(test1, 100), ok, "decrement pool size"),
-	etap:is(length((hd(mysql_conn_mgr:pools()))#pool.connections), 0, "correct number of connections are open"),
+	(fun() ->
+		etap:is(emysql:increment_pool_size(test1, 5), ok, "increment pool size"),
+		etap:is(length((hd(emysql_conn_mgr:pools()))#pool.connections), 5, "correct number of connections are open"),
+		etap:is(emysql:decrement_pool_size(test1, 3), ok, "decrement pool size"),
+		etap:is(length((hd(emysql_conn_mgr:pools()))#pool.connections), 2, "correct number of connections are open"),
+		etap:is(emysql:decrement_pool_size(test1, 100), ok, "decrement pool size"),
+		etap:is(length((hd(emysql_conn_mgr:pools()))#pool.connections), 0, "correct number of connections are open"),
+		ok
+	 end)(),
+	
+	application:stop(emysql),
+	application:unload(emysql),
+	application:load(emysql),
+	application:start(emysql),	
+	
+	(fun() ->
+		etap:is(emysql_conn_mgr:pools(), [], "pools empty"),
+		emysql:add_pool(test2, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+		Conn = (catch emysql_conn_mgr:lock_connection(test2)),
+		etap:is(is_record(Conn, connection), true, "returned valid connection"),
+		etap:is(is_list(erlang:port_info(Conn#connection.socket)), true, "socket is open"),
+		etap:is(emysql:remove_pool(test2), ok, "removed pool successfully"),
+		etap:is(erlang:port_info(Conn#connection.socket), undefined, "socket has been closed"),
+		ok
+	 end)(),
 	
     etap:end_tests().

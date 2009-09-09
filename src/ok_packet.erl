@@ -22,7 +22,7 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql_ok_packet, [SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, Msg]).
+-module(ok_packet, [SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, Msg]).
 -export([msg/0, affected_rows/0, insert_id/0]).
 
 msg() -> Msg.

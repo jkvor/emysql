@@ -22,7 +22,7 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql_tcp).
+-module(emysql_tcp).
 -export([send_and_recv_packet/3, recv_packet/1, timeout/0, packet_size/0, package_server_response/2]).
 
 -include("emysql.hrl").
@@ -42,20 +42,20 @@ recv_packet(Sock) ->
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
 	%error_logger:debug_msg("recv'd ok packet: ~p~n", [Rest]),
-	{AffectedRows, Rest1} = mysql_util:length_coded_binary(Rest),
-	{InsertId, Rest2} = mysql_util:length_coded_binary(Rest1),
+	{AffectedRows, Rest1} = emysql_util:length_coded_binary(Rest),
+	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
 	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
-	mysql_ok_packet:new(SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, binary_to_list(Msg));
+	ok_packet:new(SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, binary_to_list(Msg));
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
 	%error_logger:debug_msg("recv'd error packet: ~p~n", [Rest]),
 	<<Code:16/little, Msg/binary>> = Rest,
-	mysql_error_packet:new(SeqNum, Code, binary_to_list(Msg));
+	error_packet:new(SeqNum, Code, binary_to_list(Msg));
 	
 package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 	%error_logger:debug_msg("recv'd result packet: ~p~n", [Data]),
-	{FieldCount, Rest1} = mysql_util:length_coded_binary(Data),
-	{Extra, _} = mysql_util:length_coded_binary(Rest1),
+	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
+	{Extra, _} = emysql_util:length_coded_binary(Rest1),
 	{SeqNum1, FieldList} = recv_field_list(Sock, SeqNum+1),
 	if
 		length(FieldList) =/= FieldCount ->
@@ -64,7 +64,7 @@ package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 			ok
 	end,
 	{SeqNum2, Rows} = recv_row_data(Sock, FieldList, SeqNum1+1),
-	mysql_result_packet:new(SeqNum2, FieldList, Rows, Extra).
+	result_packet:new(SeqNum2, FieldList, Rows, Extra).
 	
 recv_field_list(Sock, SeqNum) ->
 	recv_field_list(Sock, SeqNum, []).
@@ -74,15 +74,15 @@ recv_field_list(Sock, _SeqNum, Acc) ->
 		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} -> 
 			{SeqNum1, lists:reverse(Acc)};
 		#packet{seq_num = SeqNum1, data = Data} ->
-			{Catalog, Rest2} = mysql_util:length_coded_string(Data),
-			{Db, Rest3} = mysql_util:length_coded_string(Rest2),
-			{Table, Rest4} = mysql_util:length_coded_string(Rest3),
-			{OrgTable, Rest5} = mysql_util:length_coded_string(Rest4),
-			{Name, Rest6} = mysql_util:length_coded_string(Rest5),
-			{OrgName, Rest7} = mysql_util:length_coded_string(Rest6),
+			{Catalog, Rest2} = emysql_util:length_coded_string(Data),
+			{Db, Rest3} = emysql_util:length_coded_string(Rest2),
+			{Table, Rest4} = emysql_util:length_coded_string(Rest3),
+			{OrgTable, Rest5} = emysql_util:length_coded_string(Rest4),
+			{Name, Rest6} = emysql_util:length_coded_string(Rest5),
+			{OrgName, Rest7} = emysql_util:length_coded_string(Rest6),
 			<<_:1/binary, CharSetNr:16/little, Length:32/little, Rest8/binary>> = Rest7,
 			<<Type:8/little, Flags:16/little, Decimals:8/little, _:2/binary, Rest9/binary>> = Rest8,
-			{Default, _} = mysql_util:length_coded_binary(Rest9),
+			{Default, _} = emysql_util:length_coded_binary(Rest9),
 			Field = #field{
 				seq_num = SeqNum1,
 				catalog = Catalog,
@@ -116,7 +116,7 @@ recv_row_data(Sock, FieldList, _SeqNum, Acc) ->
 decode_row_data(<<>>, [], Acc) -> 
 	lists:reverse(Acc);	
 decode_row_data(Bin, [Field|Rest], Acc) ->
-	{Data, Tail} = mysql_util:length_coded_string(Bin),
+	{Data, Tail} = emysql_util:length_coded_string(Bin),
 	decode_row_data(Tail, Rest, [type_cast_row_data(Data, Field)|Acc]).
 
 type_cast_row_data(undefined, _) ->

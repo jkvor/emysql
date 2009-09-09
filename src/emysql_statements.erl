@@ -22,7 +22,7 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql_statements).
+-module(emysql_statements).
 -behaviour(gen_server).
 
 -export([start_link/0, init/1, handle_call/3, handle_cast/2]).

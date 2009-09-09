@@ -10,25 +10,25 @@ main(_) ->
     etap:plan(unknown),
 	error_logger:tty(false),
 	application:start(crypto),
-	mysql_statements:start_link(),
-	mysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+	emysql_statements:start_link(),
+	emysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 
-	Foo = mysql:execute(test1, "CREATE TABLE foo (
+	Foo = emysql:execute(test1, "CREATE TABLE foo (
 									id int(32) NOT NULL AUTO_INCREMENT, 
 									name varchar(50) NOT NULL, 
 									falafel varchar(20) NULL, 
 									hummus float DEFAULT 0.0, 
 									PRIMARY KEY (id)
 								)"),
-	etap:is(is_record(Foo, mysql_ok_packet), true, "create table returned ok packet"),
+	etap:is(is_record(Foo, ok_packet), true, "create table returned ok packet"),
 	
 	[begin
-		Abc = mysql:execute(test1, "INSERT INTO foo (name) VALUES ('abc" ++ integer_to_list(I) ++ "')"),
+		Abc = emysql:execute(test1, "INSERT INTO foo (name) VALUES ('abc" ++ integer_to_list(I) ++ "')"),
 		etap:is(Abc:insert_id(), I, "auto increment value ok")
 	 end || I <- lists:seq(1,5)],
 
-	AllFoo = mysql:execute(test1, "SELECT * FROM foo"),
+	AllFoo = emysql:execute(test1, "SELECT * FROM foo"),
 	ExpectedRows = [
 		[1,<<"abc1">>,undefined,0],
         [2,<<"abc2">>,undefined,0],

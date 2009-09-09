@@ -22,13 +22,14 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql_conn_mgr).
+-module(emysql_conn_mgr).
 -behaviour(gen_server).
 
 -export([start_link/0, start_link/8, init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([pools/0, waiting/0, add_connections/2, remove_connections/2,
+-export([pools/0, waiting/0, add_pool/1, remove_pool/1,
+		 add_connections/2, remove_connections/2,
          lock_connection/1, wait_for_connection/1, 
 		 unlock_connection/1, replace_connection/2, find_pool/3]).
 
@@ -54,6 +55,12 @@ pools() ->
 
 waiting() ->
 	gen_server:call(?MODULE, waiting, infinity).
+	
+add_pool(Pool) ->
+	do_gen_call({add_pool, Pool}).
+	
+remove_pool(PoolId) ->
+	do_gen_call({remove_pool, PoolId}).
 	
 add_connections(PoolId, Conns) when is_atom(PoolId), is_list(Conns) ->
 	do_gen_call({add_connections, PoolId, Conns}).
@@ -119,12 +126,12 @@ do_gen_call(Msg) ->
 %%--------------------------------------------------------------------
 init([]) ->
 	Pools = initialize_pools(),
-	Pools1 = [open_connections(Pool) || Pool <- Pools],
+	Pools1 = [emysql_conn:open_connections(Pool) || Pool <- Pools],
 	{ok, #state{pools=Pools1}};
 	
 init([PoolId, Size, User, Password, Host, Port, Database, Encoding]) ->
 	Pools = [
-		open_connections(
+		emysql_conn:open_connections(
 			#pool{
 				pool_id = PoolId, 
 				size = Size,
@@ -155,6 +162,17 @@ handle_call(pools, _From, State) ->
 handle_call(waiting, _From, State) ->
 	{reply, State#state.waiting, State};
 		
+handle_call({add_pool, Pool}, _From, State) ->
+	{reply, ok, State#state{pools = [Pool|State#state.pools]}};
+	
+handle_call({remove_pool, PoolId}, _From, State) ->
+	case find_pool(PoolId, State#state.pools, []) of
+		{Pool, OtherPools} ->
+			{reply, Pool, State#state{pools=OtherPools}};
+		undefined ->
+			{reply, {error, pool_not_found}, State}
+	end;
+	
 handle_call({add_connections, PoolId, Conns}, _From, State) ->
 	case find_pool(PoolId, State#state.pools, []) of
 		{Pool, OtherPools} ->
@@ -227,7 +245,7 @@ handle_call({unlock_connection, Connection}, _From, State) ->
 			%% update the queue in state once the head has been removed.
 			{{value, Pid}, Waiting} = queue:out(State#state.waiting),
 			case erlang:process_info(Pid, current_function) of
-				{current_function,{mysql_conn_mgr,wait_for_connection,1}} ->
+				{current_function,{emysql_conn_mgr,wait_for_connection,1}} ->
 					erlang:send(Pid, {connection, Connection});
 				_ ->
 					ok
@@ -312,14 +330,6 @@ initialize_pools() ->
 				}
 			 end || {PoolId, Props} <- Pools]
 	end.
-
-open_connections(#pool{connections=Conns}=Pool) when Pool#pool.size > 0, length(Conns) < Pool#pool.size ->
-	Conn = mysql_conn:open_connection(Pool),
-	open_connections(Pool#pool{
-		connections = [Conn|Conns]
-	});	
-open_connections(Pool) ->
-	Pool.
 	
 find_pool(_, [], _) -> undefined;
 

@@ -28,10 +28,8 @@ command(State) ->
 		[{call, ?MODULE, drop_table, [State#state.pool_id, oneof(State#state.tables)]} || length(State#state.tables) > 0] ++
 		[{call, ?MODULE, prepare_insert, [State#state.pool_id, oneof(State#state.tables)]} || length(State#state.tables) > 0] ++
 		[{call, ?MODULE, call_insert, [State#state.pool_id, ?LET({TN,CD}, oneof(State#state.tables), {TN, column_data(CD)})]} || length(State#state.tables) > 0] ++
+		[{call, ?MODULE, timeout, [State#state.pool_id]}] ++
 		[]
-		%% prepare a statement
-		%% call a prepared statement
-		%% query a table
     ).
 
 %% #############################################################################
@@ -92,11 +90,11 @@ postcondition(_S, {call, ?MODULE, decrement_pool_size, [_PoolId, _Num]}, Result)
     Result == ok;
 
 postcondition(_S, {call, ?MODULE, show_tables, [_PoolId]}, Result) ->
-	is_record(Result, mysql_result_packet);
+	is_record(Result, result_packet);
 	
 postcondition(_S, {call, ?MODULE, create_table, [_PoolId, _Name, _Columns]}, Result) ->
 	case Result of
-		Err when is_record(Err, mysql_error_packet) ->
+		Err when is_record(Err, error_packet) ->
 			case Err:code() of
 				1050 -> %% table already exists
 					true;
@@ -104,14 +102,14 @@ postcondition(_S, {call, ?MODULE, create_table, [_PoolId, _Name, _Columns]}, Res
 					false
 			end;
 		_ ->
-			true == is_record(Result, mysql_ok_packet)
+			true == is_record(Result, ok_packet)
     end;
 
 postcondition(_S, {call, ?MODULE, drop_table, [_PoolId, {_Name, _}]}, Result) ->
 	case Result of
-		OK when is_record(OK, mysql_ok_packet) ->
+		OK when is_record(OK, ok_packet) ->
 			true;
-		Err when is_record(Err, mysql_error_packet) ->
+		Err when is_record(Err, error_packet) ->
 			case Err:code() of
 				1051 -> %% unknown table
 					true;
@@ -124,7 +122,7 @@ postcondition(_S, {call, ?MODULE, prepare_insert, [_PoolId, {_Name, _}]}, Result
 	case Result of
 		ok ->
 			true;
-		Err when is_record(Err, mysql_error_packet) ->
+		Err when is_record(Err, error_packet) ->
 			case Err:code() of
 				1146 ->
 					true;
@@ -134,10 +132,10 @@ postcondition(_S, {call, ?MODULE, prepare_insert, [_PoolId, {_Name, _}]}, Result
 	end;
 
 postcondition(_S, {call, ?MODULE, call_insert, [_PoolId, {_Name, _}]}, Result) ->
-	case Result of
-		OK when is_record(OK, mysql_ok_packet) ->
-			 1 == OK:affected_rows()
-	end;
+	is_record(Result, ok_packet) andalso 1 == Result:affected_rows();
+				
+postcondition(_S, {call, ?MODULE, timeout, [_PoolId]}, Result) ->
+	Result == {'EXIT', mysql_timeout};
 				
 postcondition(_, _, _) -> true.
 
@@ -155,10 +153,10 @@ prop_emysql_eqc() ->
 		end).
 
 increment_pool_size(PoolId, Num) ->
-	mysql:increment_pool_size(PoolId, Num).
+	emysql:increment_pool_size(PoolId, Num).
 
 decrement_pool_size(PoolId, Num) ->
-	mysql:decrement_pool_size(PoolId, Num).
+	emysql:decrement_pool_size(PoolId, Num).
 	
 column() ->
 	{column_name(), column_type()}.
@@ -170,13 +168,21 @@ column_name() ->
 column_data(Columns) ->
 	[data_for_type(Type) || {_Name, Type} <- Columns].
 
-data_for_type("INT") ->
-	int();
-	
-data_for_type(Other) ->
-	io:format("other data ~p~n", [Other]),
-	"".
-	
+data_for_type("DECIMAL") -> real();
+data_for_type("TINYINT") -> int();
+data_for_type("LONG") -> int();
+data_for_type("FLOAT") -> real();
+data_for_type("DOUBLE") -> real();
+data_for_type("TIMESTAMP") -> "null";
+data_for_type("INT") -> int();
+data_for_type("DATE") -> "null";
+data_for_type("TIME") -> "null";
+data_for_type("DATETIME") -> "null";
+data_for_type("YEAR") -> choose(0, 3000);
+data_for_type("VARCHAR(255)") -> list(char());
+data_for_type("BIT") -> oneof([1,0,true,false]);
+data_for_type("BLOB") -> list(char()).
+
 table_name() ->
 	?SUCHTHAT(X, list(alpha()), length(X) > 0).
 	%?SUCHTHAT(X, [alpha()] ++ list(safe_char()), length(X) > 0 andalso hd(lists:reverse(X)) =/= 32).
@@ -195,45 +201,48 @@ safe_char() ->
 
 column_type() ->
 	elements([
-		% "DECIMAL",
-		% "TINYINT",
-		% "LONG",
-		% "FLOAT",
-		% "DOUBLE",
-		% "TIMESTAMP",
-		"INT"
-		% "DATE",
-		% "TIME",
-		% "DATETIME",
-		% "YEAR",
-		% "VARCHAR(255)",
-		% "BIT",
-		% "BLOB"
+		"DECIMAL",
+		"TINYINT",
+		"LONG",
+		"FLOAT",
+		"DOUBLE",
+		"TIMESTAMP",
+		"INT",
+		"DATE",
+		"TIME",
+		"DATETIME",
+		"YEAR",
+		"VARCHAR(255)",
+		"BIT",
+		"BLOB"
 	]).
 		
 show_tables(PoolId) ->
-	(catch mysql:execute(PoolId, "SHOW TABLES")).
+	(catch emysql:execute(PoolId, "SHOW TABLES")).
 	
 create_table(PoolId, TableName, Columns) ->
 	ColumnDefs = ["`" ++ CName ++ "` " ++ CType || {CName, CType} <- Columns],
 	Query = "CREATE TABLE IF NOT EXISTS `" ++ TableName ++ "` ( " ++ string:join(ColumnDefs, ", ") ++ ")",
-	(catch mysql:execute(PoolId, Query)).
+	(catch emysql:execute(PoolId, Query)).
 			
 drop_table(PoolId, {TableName, _}) ->
-	(catch mysql:execute(PoolId, "DROP TABLE `" ++ TableName ++ "`")).
+	(catch emysql:execute(PoolId, "DROP TABLE `" ++ TableName ++ "`")).
 		
 prepare_insert(PoolId, {TableName, _}) ->
-	case (catch mysql:execute(PoolId, "DESC `" ++ TableName ++ "`")) of
-		Result when is_record(Result, mysql_result_packet) ->
+	case (catch emysql:execute(PoolId, "DESC `" ++ TableName ++ "`")) of
+		Result when is_record(Result, result_packet) ->
 			ColDefs = Result:as_record(column_def, record_info(fields, column_def)),
 			Stmt = "INSERT INTO `" ++ TableName ++ "` ( " ++ string:join(["`" ++ binary_to_list(Col) ++ "`" || {_,Col,_,_,_,_,_} <- ColDefs], ", ") ++ " ) VALUES ( " ++ string:join(["?" || _ <- ColDefs], ", ") ++ " )",
-			(catch mysql:prepare(list_to_atom(TableName), Stmt));
+			(catch emysql:prepare(list_to_atom(TableName), Stmt));
 		Err ->
 			Err
 	end.
 	
 call_insert(PoolId, {TableName, Args}) ->
-	(catch mysql:execute(PoolId, list_to_atom(TableName), Args)).
+	(catch emysql:execute(PoolId, list_to_atom(TableName), Args)).
+		
+timeout(PoolId) ->
+	(catch emysql:execute(PoolId, "SELECT SLEEP(8)", 10)).
 		
 init() ->
 	error_logger:tty(false),
@@ -252,7 +261,7 @@ init() ->
 		]}
 	]),
 	ok = application:start(emysql),
-	[mysql:execute(?POOLID, "DROP TABLE " ++ Table) || [Table] <- (mysql:execute(?POOLID, "SHOW TABLES")):rows()],
+	[emysql:execute(?POOLID, "DROP TABLE " ++ Table) || [Table] <- (emysql:execute(?POOLID, "SHOW TABLES")):rows()],
     ok.
 
 cleanup() ->

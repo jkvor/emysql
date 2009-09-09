@@ -22,11 +22,12 @@
 %% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
--module(mysql).
+-module(emysql).
 -behaviour(application).
 
 -export([start/2, stop/1, init/1, modules/0]).
--export([prepare/2, increment_pool_size/2, decrement_pool_size/2, 
+-export([add_pool/8, remove_pool/1, prepare/2, 
+ 		 increment_pool_size/2, decrement_pool_size/2, 
  	     execute/2, execute/3, execute/4, execute/5]).
 
 -include("emysql.hrl").
@@ -36,34 +37,53 @@ start(_, _) ->
 	
 stop(_) -> 
 	[[begin
-		mysql_conn:close_connection(Conn)
-	end || Conn <- Pool#pool.connections] || Pool <- mysql_conn_mgr:pools()],
+		emysql_conn:close_connection(Conn)
+	end || Conn <- Pool#pool.connections] || Pool <- emysql_conn_mgr:pools()],
 	ok.
 
 init(_) ->
    {ok, {{one_for_one, 10, 10}, [
-		{mysql_statements, {mysql_statements, start_link, []}, permanent, 5000, worker, [mysql_statements]},
-		{mysql_conn_mgr, {mysql_conn_mgr, start_link, []}, permanent, 5000, worker, [mysql_conn_mgr]}
+		{emysql_statements, {emysql_statements, start_link, []}, permanent, 5000, worker, [emysql_statements]},
+		{emysql_conn_mgr, {emysql_conn_mgr, start_link, []}, permanent, 5000, worker, [emysql_conn_mgr]}
    ]}}.
 
 modules() ->
     {ok, Modules} = application_controller:get_key(emysql, modules), Modules.
 
+add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
+	Pool = #pool{
+		pool_id = PoolId, 
+		size = Size,
+		user = User,
+		password = Password,
+		host = Host,
+		port = Port,
+		database = Database,
+		encoding = Encoding
+	},
+	Pool1 = emysql_conn:open_connections(Pool),
+	emysql_conn_mgr:add_pool(Pool1).
+		
+remove_pool(PoolId) ->
+	Pool = emysql_conn_mgr:remove_pool(PoolId),
+	[emysql_conn:close_connection(Conn) || Conn <- Pool#pool.connections],
+	ok.
+
+increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+	Conns = emysql_conn:open_n_connections(PoolId, Num),
+	emysql_conn_mgr:add_connections(PoolId, Conns).
+
+decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+	Conns = emysql_conn_mgr:remove_connections(PoolId, Num),
+	[emysql_conn:close_connection(Conn) || Conn <- Conns],
+	ok.
+
 %% @spec prepare(StmtName, Statement) -> ok
 %%		 StmtName = atom()
 %%		 Statement = binary() | string()
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
-	mysql_statements:add(StmtName, Statement).
-	
-increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
-	Conns = mysql_conn:open_n_connections(PoolId, Num),
-	mysql_conn_mgr:add_connections(PoolId, Conns).
-	
-decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
-	Conns = mysql_conn_mgr:remove_connections(PoolId, Num),
-	[mysql_conn:close_connection(Conn) || Conn <- Conns],
-	ok.
-	
+	emysql_statements:add(StmtName, Statement).
+		
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
 	
@@ -71,10 +91,10 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 		
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
-	execute(PoolId, Query, Args, mysql_tcp:timeout());
+	execute(PoolId, Query, Args, emysql_tcp:timeout());
 	
 execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
-	execute(PoolId, StmtName, Args, mysql_tcp:timeout());
+	execute(PoolId, StmtName, Args, emysql_tcp:timeout());
 	
 execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	execute(PoolId, Query, [], Timeout);
@@ -87,20 +107,20 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %%		 Query = binary() | string()
 %%		 Args = [any()]
 %%		 Timeout = integer() (millisecond query timeout)
-%%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()	
+%%		 Result = ok_packet() | result_packet() | error_packet()	
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
-	Connection = mysql_conn_mgr:wait_for_connection(PoolId),
-	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query, Args]});
+	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
+	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
 	
 %% @spec execute(PoolId, StmtName, Args, Timeout) -> Result
 %%		 PoolId = atom()
 %%		 StmtName = atom()
 %%		 Args = [any()]
 %%		 Timeout = integer() (millisecond query timeout)
-%%		 Result = mysql_ok_packet() | mysql_result_packet() | mysql_error_packet()
+%%		 Result = ok_packet() | result_packet() | error_packet()
 execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
-	Connection = mysql_conn_mgr:wait_for_connection(PoolId),
-	monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, StmtName, Args]}).
+	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
+	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).
 	
 %%
 %% NON-BLOCKING CONNECTION LOCKING
@@ -109,17 +129,17 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName)
 %% then the result of these functions will be the atom unavailable.
 %%
 execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
-	case mysql_conn_mgr:lock_connection(PoolId) of
+	case emysql_conn_mgr:lock_connection(PoolId) of
 		Connection when is_record(Connection, connection) ->
-			monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, Query, Args]});
+			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
 		Other ->
 			Other
 	end;
 
 execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
-	case mysql_conn_mgr:lock_connection(PoolId) of
+	case emysql_conn_mgr:lock_connection(PoolId) of
 		Connection when is_record(Connection, connection) ->
-			monitor_work(Connection, Timeout, {mysql_conn, execute, [Connection, StmtName, Args]});
+			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]});
 		Other ->
 			Other
 	end.
@@ -140,21 +160,21 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		{'DOWN', Mref, process, Pid, Reason} ->
 			%% if the process dies, reset the connection
 			%% and re-throw the error on the current pid
-			mysql_conn:reset_connection(mysql_conn_mgr:pools(), Connection),
+			emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
 			exit(Reason);
 		{Pid, Result} ->
 			%% if the process returns data, unlock the
 			%% connection and collect the normal 'DOWN'
 			%% message send from the child process
 			erlang:demonitor(Mref),
-			mysql_conn_mgr:unlock_connection(Connection),
+			emysql_conn_mgr:unlock_connection(Connection),
 			receive {'DOWN', Mref, process, Pid, normal} -> ok after 0 -> ok end,
 			Result
 	after Timeout ->
 		%% if we timeout waiting for the process to return,
 		%% then reset the connection and throw a timeout error
 		erlang:demonitor(Mref),
-		mysql_conn:reset_connection(mysql_conn_mgr:pools(), Connection),
+		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
 		exit(mysql_timeout)
 	end;
 monitor_work(Reason, _, _) -> Reason.
