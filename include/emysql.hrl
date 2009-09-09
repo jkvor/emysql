@@ -28,7 +28,7 @@
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).
 -record(mysql_ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
--record(mysql_error_packet, {seq_num, code, state, msg}).
+-record(mysql_error_packet, {seq_num, code, msg}).
 -record(mysql_result_packet, {seq_num, field_list, rows, extra}).
 
 -define(TIMEOUT, 8000).

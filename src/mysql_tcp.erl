@@ -23,7 +23,7 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(mysql_tcp).
--export([send_and_recv_packet/3, recv_packet/1, timeout/0, packet_size/0]).
+-export([send_and_recv_packet/3, recv_packet/1, timeout/0, packet_size/0, package_server_response/2]).
 
 -include("emysql.hrl").
 		
@@ -49,8 +49,8 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/bina
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
 	%error_logger:debug_msg("recv'd error packet: ~p~n", [Rest]),
-	<<Code:16/little, _:1/binary, State:5/binary, Msg/binary>> = Rest,
-	mysql_error_packet:new(SeqNum, Code, binary_to_list(State), binary_to_list(Msg));
+	<<Code:16/little, Msg/binary>> = Rest,
+	mysql_error_packet:new(SeqNum, Code, binary_to_list(Msg));
 	
 package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 	%error_logger:debug_msg("recv'd result packet: ~p~n", [Data]),

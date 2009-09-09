@@ -41,6 +41,9 @@ do_handshake(Sock, User, Password) ->
 recv_greeting(Sock) ->
 	GreetingPacket = mysql_tcp:recv_packet(Sock),
 	case GreetingPacket#packet.data of
+		<<255, _/binary>> ->
+			Error = mysql_tcp:package_server_response(Sock, GreetingPacket),
+			exit({Error:code(), Error:msg()});
 		<<ProtocolVersion:8/integer, Rest1/binary>> ->
 			{ServerVersion, Rest2} = mysql_util:asciz(Rest1),
 		    <<TreadID:32/little, Rest3/binary>> = Rest2,
@@ -58,9 +61,7 @@ recv_greeting(Sock) ->
 				language = ServerLanguage,
 				status = ServerStatus,
 				seq_num = GreetingPacket#packet.seq_num
-			};
-		_ ->
-			exit(poorly_formatted_handshake_packet_protocol_version)
+			}
 	end.
 
 parse_server_version(Version) ->

@@ -34,7 +34,11 @@
 start(_, _) ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 	
-stop(_) -> ok.
+stop(_) -> 
+	[[begin
+		mysql_conn:close_connection(Conn)
+	end || Conn <- Pool#pool.connections] || Pool <- mysql_conn_mgr:pools()],
+	ok.
 
 init(_) ->
    {ok, {{one_for_one, 10, 10}, [
