@@ -108,7 +108,8 @@ main(_) ->
 	
 	(fun() ->
 		etap:is(emysql_conn_mgr:pools(), [], "pools empty"),
-		emysql:add_pool(test2, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+		etap:is(emysql:add_pool(test2, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'), ok, "added pool"),
+		etap:is((catch emysql:add_pool(test2, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8')), {'EXIT', pool_already_exists}, "pool exists"),
 		Conn = (catch emysql_conn_mgr:lock_connection(test2)),
 		etap:is(is_record(Conn, connection), true, "returned valid connection"),
 		etap:is(is_list(erlang:port_info(Conn#connection.socket)), true, "socket is open"),

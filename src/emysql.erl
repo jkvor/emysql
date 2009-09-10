@@ -153,9 +153,12 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 	Parent = self(),
 	Pid = spawn(
 		fun() ->
-			Parent ! {self(), apply(M, F, A)}
+			receive start ->
+				Parent ! {self(), apply(M, F, A)}
+			end
 		end),
 	Mref = erlang:monitor(process, Pid),
+	Pid ! start,
 	receive
 		{'DOWN', Mref, process, Pid, Reason} ->
 			%% if the process dies, reset the connection
@@ -174,7 +177,7 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		%% if we timeout waiting for the process to return,
 		%% then reset the connection and throw a timeout error
 		erlang:demonitor(Mref),
+		exit(Pid, normal),
 		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
 		exit(mysql_timeout)
-	end;
-monitor_work(Reason, _, _) -> Reason.
+	end.

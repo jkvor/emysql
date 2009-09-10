@@ -9,8 +9,8 @@ main(_) ->
     etap:plan(16),
 	error_logger:tty(false),
 	application:start(crypto),
-	emysql_statements:start_link(),
-	emysql_conn_mgr:start_link(test1, 2, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+	application:start(emysql),
+	emysql:add_pool(test1, 2, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 	
 	spawn(fun() -> emysql:execute(test1, "SELECT SLEEP(1)"), etap:is(1,1,"pid1 finished sleeping") end),

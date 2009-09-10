@@ -25,7 +25,7 @@
 -module(emysql_conn_mgr).
 -behaviour(gen_server).
 
--export([start_link/0, start_link/8, init/1, handle_call/3, handle_cast/2, handle_info/2]).
+-export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
 -export([pools/0, waiting/0, add_pool/1, remove_pool/1,
@@ -46,10 +46,7 @@
 %%--------------------------------------------------------------------
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-	
-start_link(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
-	gen_server:start_link({local, ?MODULE}, ?MODULE, [PoolId, Size, User, Password, Host, Port, Database, Encoding], []).
-	
+		
 pools() ->
 	gen_server:call(?MODULE, pools, infinity).
 
@@ -80,16 +77,7 @@ wait_for_connection(Arg) when is_atom(Arg); is_record(Arg, connection) ->
 			receive
 				{connection, Connection} -> Connection
 			after 5000 ->
-				gen_server:call(?MODULE, cancel_wait, infinity),
-				%% in the case where a connection was unlocked and
-				%% sent to this pid AFTER it had timed out, but
-				%% BEFORE the cancellation took affect check once
-				%% more for the connection in the inbox
-				receive 
-					{connection, Connection} -> Connection 
-				after 0 ->
-					exit(connection_lock_timeout)
-				end
+				exit(connection_lock_timeout)
 			end;
 		Connection ->
 			Connection
@@ -127,25 +115,7 @@ do_gen_call(Msg) ->
 init([]) ->
 	Pools = initialize_pools(),
 	Pools1 = [emysql_conn:open_connections(Pool) || Pool <- Pools],
-	{ok, #state{pools=Pools1}};
-	
-init([PoolId, Size, User, Password, Host, Port, Database, Encoding]) ->
-	Pools = [
-		emysql_conn:open_connections(
-			#pool{
-				pool_id = PoolId, 
-				size = Size,
-				user = User,
-				password = Password, 
-				host = Host, 
-				port = Port, 
-				database = Database, 
-				encoding = Encoding, 
-				connections=[]
-			}
-		)
-	],
-	{ok, #state{pools=Pools}}.
+	{ok, #state{pools=Pools1}}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -163,7 +133,12 @@ handle_call(waiting, _From, State) ->
 	{reply, State#state.waiting, State};
 		
 handle_call({add_pool, Pool}, _From, State) ->
-	{reply, ok, State#state{pools = [Pool|State#state.pools]}};
+	case find_pool(Pool#pool.pool_id, State#state.pools, []) of
+		{_, _} ->
+			{reply, {error, pool_already_exists}, State};
+		undefined ->
+			{reply, ok, State#state{pools = [Pool|State#state.pools]}}
+	end;	
 	
 handle_call({remove_pool, PoolId}, _From, State) ->
 	case find_pool(PoolId, State#state.pools, []) of
@@ -207,14 +182,7 @@ handle_call(start_wait, {From, _Mref}, State) ->
 		waiting = queue:in(From, State#state.waiting)
 	},
 	{reply, ok, State1};
-	
-handle_call(cancel_wait, {From, _Mref}, State) ->
-	%% remove the calling pid from the queue
-	State1 = State#state{
-		waiting = queue:filter(fun(Pid) -> Pid =/= From end, State#state.waiting)
-	},
-	{reply, ok, State1};
-	
+
 handle_call({lock_connection, PoolId}, _From, State) ->
 	%% find the next available connection in the pool identified by PoolId
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
@@ -227,31 +195,8 @@ handle_call({lock_connection, PoolId}, _From, State) ->
 	end;
 	
 handle_call({unlock_connection, Connection}, _From, State) ->
-	%% check if any processes are waiting for a connection
-	case queue:is_empty(State#state.waiting) of
-		true ->
-			%% if not processes are waiting then unlock the connection
-			case find_connection_in_pool(State#state.pools, Connection) of
-				[Pool, OtherPools, Conn, OtherConns] ->
-					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available}|OtherConns]}|OtherPools]},
-					{reply, ok, State1};
-				Other ->
-					{reply, Other, State}
-			end;
-		false ->
-			%% if the waiting queue is not empty then remove the head of
-			%% the queue and check if that process is still waiting
-			%% for a connection. If so, send the connection. Regardless,
-			%% update the queue in state once the head has been removed.
-			{{value, Pid}, Waiting} = queue:out(State#state.waiting),
-			case erlang:process_info(Pid, current_function) of
-				{current_function,{emysql_conn_mgr,wait_for_connection,1}} ->
-					erlang:send(Pid, {connection, Connection});
-				_ ->
-					ok
-			end,
-			{reply, ok, State#state{waiting = Waiting}}
-	end;
+	{Result, State1} = pass_connection_to_waiting_pid(State, Connection, State#state.waiting),
+	{reply, Result, State1};
 
 handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
 	%% if an error occurs while doing work over a connection then
@@ -394,4 +339,30 @@ find_next_connection_in_pool(Pools, PoolId) ->
 		undefined ->
 			{error, pool_not_found}
 	end.
-	
+
+pass_connection_to_waiting_pid(State, Connection, Waiting) ->
+	%% check if any processes are waiting for a connection
+	case queue:is_empty(Waiting) of
+		true ->
+			%% if not processes are waiting then unlock the connection
+			case find_connection_in_pool(State#state.pools, Connection) of
+				[Pool, OtherPools, Conn, OtherConns] ->
+					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available}|OtherConns]}|OtherPools]},
+					{ok, State1};
+				Other ->
+					{Other, State}
+			end;
+		false ->
+			%% if the waiting queue is not empty then remove the head of
+			%% the queue and check if that process is still waiting
+			%% for a connection. If so, send the connection. Regardless,
+			%% update the queue in state once the head has been removed.
+			{{value, Pid}, Waiting1} = queue:out(Waiting),
+			case erlang:process_info(Pid, current_function) of
+				{current_function,{emysql_conn_mgr,wait_for_connection,1}} ->
+					erlang:send(Pid, {connection, Connection}),
+					{ok, State#state{waiting = Waiting1}};
+				_ ->
+					pass_connection_to_waiting_pid(State, Connection, Waiting1)
+			end
+	end.

@@ -9,8 +9,8 @@ main(_) ->
     etap:plan(unknown),
 	error_logger:tty(false),
 	application:start(crypto),
-	emysql_statements:start_link(),
-	emysql_conn_mgr:start_link(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
+	application:start(emysql),
+	emysql:add_pool(test1, 1, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 
 	TblDef = "CREATE TABLE foo (

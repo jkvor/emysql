@@ -139,7 +139,11 @@ type_cast_row_data(Data, #field{type=Type})
 		 Type == ?FIELD_TYPE_LONGLONG;
 		 Type == ?FIELD_TYPE_INT24;
 		 Type == ?FIELD_TYPE_YEAR ->
-	list_to_integer(binary_to_list(Data));
+	List = binary_to_list(Data),
+	case string:to_integer(List) of
+		{error,no_integer} -> List;
+		{Int, _} -> Int
+	end;
 	
 type_cast_row_data(Data, #field{type=Type, decimals=Decimals}) 
 	when Type == ?FIELD_TYPE_DECIMAL;
@@ -204,7 +208,7 @@ recv_packet_header(Sock) ->
 		{ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
 			{PacketLength, SeqNum};
 		{ok, Bin} when is_binary(Bin) ->
-			exit({bad_packet_header_datq, Bin});
+			exit({bad_packet_header_data, Bin});
 		{error, Reason} ->
 			exit({failed_to_recv_packet_header, Reason})
 	end.

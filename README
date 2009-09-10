@@ -1,1 +1,7 @@
 emysql, not as good of a name as mysqlittlepony or parttwo.
+
+
+%% figure out if sockets die when calling processes crash
+%% decrementing pool size could close sockets that are in use
+%% spawn individual conn_mgr gen_server process for each pool
+%% allow row results to be returned as binary
