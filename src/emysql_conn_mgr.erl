@@ -183,11 +183,11 @@ handle_call(start_wait, {From, _Mref}, State) ->
 	},
 	{reply, ok, State1};
 
-handle_call({lock_connection, PoolId}, _From, State) ->
+handle_call({lock_connection, PoolId}, {From, _Mref}, State) ->
 	%% find the next available connection in the pool identified by PoolId
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
 		[Pool, OtherPools, Conn, OtherConns] ->
-			NewConn = Conn#connection{state=locked},
+			NewConn = Conn#connection{state=From},
 			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
 			{reply, NewConn, State1};
 		Other ->

@@ -56,7 +56,7 @@ main(_) ->
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		[if
 			C =:= Conn1 ->
-				etap:is(C#connection.state, locked, "locked connection is locked");
+				etap:is(is_pid(C#connection.state), true, "locked connection is locked");
 			true ->
 				etap:is(C#connection.state, available, "unlocked connection is available")
 		 end || C <- Pool1#pool.connections],
@@ -67,7 +67,7 @@ main(_) ->
 		Conn2 = emysql_conn_mgr:lock_connection(test1),
 		Pools = emysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
-		[etap:is(C#connection.state, locked, "connection is locked") || C <- Pool1#pool.connections],
+		[etap:is(is_pid(C#connection.state), true, "connection is locked") || C <- Pool1#pool.connections],
 		etap:is(emysql_conn_mgr:lock_connection(test1), unavailable, "all connections are locked"),
 		ok
 	 end)(),

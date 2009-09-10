@@ -13,6 +13,7 @@ main(_) ->
 	emysql:add_pool(test1, 2, "test", "test", "localhost", 3306, "testdatabase", 'utf8'),
 	?DROP_TABLES(test1),
 	
+	%% LOCK BOTH CONNECTIONS FOR 1 SEC
 	spawn(fun() -> emysql:execute(test1, "SELECT SLEEP(1)"), etap:is(1,1,"pid1 finished sleeping") end),
 	spawn(fun() -> emysql:execute(test1, "SELECT SLEEP(1)"), etap:is(1,1,"pid2 finished sleeping") end),
 	
@@ -22,6 +23,7 @@ main(_) ->
 	
 	timer:sleep(1000),
 	
+	%% AFTER 1 SEC ALL CONNECTIONS ARE UNLOCKED
 	[etap:is(Conn#connection.state, available, "connection unlocked") || Conn <- (hd(emysql_conn_mgr:pools()))#pool.connections],
 	
 	etap:is(emysql_conn_mgr:waiting(), queue:new(), "waiting queue is empty"),
@@ -35,8 +37,8 @@ main(_) ->
 	
 	etap:is((catch emysql:execute(test1, "show tables")), {'EXIT',connection_lock_timeout}, "timed out waiting for connection"),
 		
-	[etap:is(Conn#connection.state, locked, "connection locked") || Conn <- (hd(emysql_conn_mgr:pools()))#pool.connections],
-	etap:is(emysql_conn_mgr:waiting(), queue:new(), "waiting queue is empty"),
+	[etap:is(is_pid(Conn#connection.state), true, "connection locked") || Conn <- (hd(emysql_conn_mgr:pools()))#pool.connections],
+	etap:is(queue:len(emysql_conn_mgr:waiting()), 1, "waiting queue is empty"),
 		
 	timer:sleep(5000),
 	
