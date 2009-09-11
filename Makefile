@@ -1,4 +1,4 @@
-LIBDIR=`erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -noshell`
+LIBDIR=$(shell erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -noshell)
 VERSION=0.1.0
 PKGNAME=emysql
 
@@ -11,6 +11,7 @@ app:
 
 clean:
 	(cd src;$(MAKE) clean)
+	(cd t;$(MAKE) clean)
 	rm -rf ebin/*.app cover
 
 package: clean
@@ -23,4 +24,5 @@ install:
 	for i in ebin/*.beam ebin/*.app include/*.hrl priv/*.config; do install $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
 
 test: all
+	(cd t;$(MAKE))
 	prove t/*.t
