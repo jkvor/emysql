@@ -169,9 +169,8 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 			%% if the process returns data, unlock the
 			%% connection and collect the normal 'DOWN'
 			%% message send from the child process
-			erlang:demonitor(Mref),
+			erlang:demonitor(Mref, [flush]),
 			emysql_conn_mgr:unlock_connection(Connection),
-			receive {'DOWN', Mref, process, Pid, normal} -> ok after 0 -> ok end,
 			Result
 	after Timeout ->
 		%% if we timeout waiting for the process to return,

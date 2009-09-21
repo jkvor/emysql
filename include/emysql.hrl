@@ -23,7 +23,7 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -record(pool, {pool_id, size, user, password, host, port, database, encoding, connections=[]}).
--record(connection, {id, pool_id, state=available, socket, version, thread_id, caps, language, prepared=gb_trees:empty()}).
+-record(connection, {id, pool_id, state=available, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at}).
 -record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, language, status, seq_num}).
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).
@@ -32,7 +32,8 @@
 -record(result_packet, {seq_num, field_list, rows, extra}).
 
 -define(TIMEOUT, 8000).
--define(MAXPACKETBYTES, 1000000).
+-define(LOCK_TIMEOUT, 5000).
+-define(MAXPACKETBYTES, 50000000).
 -define(LONG_PASSWORD, 1).
 -define(LONG_FLAG, 4).
 -define(PROTOCOL_41, 512).

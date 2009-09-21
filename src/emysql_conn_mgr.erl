@@ -68,15 +68,15 @@ remove_connections(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 lock_connection(PoolId) when is_atom(PoolId) ->
 	do_gen_call({lock_connection, PoolId}).
 
-wait_for_connection(Arg) when is_atom(Arg); is_record(Arg, connection) ->
+wait_for_connection(PoolId) when is_atom(PoolId) ->
 	%% try to lock a connection. if no connections are available then
 	%% wait to be notified of the next available connection
-	case lock_connection(Arg) of
+	case lock_connection(PoolId) of
 		unavailable ->
 			gen_server:call(?MODULE, start_wait, infinity),
 			receive
 				{connection, Connection} -> Connection
-			after 5000 ->
+			after lock_timeout() ->
 				exit(connection_lock_timeout)
 			end;
 		Connection ->
@@ -187,7 +187,7 @@ handle_call({lock_connection, PoolId}, {From, _Mref}, State) ->
 	%% find the next available connection in the pool identified by PoolId
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
 		[Pool, OtherPools, Conn, OtherConns] ->
-			NewConn = Conn#connection{state=From},
+			NewConn = Conn#connection{state=From, locked_at=lists:nth(2, tuple_to_list(now()))},
 			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
 			{reply, NewConn, State1};
 		Other ->
@@ -293,15 +293,22 @@ find_connection(ConnID, [Conn|Tail], OtherConns) ->
 	find_connection(ConnID, Tail, [Conn|OtherConns]).
 
 find_next_available(List) ->
-	find_next_available(List, []).
+	find_next_available(List, [], lists:nth(2, tuple_to_list(now()))).
 	
-find_next_available([#connection{state=available}=Conn|Tail], Rest) ->
+find_next_available([#connection{state=available}=Conn|Tail], Rest, _) ->
 	{Conn, lists:append(Rest, Tail)};
 	
-find_next_available([Conn|Tail], Rest) ->
-	find_next_available(Tail, [Conn|Rest]);
+find_next_available([#connection{state=Pid, locked_at=LockedAt}=Conn|Tail], Rest, NowSecs) when is_pid(Pid) andalso is_integer(LockedAt) andalso (LockedAt < (NowSecs - 120)) ->
+	spawn(fun() ->
+		exit(Pid, connection_locked_too_long),
+		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Conn)
+	end),
+	find_next_available(Tail, [Conn|Rest], NowSecs);
 	
-find_next_available([], _) ->
+find_next_available([Conn|Tail], Rest, NowSecs) ->
+	find_next_available(Tail, [Conn|Rest], NowSecs);
+	
+find_next_available([], _, _) ->
 	undefined.
 
 find_connection_in_pool(Pools, Connection) ->
@@ -347,7 +354,7 @@ pass_connection_to_waiting_pid(State, Connection, Waiting) ->
 			%% if not processes are waiting then unlock the connection
 			case find_connection_in_pool(State#state.pools, Connection) of
 				[Pool, OtherPools, Conn, OtherConns] ->
-					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available}|OtherConns]}|OtherPools]},
+					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available, locked_at=undefined}|OtherConns]}|OtherPools]},
 					{ok, State1};
 				Other ->
 					{Other, State}
@@ -365,4 +372,10 @@ pass_connection_to_waiting_pid(State, Connection, Waiting) ->
 				_ ->
 					pass_connection_to_waiting_pid(State, Connection, Waiting1)
 			end
+	end.
+
+lock_timeout() ->
+	case application:get_env(emysql, lock_timeout) of
+		undefined -> ?LOCK_TIMEOUT;
+		{ok, Timeout} -> Timeout
 	end.

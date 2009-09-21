@@ -1,9 +1,15 @@
 %% erlc -o ebin t/emysql_load_test.erl -W0
 %% erl -pa ebin -boot start_sasl -name emysql_load_test@`hostname` -config priv/load-test -eval 'emysql_load_test:start_link()'
+%% erl -pa ebin -boot start_sasl -name emysql_load_test@`hostname` -config priv/load-test -eval 'emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:start_link/0)'
+%% emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:start_link/0).
+%% emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:start_link/0, [call,procs,send,'receive']).
 %% emysql_load_test:add_pool().
+%% emysql_load_test:select_all().
 %% emysql_load_test:increment_pool_size().
 %% emysql_load_test:increment_pool_size().
 %% [emysql_load_test:select_all() || _ <- lists:seq(1,10)].
+%% emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:select_all/0).
+%% emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:select_all/0).
 -module(emysql_load_test).
 -behaviour(gen_server).
 
@@ -14,7 +20,7 @@
 
 -include_lib("emysql/include/emysql.hrl").
 
--record(state, {tables=[]}).
+-record(state, {}).
 
 start_link() ->
 	application:start(crypto),
@@ -104,14 +110,11 @@ handle_call(decrement_pool_size, _From, State) ->
 	
 handle_call(select_all, _From, State) ->
 	Pool = get_pool(),
-	State1 = get_table_list(State),
-	I = random:uniform(length(State1#state.tables)),
-	spawn_link(fun() ->
-		{TableName, _} = lists:nth(I, State1#state.tables),
-		emysql:prepare(list_to_atom(TableName), <<"SELECT * FROM `", (list_to_binary(TableName))/binary, "`">>),
-		case (catch emysql:execute(Pool#pool.pool_id, list_to_atom(TableName))) of
+	I = random:uniform(length(tables())),
+	spawn(fun() ->
+		{TableName, _} = lists:nth(I, tables()),
+		case (catch emysql:execute(Pool#pool.pool_id, <<"SELECT * FROM `", (list_to_binary(TableName))/binary, "`">>)) of
 			Result when is_record(Result, result_packet) ->
-				%io:format("~p rows: ~p~n", [TableName, length(Result:rows())]);
 				ok;
 			{'EXIT',connection_lock_timeout} ->
 				ok;
@@ -121,7 +124,7 @@ handle_call(select_all, _From, State) ->
 				io:format("~p error: ~p~n", [TableName, Err])
 		end
 	end),
-	{reply, ok, State1};
+	{reply, ok, State};
 		
 handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
 
@@ -168,10 +171,76 @@ get_pool() ->
 		[] -> undefined;
 		[Pool|_] -> Pool
 	end.
-	
-get_table_list(#state{tables=[]}=State) ->
-	Pool = get_pool(),
-	Result = emysql:execute(Pool#pool.pool_id, <<"SHOW TABLES">>),
-	Tables = [{binary_to_list(Table), []} || [{_, Table}] <- Result:zip()],
-	State#state{tables=Tables};
-get_table_list(State) -> State.
+
+tables() ->
+	[{"applications",[]},
+	 {"asset_tokens",[]},
+	 {"assets",[]},
+	 {"auth_tokens",[]},
+	 {"avatars",[]},
+	 {"blog_posts",[]},
+	 {"box_art",[]},
+	 {"challenge_issuance_watches",[]},
+	 {"challenge_issuances",[]},
+	 {"challenge_participations",[]},
+	 {"challenge_ratings",[]},
+	 {"challenges",[]},
+	 {"challenges_events",[]},
+	 {"client_igo_stats",[]},
+	 {"client_session_stats",[]},
+	 {"comment_photos",[]},
+	 {"comments",[]},
+	 {"conversions",[]},
+	 {"critic_reviews",[]},
+	 {"datasource_games",[]},
+	 {"datasources",[]},
+	 {"event_media",[]},
+	 {"event_medium_photos",[]},
+	 {"events",[]},
+	 {"facebook_applications",[]},
+	 {"facebook_identities",[]},
+	 {"facebook_invitations",[]},
+	 {"feedbacks",[]},
+	 {"feeds",[]},
+	 {"flags",[]},
+	 {"game_aliases",[]},
+	 {"game_client_data",[]},
+	 {"game_objective_types",[]},
+	 {"game_objectives",[]},
+	 {"game_sessions",[]},
+	 {"games",[]},
+	 {"identities",[]},
+	 {"identity_group_definitions",[]},
+	 {"identity_group_memberships",[]},
+	 {"identity_groups",[]},
+	 {"identity_properties",[]},
+	 {"identity_providers",[]},
+	 {"image_sizes",[]},
+	 {"images",[]},
+	 {"invitations",[]},
+	 {"items",[]},
+	 {"lobby_dataset_stats",[]},
+	 {"lobby_datasets",[]},
+	 {"lobby_game_servers",[]},
+	 {"messages",[]},
+	 {"metagame_event_types",[]},
+	 {"metagame_events",[]},
+	 {"plasma_game_stats",[]},
+	 {"platforms",[]},
+	 {"privacy_lists",[]},
+	 {"promotions",[]},
+	 {"rostergroups",[]},
+	 {"rupture_invitations",[]},
+	 {"schema_migrations",[]},
+	 {"server_settings",[]},
+	 {"sessions",[]},
+	 {"socialapplication_identity_associations",[]},
+	 {"socialapplication_networks",[]},
+	 {"subscriptions",[]},
+	 {"test_groups",[]},
+	 {"top_games",[]},
+	 {"top_users",[]},
+	 {"user_games",[]},
+	 {"user_invitations",[]},
+	 {"user_presence",[]},
+	 {"users",[]}].

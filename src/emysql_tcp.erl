@@ -161,7 +161,9 @@ type_cast_row_data(Data, #field{type=Type})
 		{ok, [Year, Month, Day], _} ->
 			{date, {Year, Month, Day}};
 		{error, _} ->
-			binary_to_list(Data)
+			binary_to_list(Data);
+		Other ->
+			io:format("[~p:~b] unexpected ~p~n", [?MODULE, ?LINE, Other])
 	end;
 	
 type_cast_row_data(Data, #field{type=Type}) 
@@ -170,7 +172,9 @@ type_cast_row_data(Data, #field{type=Type})
 		{ok, [Hour, Minute, Second], _} ->
 			{time, {Hour, Minute, Second}};
 		{error, _} ->
-			binary_to_list(Data)
+			binary_to_list(Data);
+		Other ->
+			io:format("[~p:~b] unexpected ~p~n", [?MODULE, ?LINE, Other])
 	end;
 		
 type_cast_row_data(Data, #field{type=Type}) 
@@ -180,7 +184,9 @@ type_cast_row_data(Data, #field{type=Type})
 		{ok, [Year, Month, Day, Hour, Minute, Second], _} ->
 			{datetime, {{Year, Month, Day}, {Hour, Minute, Second}}};
 		{error, _} ->
-			binary_to_list(Data)
+			binary_to_list(Data);
+		Other ->
+			io:format("[~p:~b] unexpected ~p~n", [?MODULE, ?LINE, Other])
 	end;
 	
 type_cast_row_data(Data, #field{type=Type})
