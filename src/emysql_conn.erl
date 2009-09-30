@@ -89,13 +89,14 @@ open_n_connections(PoolId, N) ->
 			exit(pool_not_found)
 	end.
 		
-open_connections(#pool{connections=Conns}=Pool) when Pool#pool.size > 0, length(Conns) < Pool#pool.size ->
-	Conn = emysql_conn:open_connection(Pool),
-	open_connections(Pool#pool{
-		connections = [Conn|Conns]
-	});	
 open_connections(Pool) ->
-	Pool.
+	case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
+		true ->
+			Conn = emysql_conn:open_connection(Pool),
+			open_connections(Pool#pool{available = queue:in(Conn, Pool#pool.available)});
+		false ->
+			Pool
+	end.
 	
 open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
 	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of

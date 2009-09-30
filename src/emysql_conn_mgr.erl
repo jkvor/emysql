@@ -151,9 +151,9 @@ handle_call({remove_pool, PoolId}, _From, State) ->
 handle_call({add_connections, PoolId, Conns}, _From, State) ->
 	case find_pool(PoolId, State#state.pools, []) of
 		{Pool, OtherPools} ->
-			OtherConns = Pool#pool.connections,
+			OtherConns = Pool#pool.available,
 			State1 = State#state{
-				pools = [Pool#pool{connections = lists:append(Conns, OtherConns)}|OtherPools]
+				pools = [Pool#pool{available = queue:join(queue:from_list(Conns), OtherConns)}|OtherPools]
 			},
 			{reply, ok, State1};
 		undefined ->
@@ -163,14 +163,14 @@ handle_call({add_connections, PoolId, Conns}, _From, State) ->
 handle_call({remove_connections, PoolId, Num}, _From, State) ->
 	case find_pool(PoolId, State#state.pools, []) of
 		{Pool, OtherPools} ->
-			if
-				Num > length(Pool#pool.connections) ->
-					State1 = State#state{pools = [Pool#pool{connections = []}]},
-					{reply, Pool#pool.connections, State1};
+			case Num > queue:len(Pool#pool.available) of
 				true ->
-					{Conns, OtherConns} = lists:split(Num, Pool#pool.connections),
-					State1 = State#state{pools = [Pool#pool{connections = OtherConns}|OtherPools]},
-					{reply, Conns, State1}
+					State1 = State#state{pools = [Pool#pool{available = queue:new()}]},
+					{reply, queue:to_list(Pool#pool.available), State1};
+				false ->
+					{Conns, OtherConns} = queue:split(Num, Pool#pool.available),
+					State1 = State#state{pools = [Pool#pool{available = OtherConns}|OtherPools]},
+					{reply, queue:to_list(Conns), State1}
 			end;
 		undefined ->
 			{reply, {error, pool_not_found}, State}
@@ -183,12 +183,13 @@ handle_call(start_wait, {From, _Mref}, State) ->
 	},
 	{reply, ok, State1};
 
-handle_call({lock_connection, PoolId}, {From, _Mref}, State) ->
+handle_call({lock_connection, PoolId}, _From, State) ->
 	%% find the next available connection in the pool identified by PoolId
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
 		[Pool, OtherPools, Conn, OtherConns] ->
-			NewConn = Conn#connection{state=From, locked_at=lists:nth(2, tuple_to_list(now()))},
-			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
+			NewConn = Conn#connection{locked_at=lists:nth(2, tuple_to_list(now()))},
+			Locked = gb_trees:enter(NewConn#connection.id, NewConn, Pool#pool.locked),
+			State1 = State#state{pools = [Pool#pool{available=OtherConns, locked=Locked}|OtherPools]},
 			{reply, NewConn, State1};
 		Other ->
 			{reply, Other, State}
@@ -205,12 +206,15 @@ handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
 	%% new connection, closing the old one and replacing it in state. 
 	%% This function expects a new, available connection to be 
 	%% passed in to serve as the replacement for the old one.
-	case find_connection_in_pool(State#state.pools, OldConn) of
-		[Pool, OtherPools, _Conn, OtherConns] ->
-			State1 = State#state{pools = [Pool#pool{connections=[NewConn|OtherConns]}|OtherPools]},
-			{reply, ok, State1};
-		Other ->
-			{reply, Other, State}	
+	case find_pool(OldConn#connection.pool_id, State#state.pools, []) of
+		{Pool, OtherPools} ->
+			Pool1 = Pool#pool{
+				available = queue:in(NewConn, Pool#pool.available),
+				locked = gb_trees:delete_any(OldConn#connection.id, Pool#pool.locked)
+			},
+			{reply, ok, State#state{pools=[Pool1|OtherPools]}};
+		undefined ->
+			{reply, {error, pool_not_found}, State}
 	end;
 	
 handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
@@ -270,8 +274,7 @@ initialize_pools() ->
 					host = proplists:get_value(host, Props), 
 					port = proplists:get_value(port, Props), 
 					database = proplists:get_value(database, Props), 
-					encoding = proplists:get_value(encoding, Props), 
-					connections=[]
+					encoding = proplists:get_value(encoding, Props)
 				}
 			 end || {PoolId, Props} <- Pools]
 	end.
@@ -284,64 +287,14 @@ find_pool(PoolId, [#pool{pool_id = PoolId} = Pool|Tail], OtherPools) ->
 find_pool(PoolId, [Pool|Tail], OtherPools) ->
 	find_pool(PoolId, Tail, [Pool|OtherPools]).
 	
-find_connection(_, [], _) -> undefined;
-
-find_connection(ConnID, [#connection{id=ConnID}=Conn|Tail], OtherConns) ->
-	{Conn, lists:append(OtherConns, Tail)};
-
-find_connection(ConnID, [Conn|Tail], OtherConns) ->
-	find_connection(ConnID, Tail, [Conn|OtherConns]).
-
-find_next_available(List) ->
-	find_next_available(List, [], lists:nth(2, tuple_to_list(now()))).
-	
-find_next_available([#connection{state=available}=Conn|Tail], Rest, _) ->
-	{Conn, lists:append(Rest, Tail)};
-	
-find_next_available([#connection{state=Pid, locked_at=LockedAt}=Conn|Tail], Rest, NowSecs) when is_pid(Pid) andalso is_integer(LockedAt) andalso (LockedAt < (NowSecs - 120)) ->
-	spawn(fun() ->
-		exit(Pid, connection_locked_too_long),
-		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Conn)
-	end),
-	find_next_available(Tail, [Conn|Rest], NowSecs);
-	
-find_next_available([Conn|Tail], Rest, NowSecs) ->
-	find_next_available(Tail, [Conn|Rest], NowSecs);
-	
-find_next_available([], _, _) ->
-	undefined.
-
-find_connection_in_pool(Pools, Connection) ->
-	case find_pool(Connection#connection.pool_id, Pools, []) of
-		{Pool, OtherPools} ->
-			if
-				length(Pool#pool.connections) > 0 ->
-					case find_connection(Connection#connection.id, Pool#pool.connections, []) of
-						{Conn, OtherConns} ->
-							[Pool, OtherPools, Conn, OtherConns];
-						undefined ->
-							{error, connection_not_found}
-					end;
-				true ->
-					{error, connection_pool_is_empty}
-			end;
-		undefined ->
-			{error, pool_not_found}
-	end.
-
 find_next_connection_in_pool(Pools, PoolId) ->
 	case find_pool(PoolId, Pools, []) of
 		{Pool, OtherPools} ->
-			if
-				length(Pool#pool.connections) > 0 ->
-					case find_next_available(Pool#pool.connections) of
-						undefined ->
-							unavailable;
-						{Conn, OtherConns} ->
-							[Pool, OtherPools, Conn, OtherConns]
-					end;
-				true ->
-					{error, connection_pool_is_empty}
+			case queue:out(Pool#pool.available) of
+				{{value, Conn}, OtherConns} ->
+					[Pool, OtherPools, Conn, OtherConns];
+				{empty, _} ->
+					unavailable
 			end;
 		undefined ->
 			{error, pool_not_found}
@@ -351,13 +304,23 @@ pass_connection_to_waiting_pid(State, Connection, Waiting) ->
 	%% check if any processes are waiting for a connection
 	case queue:is_empty(Waiting) of
 		true ->
-			%% if not processes are waiting then unlock the connection
-			case find_connection_in_pool(State#state.pools, Connection) of
-				[Pool, OtherPools, Conn, OtherConns] ->
-					State1 = State#state{pools = [Pool#pool{connections=[Conn#connection{state=available, locked_at=undefined}|OtherConns]}|OtherPools]},
-					{ok, State1};
-				Other ->
-					{Other, State}
+			%% if no processes are waiting then unlock the connection
+			case find_pool(Connection#connection.pool_id, State#state.pools, []) of
+				{Pool, OtherPools} ->
+					%% find connection in locked tree
+					case gb_trees:lookup(Connection#connection.id, Pool#pool.locked) of
+						{value, Conn} ->
+							%% add it to the available queue and remove from locked tree
+							Pool1 = Pool#pool{
+								available = queue:in(Conn#connection{locked_at=undefined}, Pool#pool.available),
+								locked = gb_trees:delete_any(Connection#connection.id, Pool#pool.locked)
+							},
+							{ok, State#state{pools = [Pool1|OtherPools]}};
+						none ->
+							{{error, connection_not_found}, State}
+					end;
+				undefined ->
+					{{error, pool_not_found}, State}
 			end;
 		false ->
 			%% if the waiting queue is not empty then remove the head of

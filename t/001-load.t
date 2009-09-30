@@ -43,10 +43,8 @@ main(_) ->
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
 		{value, Pool2} = lists:keysearch(test2, 2, Pools),
 		etap:is(is_record(Pool1, pool) andalso is_record(Pool2, pool), true, "state contains pool records"),
-		etap:is(length(Pool1#pool.connections), 2, "pool1 contains correct number of connections"),
-		etap:is(length(Pool2#pool.connections), 3, "pool2 contains correct number of connections"),
-		[etap:is(Connection#connection.state, available, "pool1 connection is in available state") || Connection <- Pool1#pool.connections],
-		[etap:is(Connection#connection.state, available, "pool2 connection is in available state") || Connection <- Pool2#pool.connections],
+		etap:is(queue:len(Pool1#pool.available), 2, "pool1 contains correct number of connections"),
+		etap:is(queue:len(Pool2#pool.available), 3, "pool2 contains correct number of connections"),
 		ok
 	 end)(),
 	

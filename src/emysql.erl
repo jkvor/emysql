@@ -38,7 +38,7 @@ start(_, _) ->
 stop(_) -> 
 	[[begin
 		emysql_conn:close_connection(Conn)
-	end || Conn <- Pool#pool.connections] || Pool <- emysql_conn_mgr:pools()],
+	end || Conn <- lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))] || Pool <- emysql_conn_mgr:pools()],
 	ok.
 
 init(_) ->
@@ -66,7 +66,7 @@ add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 		
 remove_pool(PoolId) ->
 	Pool = emysql_conn_mgr:remove_pool(PoolId),
-	[emysql_conn:close_connection(Conn) || Conn <- Pool#pool.connections],
+	[emysql_conn:close_connection(Conn) || Conn <- lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))],
 	ok.
 
 increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
