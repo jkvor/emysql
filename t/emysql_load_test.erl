@@ -10,6 +10,7 @@
 %% [emysql_load_test:select_all() || _ <- lists:seq(1,10)].
 %% emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:select_all/0).
 %% emysql_tracer:trace_module(emysql_load_test, fun emysql_load_test:select_all/0).
+%% emysql:execute(test1, <<"SELECT * FROM `user_games`">>). 
 -module(emysql_load_test).
 -behaviour(gen_server).
 

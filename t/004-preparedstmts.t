@@ -22,7 +22,7 @@ main(_) ->
 	
 	[Pool] = emysql_conn_mgr:pools(),
 		
-	[Conn|_] = Pool#pool.connections,
+	Conn = hd(queue:to_list(Pool#pool.available)),
 	etap:is(emysql_statements:all(), {state, gb_trees:empty(), gb_trees:empty()}, "statements are empty"),
 	etap:is(emysql_statements:fetch(foo_billy), undefined, "statement not prepared yet"),
 	etap:is(emysql_statements:add(foo_billy, "SELECT * FROM foo"), ok, "added statement to state"),
@@ -39,7 +39,7 @@ main(_) ->
 		
 	[begin
 		etap:is(is_record(emysql_conn:execute(Conn, create_foo, ["conn " ++ Conn#connection.id]), ok_packet), true, "execute prepared stmt ok")
-	 end || Conn <- Pool#pool.connections],
+	 end || Conn <- queue:to_list(Pool#pool.available)],
 	
 	etap:is(emysql_statements:version(Conn#connection.id, create_foo), 1, "statement prepared for conneciton"),
 	

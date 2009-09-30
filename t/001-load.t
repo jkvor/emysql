@@ -52,12 +52,8 @@ main(_) ->
 		Conn1 = emysql_conn_mgr:lock_connection(test1),
 		Pools = emysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
-		[if
-			C =:= Conn1 ->
-				etap:is(is_pid(C#connection.state), true, "locked connection is locked");
-			true ->
-				etap:is(C#connection.state, available, "unlocked connection is available")
-		 end || C <- Pool1#pool.connections],
+		etap:is(gb_trees:values(Pool1#pool.locked), [Conn1], "locked connection is locked"),
+		etap:is(lists:filter(fun(C) -> C#connection.id == Conn1#connection.id end, queue:to_list(Pool1#pool.available)), [], "connection is not available"),
 		ok
 	 end)(),
 	
@@ -65,8 +61,8 @@ main(_) ->
 		Conn2 = emysql_conn_mgr:lock_connection(test1),
 		Pools = emysql_conn_mgr:pools(),
 		{value, Pool1} = lists:keysearch(test1, 2, Pools),
-		[etap:is(is_pid(C#connection.state), true, "connection is locked") || C <- Pool1#pool.connections],
-		etap:is(emysql_conn_mgr:lock_connection(test1), unavailable, "all connections are locked"),
+		etap:is(gb_trees:size(Pool1#pool.locked), 2, "both connections locked"),
+		etap:is(Pool1#pool.available, queue:new(), "no connections available"),
 		ok
 	 end)(),
 
@@ -87,15 +83,15 @@ main(_) ->
 		]}
 	]),	
 	application:start(emysql),
-	etap:is((catch emysql_conn_mgr:lock_connection(test1)), {'EXIT', connection_pool_is_empty}, "connection_pool_is_empty error returned successfully"),
+	etap:is((catch emysql_conn_mgr:lock_connection(test1)), unavailable, "connection_pool_is_empty error returned successfully"),
 		
 	(fun() ->
 		etap:is(emysql:increment_pool_size(test1, 5), ok, "increment pool size"),
-		etap:is(length((hd(emysql_conn_mgr:pools()))#pool.connections), 5, "correct number of connections are open"),
+		etap:is(queue:len((hd(emysql_conn_mgr:pools()))#pool.available), 5, "correct number of connections are open"),
 		etap:is(emysql:decrement_pool_size(test1, 3), ok, "decrement pool size"),
-		etap:is(length((hd(emysql_conn_mgr:pools()))#pool.connections), 2, "correct number of connections are open"),
+		etap:is(queue:len((hd(emysql_conn_mgr:pools()))#pool.available), 2, "correct number of connections are open"),
 		etap:is(emysql:decrement_pool_size(test1, 100), ok, "decrement pool size"),
-		etap:is(length((hd(emysql_conn_mgr:pools()))#pool.connections), 0, "correct number of connections are open"),
+		etap:is(queue:len((hd(emysql_conn_mgr:pools()))#pool.available), 0, "correct number of connections are open"),
 		ok
 	 end)(),
 	
