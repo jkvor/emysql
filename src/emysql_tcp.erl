@@ -145,15 +145,12 @@ type_cast_row_data(Data, #field{type=Type})
 		{Int, _} -> Int
 	end;
 	
-type_cast_row_data(Data, #field{type=Type, decimals=Decimals}) 
+type_cast_row_data(Data, #field{type=Type, decimals=_Decimals}) 
 	when Type == ?FIELD_TYPE_DECIMAL;
-		 Type == ?FIELD_TYPE_NEWDECIMAL ->
-	try_formats([lists:concat([[$~], Decimals, [$d]]), "~d"], binary_to_list(Data));
-
-type_cast_row_data(Data, #field{type=Type, decimals=Decimals}) 
-	when Type == ?FIELD_TYPE_FLOAT;
+		 Type == ?FIELD_TYPE_NEWDECIMAL;
+		 Type == ?FIELD_TYPE_FLOAT;
 		 Type == ?FIELD_TYPE_DOUBLE ->
-	try_formats([lists:concat([[$~], Decimals, [$f]]), "~f", "~d"], binary_to_list(Data));
+	try_formats(["~f", "~d"], binary_to_list(Data));
 	
 type_cast_row_data(Data, #field{type=Type}) 
 	when Type == ?FIELD_TYPE_DATE ->
