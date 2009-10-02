@@ -41,19 +41,16 @@ recv_packet(Sock) ->
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
-	%error_logger:debug_msg("recv'd ok packet: ~p~n", [Rest]),
 	{AffectedRows, Rest1} = emysql_util:length_coded_binary(Rest),
 	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
 	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
 	ok_packet:new(SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, binary_to_list(Msg));
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
-	%error_logger:debug_msg("recv'd error packet: ~p~n", [Rest]),
 	<<Code:16/little, Msg/binary>> = Rest,
 	error_packet:new(SeqNum, Code, binary_to_list(Msg));
 	
 package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
-	%error_logger:debug_msg("recv'd result packet: ~p~n", [Data]),
 	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
 	{Extra, _} = emysql_util:length_coded_binary(Rest1),
 	{SeqNum1, FieldList} = recv_field_list(Sock, SeqNum+1),
@@ -118,7 +115,7 @@ decode_row_data(<<>>, [], Acc) ->
 decode_row_data(Bin, [Field|Rest], Acc) ->
 	{Data, Tail} = emysql_util:length_coded_string(Bin),
 	decode_row_data(Tail, Rest, [type_cast_row_data(Data, Field)|Acc]).
-
+			
 type_cast_row_data(undefined, _) ->
 	undefined;
 	
@@ -150,7 +147,12 @@ type_cast_row_data(Data, #field{type=Type, decimals=_Decimals})
 		 Type == ?FIELD_TYPE_NEWDECIMAL;
 		 Type == ?FIELD_TYPE_FLOAT;
 		 Type == ?FIELD_TYPE_DOUBLE ->
-	try_formats(["~f", "~d"], binary_to_list(Data));
+	{ok, [Num], _Leftovers} = case io_lib:fread("~f", binary_to_list(Data)) of
+		{error, _} -> io_lib:fread("~d", binary_to_list(Data));
+		Res -> Res
+	end,
+	Num;
+	%try_formats(["~f", "~d"], binary_to_list(Data));
 	
 type_cast_row_data(Data, #field{type=Type}) 
 	when Type == ?FIELD_TYPE_DATE ->
@@ -198,13 +200,6 @@ type_cast_row_data(Data, #field{type=Type})
 % ?FIELD_TYPE_SET
 % ?FIELD_TYPE_GEOMETRY
 type_cast_row_data(Data, _) -> Data.
-
-try_formats([], Data) -> Data;
-try_formats([F|Tail], Data) ->
-	case io_lib:fread(F, Data) of
-		{error, _} -> try_formats(Tail, Data);
-		{ok, [Val], _} -> Val
-	end.
 
 recv_packet_header(Sock) ->
 	case gen_tcp:recv(Sock, 4, timeout()) of
