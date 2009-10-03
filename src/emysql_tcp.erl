@@ -37,7 +37,7 @@ send_and_recv_packet(Sock, Packet, SeqNum) ->
 	
 recv_packet(Sock) ->
 	{PacketLength, SeqNum} = recv_packet_header(Sock),
-	Data = recv_packet_body(Sock, PacketLength, <<>>),
+	Data = recv_packet_body(Sock, PacketLength),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
@@ -211,24 +211,10 @@ recv_packet_header(Sock) ->
 			exit({failed_to_recv_packet_header, Reason})
 	end.
 	
-recv_packet_body(Sock, PacketLength, Acc) ->
-	case packet_size() of
-		%% the packet is too large to get in one request
-		MaxSize when PacketLength > MaxSize ->
-			case gen_tcp:recv(Sock, MaxSize, timeout()) of
-				{ok, Bin} ->
-					recv_packet_body(Sock, PacketLength - MaxSize, <<Acc/binary, Bin/binary>>);
-				{error, Reason1} ->
-					exit({failed_to_recv_packet_body, Reason1})
-			end;
-		%% fetch the remainder of the packet
-		_ ->
-			case gen_tcp:recv(Sock, PacketLength, timeout()) of
-				{ok, Bin} ->
-					<<Acc/binary, Bin/binary>>;
-				{error, Reason2} ->
-					exit({failed_to_recv_packet_body, Reason2})
-			end
+recv_packet_body(Sock, PacketLength) ->
+	case gen_tcp:recv(Sock, PacketLength) of
+		{ok, Bin} -> Bin;
+		Other -> exit({failed_to_recv_packet_body, Other})
 	end.
 
 timeout() ->
