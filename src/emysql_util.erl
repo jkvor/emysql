@@ -25,6 +25,41 @@
 -module(emysql_util).
 -compile(export_all).
 
+-include("emysql.hrl").
+
+field_names(Result) when is_record(Result, result_packet) -> 
+	[Field#field.name || Field <- Result#result_packet.field_list].
+
+%% @spec as_record(RecordName, Fields) -> Result
+%%		 RecordName = atom() (the name of the record to generate)
+%%		 Fields = [atom()] (the field names to generate for each record)
+%%		 Result = [Row]
+%%		 Row = [record()]
+%% @doc package row data as records
+%%
+%% -module(fetch_example).
+%%
+%% fetch_foo() ->
+%%	  Res = emysql:execute(pool1, "select * from foo"),
+%%	  Res:as_record(foo, record_info(fields, foo)).	
+as_record(Result, RecordName, Fields, Fun) when is_record(Result, result_packet), is_atom(RecordName), is_list(Fields), is_function(Fun) ->
+	{Lookup, _} = lists:mapfoldl(
+		fun(#field{name=Name}, Acc) ->
+			{{binary_to_atom(Name, utf8), Acc}, Acc+1}
+		end, 1, Result#result_packet.field_list),
+	[begin
+		RecordData = [case proplists:get_value(Field, Lookup) of
+				undefined ->
+					undefined;
+				Index ->
+					lists:nth(Index, Row)
+		 end || Field <- Fields],
+		Fun(list_to_tuple([RecordName | RecordData]))
+	 end || Row <- Result#result_packet.rows].
+
+as_record(Result, RecordName, Fields) when is_record(Result, result_packet), is_atom(RecordName), is_list(Fields) ->
+	as_record(Result, RecordName, Fields, fun(A) -> A end).
+
 length_coded_binary(<<>>) -> {<<>>, <<>>};
 length_coded_binary(<<FirstByte:8, Tail/binary>>) ->
 	if

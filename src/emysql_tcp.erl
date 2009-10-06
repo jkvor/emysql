@@ -37,18 +37,29 @@ send_and_recv_packet(Sock, Packet, SeqNum) ->
 	
 recv_packet(Sock) ->
 	{PacketLength, SeqNum} = recv_packet_header(Sock),
-	Data = recv_packet_body(Sock, PacketLength),
+	Data = recv_packet_body(Sock, PacketLength, <<>>),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
 	{AffectedRows, Rest1} = emysql_util:length_coded_binary(Rest),
 	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
 	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
-	ok_packet:new(SeqNum, AffectedRows, InsertId, ServerStatus, WarningCount, binary_to_list(Msg));
+	#ok_packet{
+		seq_num = SeqNum, 
+		affected_rows = AffectedRows, 
+		insert_id = InsertId, 
+		status = ServerStatus, 
+		warning_count = WarningCount, 
+		msg = binary_to_list(Msg)
+	};
 	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
 	<<Code:16/little, Msg/binary>> = Rest,
-	error_packet:new(SeqNum, Code, binary_to_list(Msg));
+	#error_packet{
+		seq_num = SeqNum, 
+		code = Code, 
+		msg = binary_to_list(Msg)
+	};
 	
 package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
@@ -61,7 +72,12 @@ package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 			ok
 	end,
 	{SeqNum2, Rows} = recv_row_data(Sock, FieldList, SeqNum1+1),
-	result_packet:new(SeqNum2, FieldList, Rows, Extra).
+	#result_packet{
+		seq_num = SeqNum2, 
+		field_list = FieldList, 
+		rows = Rows, 
+		extra = Extra
+	}.
 	
 recv_field_list(Sock, SeqNum) ->
 	recv_field_list(Sock, SeqNum, []).
@@ -136,11 +152,7 @@ type_cast_row_data(Data, #field{type=Type})
 		 Type == ?FIELD_TYPE_LONGLONG;
 		 Type == ?FIELD_TYPE_INT24;
 		 Type == ?FIELD_TYPE_YEAR ->
-	List = binary_to_list(Data),
-	case string:to_integer(List) of
-		{error,no_integer} -> List;
-		{Int, _} -> Int
-	end;
+	list_to_integer(binary_to_list(Data));
 	
 type_cast_row_data(Data, #field{type=Type, decimals=_Decimals}) 
 	when Type == ?FIELD_TYPE_DECIMAL;
@@ -161,8 +173,8 @@ type_cast_row_data(Data, #field{type=Type})
 			{date, {Year, Month, Day}};
 		{error, _} ->
 			binary_to_list(Data);
-		Other ->
-			io:format("[~p:~b] unexpected ~p~n", [?MODULE, ?LINE, Other])
+		_ ->
+			exit({error, bad_date})
 	end;
 	
 type_cast_row_data(Data, #field{type=Type}) 
@@ -172,8 +184,8 @@ type_cast_row_data(Data, #field{type=Type})
 			{time, {Hour, Minute, Second}};
 		{error, _} ->
 			binary_to_list(Data);
-		Other ->
-			io:format("[~p:~b] unexpected ~p~n", [?MODULE, ?LINE, Other])
+		_ ->
+			exit({error, bad_time})
 	end;
 		
 type_cast_row_data(Data, #field{type=Type}) 
@@ -184,8 +196,8 @@ type_cast_row_data(Data, #field{type=Type})
 			{datetime, {{Year, Month, Day}, {Hour, Minute, Second}}};
 		{error, _} ->
 			binary_to_list(Data);
-		Other ->
-			io:format("[~p:~b] unexpected ~p~n", [?MODULE, ?LINE, Other])
+		_ ->
+			exit({error, datetime})
 	end;
 	
 type_cast_row_data(Data, #field{type=Type})
@@ -202,7 +214,7 @@ type_cast_row_data(Data, #field{type=Type})
 type_cast_row_data(Data, _) -> Data.
 
 recv_packet_header(Sock) ->
-	case gen_tcp:recv(Sock, 4, timeout()) of
+	case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
 		{ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
 			{PacketLength, SeqNum};
 		{ok, Bin} when is_binary(Bin) ->
@@ -211,17 +223,27 @@ recv_packet_header(Sock) ->
 			exit({failed_to_recv_packet_header, Reason})
 	end.
 	
-recv_packet_body(Sock, PacketLength) ->
-	case gen_tcp:recv(Sock, PacketLength) of
-		{ok, Bin} -> Bin;
-		Other -> exit({failed_to_recv_packet_body, Other})
+recv_packet_body(Sock, PacketLength, Acc) ->
+	case packet_size() of
+		%% the packet is too large to get in one request
+		MaxSize when PacketLength > MaxSize ->
+			case gen_tcp:recv(Sock, MaxSize, ?TIMEOUT) of
+				{ok, Bin} ->
+					recv_packet_body(Sock, PacketLength - MaxSize, <<Acc/binary, Bin/binary>>);
+				{error, Reason1} ->
+					exit({failed_to_recv_packet_body, Reason1})
+			end;
+		%% fetch the remainder of the packet
+		_ ->
+			case gen_tcp:recv(Sock, PacketLength, ?TIMEOUT) of
+				{ok, Bin} ->
+					<<Acc/binary, Bin/binary>>;
+				{error, Reason2} ->
+					exit({failed_to_recv_packet_body, Reason2})
+			end
 	end.
 
-timeout() ->
-	case application:get_env(emysql, default_timeout) of
-		undefined -> ?TIMEOUT;
-		{ok, Timeout} -> Timeout
-	end.
+timeout() -> ?TIMEOUT.
 
 packet_size() ->
 	case application:get_env(emysql, max_packet_bytes) of
