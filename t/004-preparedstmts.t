@@ -43,7 +43,7 @@ main(_) ->
 	
 	etap:is(emysql_statements:version(Conn#connection.id, create_foo), 1, "statement prepared for conneciton"),
 	
-	etap:is(length((emysql:execute(test1, "SELECT * FROM foo")):rows()), 4, "correct number of rows were inserted"),
+	etap:is(length((emysql:execute(test1, "SELECT * FROM foo"))#result_packet.rows), 4, "correct number of rows were inserted"),
 	
 	etap:is(emysql:prepare(foo_all, "SELECT * FROM foo"), ok, "prepared statement"),
 	etap:is(emysql:prepare(foo_by_id_name, "SELECT * FROM foo WHERE id = ? and name like ?"), ok, "prepared statement"),

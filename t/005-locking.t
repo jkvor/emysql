@@ -19,7 +19,7 @@ main(_) ->
 	
 	timer:sleep(10),
 	
-	etap:is((emysql:execute(test1, "show tables")):rows(), [], "fetched empty table list"),
+	etap:is((emysql:execute(test1, "show tables"))#result_packet.rows, [], "fetched empty table list"),
 	
 	timer:sleep(1000),
 	

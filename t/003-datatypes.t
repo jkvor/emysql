@@ -51,7 +51,7 @@ main(_) ->
 	etap:is(is_record(Insert, ok_packet), true, "insert data ok"),
 
 	Select = emysql:execute(test1, "SELECT * FROM foo"),
-	[Row] = Select:rows(),
+	[Row] = Select#result_packet.rows,
 	
 	etap:is(lists:nth(1, Row), 1, "decimal matches"),
 	etap:is(lists:nth(2, Row), 2, "tinyint matches"),

@@ -25,7 +25,7 @@ main(_) ->
 	
 	[begin
 		Abc = emysql:execute(test1, "INSERT INTO foo (name) VALUES ('abc" ++ integer_to_list(I) ++ "')"),
-		etap:is(Abc:insert_id(), I, "auto increment value ok")
+		etap:is(Abc#ok_packet.insert_id, I, "auto increment value ok")
 	 end || I <- lists:seq(1,5)],
 
 	AllFoo = emysql:execute(test1, "SELECT * FROM foo"),
@@ -36,9 +36,9 @@ main(_) ->
         [4,<<"abc4">>,undefined,0],
         [5,<<"abc5">>,undefined,0]
 	],
-	etap:is(AllFoo:rows(), ExpectedRows, "row data matches"),
+	etap:is(AllFoo#result_packet.rows, ExpectedRows, "row data matches"),
 
-	AllRecs = AllFoo:as_record(foo, record_info(fields, foo)),
+	AllRecs = emysql_util:as_record(AllFoo, foo, record_info(fields, foo)),
 	ExpectedRecs = [
 	 {foo,undefined,<<"abc1">>,1},
 	 {foo,undefined,<<"abc2">>,2},
