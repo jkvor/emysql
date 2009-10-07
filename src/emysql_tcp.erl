@@ -26,20 +26,22 @@
 -export([send_and_recv_packet/3, recv_packet/1, timeout/0, packet_size/0, package_server_response/2]).
 
 -include("emysql.hrl").
+
+-define(PACKETSIZE, 1460).
 		
 send_and_recv_packet(Sock, Packet, SeqNum) ->
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
 		ok -> ok;
 		{error, Reason} ->
 			exit({failed_to_send_packet_to_server, Reason})
-	end,
+	end,	
 	package_server_response(Sock, recv_packet(Sock)).
-	
+
 recv_packet(Sock) ->
 	{PacketLength, SeqNum} = recv_packet_header(Sock),
-	Data = recv_packet_body(Sock, PacketLength, <<>>),
+	Data = recv_packet_body(Sock, PacketLength),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
-	
+
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
 	{AffectedRows, Rest1} = emysql_util:length_coded_binary(Rest),
 	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
@@ -52,7 +54,7 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/bina
 		warning_count = WarningCount, 
 		msg = binary_to_list(Msg)
 	};
-	
+
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
 	<<Code:16/little, Msg/binary>> = Rest,
 	#error_packet{
@@ -60,7 +62,7 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/bi
 		code = Code, 
 		msg = binary_to_list(Msg)
 	};
-	
+
 package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
 	{Extra, _} = emysql_util:length_coded_binary(Rest1),
@@ -223,24 +225,32 @@ recv_packet_header(Sock) ->
 			exit({failed_to_recv_packet_header, Reason})
 	end.
 	
-recv_packet_body(Sock, PacketLength, Acc) ->
-	case packet_size() of
-		%% the packet is too large to get in one request
-		MaxSize when PacketLength > MaxSize ->
-			case gen_tcp:recv(Sock, MaxSize, ?TIMEOUT) of
+recv_packet_body(Sock, PacketLength) ->
+	Tid = ets:new(emysql_buffer, [ordered_set, private]),
+	Bin = recv_packet_body(Sock, PacketLength, Tid, 0),
+	ets:delete(Tid),
+	Bin.
+
+recv_packet_body(Sock, PacketLength, Tid, Key) ->
+	if
+		PacketLength > ?PACKETSIZE ->
+			case gen_tcp:recv(Sock, ?PACKETSIZE, ?TIMEOUT) of
 				{ok, Bin} ->
-					recv_packet_body(Sock, PacketLength - MaxSize, <<Acc/binary, Bin/binary>>);
+					ets:insert(Tid, {Key, Bin}),
+					recv_packet_body(Sock, PacketLength - ?PACKETSIZE, Tid, Key+1);
 				{error, Reason1} ->
 					exit({failed_to_recv_packet_body, Reason1})
 			end;
-		%% fetch the remainder of the packet
-		_ ->
+		true ->
 			case gen_tcp:recv(Sock, PacketLength, ?TIMEOUT) of
 				{ok, Bin} ->
-					<<Acc/binary, Bin/binary>>;
-				{error, Reason2} ->
-					exit({failed_to_recv_packet_body, Reason2})
-			end
+					if
+						Key == 0 -> Bin;
+						true -> iolist_to_binary(ets:match(Tid,{'$2'}) ++ Bin)
+					end;
+				{error, Reason1} ->
+					exit({failed_to_recv_packet_body, Reason1})
+			end			
 	end.
 
 timeout() -> ?TIMEOUT.
