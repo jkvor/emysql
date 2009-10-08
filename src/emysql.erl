@@ -91,10 +91,10 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 		
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
-	execute(PoolId, Query, Args, emysql_tcp:timeout());
+	execute(PoolId, Query, Args, ?TIMEOUT);
 	
 execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
-	execute(PoolId, StmtName, Args, emysql_tcp:timeout());
+	execute(PoolId, StmtName, Args, ?TIMEOUT);
 	
 execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	execute(PoolId, Query, [], Timeout);

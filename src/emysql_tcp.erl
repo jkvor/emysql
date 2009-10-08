@@ -23,11 +23,12 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql_tcp).
--export([send_and_recv_packet/3, recv_packet/1, timeout/0, packet_size/0, package_server_response/2]).
+-export([send_and_recv_packet/3, recv_packet/1, package_server_response/2]).
 
 -include("emysql.hrl").
 
 -define(PACKETSIZE, 1460).
+-define(ETS_SELECT(TableID), ets:select(TableID,[{{'_','$2'},[],['$2']}])).
 		
 send_and_recv_packet(Sock, Packet, SeqNum) ->
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
@@ -80,14 +81,55 @@ package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 		rows = Rows, 
 		extra = Extra
 	}.
+
+recv_packet_header(Sock) ->
+	case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
+		{ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
+			{PacketLength, SeqNum};
+		{ok, Bin} when is_binary(Bin) ->
+			exit({bad_packet_header_data, Bin});
+		{error, Reason} ->
+			exit({failed_to_recv_packet_header, Reason})
+	end.
 	
+recv_packet_body(Sock, PacketLength) ->
+	Tid = ets:new(emysql_buffer, [ordered_set, private]),
+	Bin = recv_packet_body(Sock, PacketLength, Tid, 0),
+	ets:delete(Tid),
+	Bin.
+
+recv_packet_body(Sock, PacketLength, Tid, Key) ->
+	if
+		PacketLength > ?PACKETSIZE ->
+			case gen_tcp:recv(Sock, ?PACKETSIZE, ?TIMEOUT) of
+				{ok, Bin} ->
+					ets:insert(Tid, {Key, Bin}),
+					recv_packet_body(Sock, PacketLength - ?PACKETSIZE, Tid, Key+1);
+				{error, Reason1} ->
+					exit({failed_to_recv_packet_body, Reason1})
+			end;
+		true ->
+			case gen_tcp:recv(Sock, PacketLength, ?TIMEOUT) of
+				{ok, Bin} ->
+					if
+						Key == 0 -> Bin;
+						true -> iolist_to_binary(?ETS_SELECT(Tid) ++ Bin)
+					end;
+				{error, Reason1} ->
+					exit({failed_to_recv_packet_body, Reason1})
+			end			
+	end.
+		
 recv_field_list(Sock, SeqNum) ->
-	recv_field_list(Sock, SeqNum, []).
+	Tid = ets:new(emysql_field_list, [ordered_set, private]),
+	Res = recv_field_list(Sock, SeqNum, Tid, 0),
+	ets:delete(Tid),
+	Res.
 	
-recv_field_list(Sock, _SeqNum, Acc) ->
+recv_field_list(Sock, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
 		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} -> 
-			{SeqNum1, lists:reverse(Acc)};
+			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = Data} ->
 			{Catalog, Rest2} = emysql_util:length_coded_string(Data),
 			{Db, Rest3} = emysql_util:length_coded_string(Rest2),
@@ -113,19 +155,24 @@ recv_field_list(Sock, _SeqNum, Acc) ->
 				flags = Flags,
 				decimals = Decimals
 			},
-			recv_field_list(Sock, SeqNum1, [Field|Acc])
+			ets:insert(Tid, {Key, Field}),
+			recv_field_list(Sock, SeqNum1, Tid, Key+1)
 	end.
 	
 recv_row_data(Sock, FieldList, SeqNum) ->
-	recv_row_data(Sock, FieldList, SeqNum, []).
+	Tid = ets:new(emysql_row_data, [ordered_set, private]),
+	Res = recv_row_data(Sock, FieldList, SeqNum, Tid, 0),
+	ets:delete(Tid),
+	Res.
 	
-recv_row_data(Sock, FieldList, _SeqNum, Acc) ->
+recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
 		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} -> 
-			{SeqNum1, lists:reverse(Acc)};
+			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = RowData} ->
 			Row = decode_row_data(RowData, FieldList, []),
-			recv_row_data(Sock, FieldList, SeqNum1, [Row|Acc])
+			ets:insert(Tid, {Key, Row}),
+			recv_row_data(Sock, FieldList, SeqNum1, Tid, Key+1)
 	end.
 
 decode_row_data(<<>>, [], Acc) -> 
@@ -214,51 +261,3 @@ type_cast_row_data(Data, #field{type=Type})
 % ?FIELD_TYPE_SET
 % ?FIELD_TYPE_GEOMETRY
 type_cast_row_data(Data, _) -> Data.
-
-recv_packet_header(Sock) ->
-	case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
-		{ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
-			{PacketLength, SeqNum};
-		{ok, Bin} when is_binary(Bin) ->
-			exit({bad_packet_header_data, Bin});
-		{error, Reason} ->
-			exit({failed_to_recv_packet_header, Reason})
-	end.
-	
-recv_packet_body(Sock, PacketLength) ->
-	Tid = ets:new(emysql_buffer, [ordered_set, private]),
-	Bin = recv_packet_body(Sock, PacketLength, Tid, 0),
-	ets:delete(Tid),
-	Bin.
-
-recv_packet_body(Sock, PacketLength, Tid, Key) ->
-	if
-		PacketLength > ?PACKETSIZE ->
-			case gen_tcp:recv(Sock, ?PACKETSIZE, ?TIMEOUT) of
-				{ok, Bin} ->
-					ets:insert(Tid, {Key, Bin}),
-					recv_packet_body(Sock, PacketLength - ?PACKETSIZE, Tid, Key+1);
-				{error, Reason1} ->
-					exit({failed_to_recv_packet_body, Reason1})
-			end;
-		true ->
-			case gen_tcp:recv(Sock, PacketLength, ?TIMEOUT) of
-				{ok, Bin} ->
-					if
-						Key == 0 -> Bin;
-						true -> iolist_to_binary(ets:match(Tid,{'$2'}) ++ Bin)
-					end;
-				{error, Reason1} ->
-					exit({failed_to_recv_packet_body, Reason1})
-			end			
-	end.
-
-timeout() -> ?TIMEOUT.
-
-packet_size() ->
-	case application:get_env(emysql, max_packet_bytes) of
-		undefined -> ?MAXPACKETBYTES;
-		{ok, Size} -> Size
-	end.
-	
-	

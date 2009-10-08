@@ -80,7 +80,7 @@ auth(Sock, SeqNum, User, Password, Salt1, Salt2) ->
     Caps = ?LONG_PASSWORD bor ?LONG_FLAG bor ?TRANSACTIONS bor
         ?CLIENT_MULTI_STATEMENTS bor ?CLIENT_MULTI_RESULTS bor 
         ?PROTOCOL_41 bor ?SECURE_CONNECTION bor DBCaps,
-    Maxsize = emysql_tcp:packet_size(),
+    Maxsize = ?MAXPACKETBYTES,
     UserB = list_to_binary(User),
     PasswordL = size(ScrambleBuff),
     Packet = <<Caps:32/little, Maxsize:32/little, 8:8, 0:23/integer-unit:8, UserB/binary, 0:8, PasswordL:8, ScrambleBuff/binary, DatabaseB/binary>>,
