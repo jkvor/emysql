@@ -34,7 +34,9 @@ do_handshake(Sock, User, Password) ->
 		OK when is_record(OK, ok_packet) ->
 			ok;
 		Err when is_record(Err, error_packet) ->
-			exit({failed_to_authenticate, Err})
+			exit({failed_to_authenticate, Err});
+		Other ->
+			exit({unexpected_packet, Other})
 	end,
 	Greeting.
 
@@ -71,7 +73,7 @@ parse_server_version(Version) ->
 auth(Sock, SeqNum, User, Password, Salt1, Salt2) ->
 	ScrambleBuff = if
 		is_list(Password) orelse is_binary(Password) ->
-			password(Password, Salt1 ++ Salt2);
+			password_new(Password, Salt1 ++ Salt2);
 		true ->
 			<<>>
 	end,
@@ -84,9 +86,15 @@ auth(Sock, SeqNum, User, Password, Salt1, Salt2) ->
     UserB = list_to_binary(User),
     PasswordL = size(ScrambleBuff),
     Packet = <<Caps:32/little, Maxsize:32/little, 8:8, 0:23/integer-unit:8, UserB/binary, 0:8, PasswordL:8, ScrambleBuff/binary, DatabaseB/binary>>,
-	emysql_tcp:send_and_recv_packet(Sock, Packet, SeqNum).
+	case emysql_tcp:send_and_recv_packet(Sock, Packet, SeqNum) of
+		#eof_packet{seq_num = SeqNum1} ->
+			AuthOld = password_old(Password, Salt1),
+			emysql_tcp:send_and_recv_packet(Sock, <<AuthOld/binary, 0:8>>, SeqNum1+1);
+		Result ->
+			Result
+	end.
 	
-password(Password, Salt) ->
+password_new(Password, Salt) ->
     Stage1 = crypto:sha(Password),
     Stage2 = crypto:sha(Stage1),
     Res = crypto:sha_final(
@@ -96,3 +104,12 @@ password(Password, Salt) ->
         )
     ),
     emysql_util:bxor_binary(Res, Stage1).
+
+password_old(Password, Salt) ->
+    {P1, P2} = emysql_util:hash(Password),
+    {S1, S2} = emysql_util:hash(Salt),
+    Seed1 = P1 bxor S1,
+    Seed2 = P2 bxor S2,
+    List = emysql_util:rnd(9, Seed1, Seed2),
+    {L, [Extra]} = lists:split(8, List),
+    list_to_binary(lists:map(fun (E) -> E bxor (Extra - 64) end, L)).

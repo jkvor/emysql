@@ -56,6 +56,11 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/bina
 		msg = binary_to_list(Msg)
 	};
 
+package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<254:8>>}) ->
+	#eof_packet{
+		seq_num = SeqNum
+	};
+	
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
 	<<Code:16/little, Msg/binary>> = Rest,
 	#error_packet{
