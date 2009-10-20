@@ -42,7 +42,7 @@ set_encoding(Connection, Encoding) ->
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 
 execute(Connection, Query, []) when is_list(Query); is_binary(Query) ->
-	Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
+	Packet = <<?COM_QUERY, (unicode:characters_to_binary(Query))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 	
 execute(Connection, StmtName, []) when is_atom(StmtName) ->
@@ -74,7 +74,7 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 	end.
 	
 prepare(Connection, Name, Statement) ->
-	Packet = <<?COM_QUERY, "PREPARE ", (atom_to_binary(Name, utf8))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,
+	Packet = <<?COM_QUERY, "PREPARE ", (atom_to_binary(Name, utf8))/binary, " FROM '", (unicode:characters_to_binary(Statement))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 	
 unprepare(Connection, Name) ->
