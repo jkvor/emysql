@@ -25,7 +25,7 @@
 -module(emysql).
 -behaviour(application).
 
--export([start/2, stop/1, init/1, modules/0]).
+-export([start/2, stop/1, init/1, modules/0, default_timeout/0]).
 -export([add_pool/8, remove_pool/1, prepare/2, 
  		 increment_pool_size/2, decrement_pool_size/2, 
  	     execute/2, execute/3, execute/4, execute/5]).
@@ -42,14 +42,20 @@ stop(_) ->
 	ok.
 
 init(_) ->
-   {ok, {{one_for_one, 10, 10}, [
+	{ok, {{one_for_one, 10, 10}, [
 		{emysql_statements, {emysql_statements, start_link, []}, permanent, 5000, worker, [emysql_statements]},
 		{emysql_conn_mgr, {emysql_conn_mgr, start_link, []}, permanent, 5000, worker, [emysql_conn_mgr]}
-   ]}}.
+	]}}.
 
 modules() ->
     {ok, Modules} = application_controller:get_key(emysql, modules), Modules.
 
+default_timeout() ->
+	case application:get_env(?MODULE, default_timeout) of
+		undefined -> ?TIMEOUT;
+		{ok, Timeout} -> Timeout
+	end.
+	
 add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	Pool = #pool{
 		pool_id = PoolId, 
@@ -91,10 +97,10 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 		
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
-	execute(PoolId, Query, Args, ?TIMEOUT);
+	execute(PoolId, Query, Args, default_timeout());
 	
 execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
-	execute(PoolId, StmtName, Args, ?TIMEOUT);
+	execute(PoolId, StmtName, Args, default_timeout());
 	
 execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	execute(PoolId, Query, [], Timeout);
@@ -180,3 +186,4 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
 		exit(mysql_timeout)
 	end.
+

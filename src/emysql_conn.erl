@@ -112,8 +112,18 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 				caps = Greeting#greeting.caps,
 				language = Greeting#greeting.language
 			},
-			emysql_conn:set_database(Connection, Database),
-			emysql_conn:set_encoding(Connection, Encoding),
+			case emysql_conn:set_database(Connection, Database) of
+				OK1 when is_record(OK1, ok_packet) ->
+					ok;
+				Err1 when is_record(Err1, error_packet) ->
+					exit({failed_to_set_database, Err1#error_packet.msg})
+			end,
+			case emysql_conn:set_encoding(Connection, Encoding) of
+				OK2 when is_record(OK2, ok_packet) ->
+					ok;
+				Err2 when is_record(Err2, error_packet) ->
+					exit({failed_to_set_encoding, Err2#error_packet.msg})
+			end,
 			Connection;
 		{error, Reason} ->
 			exit({failed_to_connect_to_database, Reason})
@@ -162,7 +172,11 @@ prepare_statement(Connection, StmtName) ->
 				Version ->
 					ok;
 				_ ->
-					prepare(Connection, StmtName, Statement),
-					emysql_statements:prepare(Connection#connection.id, StmtName, Version)
+					case prepare(Connection, StmtName, Statement) of
+						OK when is_record(OK, ok_packet) ->
+							emysql_statements:prepare(Connection#connection.id, StmtName, Version);
+						Err when is_record(Err, error_packet) ->
+							exit({failed_to_prepare_statement, Err#error_packet.msg})
+					end
 			end
 	end.
