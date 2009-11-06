@@ -45,7 +45,9 @@ start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 	
 all() ->
-	gen_server:call(?MODULE, all, infinity).
+	State = gen_server:call(?MODULE, all, infinity),
+	[{statements, [StmtName || {StmtName, _} <- gb_trees:to_list(State#state.statements)]},
+	 {prepared, gb_trees:to_list(State#state.prepared)}].
 	
 fetch(StmtName) ->
 	gen_server:call(?MODULE, {fetch, StmtName}, infinity).
