@@ -1,5 +1,0 @@
-Emysql (aka mysqittlepony)
-
-%% decrementing pool size could close sockets that are in use
-%% spawn individual conn_mgr gen_server processes for each pool
-%% allow row results to be returned as binary
