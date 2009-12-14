@@ -158,7 +158,7 @@ encode(Val, false) when is_binary(Val) ->
 encode(Val, true) when is_binary(Val) ->
     quote(Val);
 encode(Val, true) ->
-    unicode:characters_to_binary(encode(Val,false));
+    list_to_binary(encode(Val,false));
 encode(Val, false) when is_atom(Val) ->
     quote(atom_to_list(Val));
 encode(Val, false) when is_list(Val) ->
