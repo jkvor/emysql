@@ -1,12 +1,18 @@
 ## emysql
 
-Erlang mysql driver
+Erlang mysql driver. Fork of JacobVorreuter/emysql with a tad more docu & samples.
+Jacob rewrote Process-Ones Yxa and Yariv's derivate erlang-mysql-driver.
 
-* Usage: first steps in the shell
-* Sample program
+While you can use mysql via ODBC as well, using emysql should perform better.
+
+#### Contents
+
+* Hints on Usage
+* Samples
 * Todo
+* License
 
-### Usage: First Steps in the Shell 
+## Hints on Usage 
 
 #### Start the application
 
@@ -74,9 +80,11 @@ Result = [record()]
 		  io:format("foo: ~p, ~p, ~p~n", [Foo#foo.bar, Foo#foo.baz, Foo#foo.bat])
 	    end || Foo <- Recs].
 
-### Sample program
-To run this, first build emysql.app and have ./ebin in your Erlang path. 
-See sample programms.
+## Samples
+
+#### Hello World
+To run the following, first build emysql.app, using make, 
+and be sure to have ./ebin in your Erlang path. See sample programms, below.
 	
 	-module(a_hello).
 	-export([run/0]).
@@ -98,9 +106,58 @@ See sample programms.
 
 		io:format("~n~p~n", [Result]).
 
-Sample programs are in ./samples
+#### Run Samples
+Sample programs are in ./samples. To run a hello world sample:
 
-### TODO:
+	$ cd samples
+	$ ./a_hello
+	
+or make emysql.app and start a_hello manually along these lines:
+
+	$ make
+	$ cd samples
+	$ erlc a_hello.erl
+	$ erl -pa ../ebin -s a_hello run -s init stop -noshell
+
+
+#### Sample database
+For the above sample, create a local mysql database:
+	
+	mysql> create database hello_database;
+	mysql> use hello_database;
+	mysql> create table hello_table (hello_text char(20));
+	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
+
+
+## TODO
 * decrementing pool size could close sockets that are in use
 * spawn individual conn\_mgr gen\_server processes for each pool
 * allow row results to be returned as binary
+
+## License
+
+Copyright (c) 2009-2010 
+Bill Warnecke <bill@rupture.com>
+Jacob Vorreuter <jacob.vorreuter@gmail.com>
+Henning Diedrich <hd2010@eonblast.com> http://www.eonblast.com
+ 
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+ 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+%% OTHER DEALINGS IN THE SOFTWARE.
