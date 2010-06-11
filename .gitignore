@@ -1,5 +1,6 @@
 ebin/*.beam
 ebin/*.app
 t/*.beam
+samples/*.beam
 *.dump
 priv/*.config

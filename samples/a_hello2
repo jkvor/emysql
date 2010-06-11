@@ -1,0 +1,7 @@
+#! /bin/bash
+# This runs the hello world sample #2. For windows, see source of a_hello2.erl
+cd ..
+make
+cd samples
+erlc a_hello2.erl
+erl -pa ../ebin -s a_hello2 run -s init stop -noshell

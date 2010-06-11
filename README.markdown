@@ -2,6 +2,7 @@
 
 ### Start the application
 
+	crypto:start(),
 	application:start(emysql).
 	
 ### Add a pool
