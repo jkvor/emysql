@@ -1,11 +1,19 @@
-## Usage
+## emysql
 
-### Start the application
+Erlang mysql driver
+
+* Usage: first steps in the shell
+* Sample program
+* Todo
+
+### Usage: First Steps in the Shell 
+
+#### Start the application
 
 	crypto:start(),
 	application:start(emysql).
 	
-### Add a pool
+#### Add a pool
 emysql:add\_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) -> ok | {error, pool\_already\_exists}  
 PoolName = atom()  
 PoolSize = integer()  
@@ -18,12 +26,12 @@ Encoding = atom()
 
 	emysql:add_pool(mypoolname, 1, "username", "mypassword", "localhost", 3306, "mydatabase", utf8).
 	
-### Record Types
+#### Record Types
 	-record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
 	-record(error_packet, {seq_num, code, msg}).
 	-record(result_packet, {seq_num, field_list, rows, extra}).
 
-### Executing SQL statements
+#### Executing SQL statements
 emysql:execute(PoolName, Statement) -> result\_packet() | ok\_packet() | error\_packet()  
 PoolName = atom()  
 Statement = string() | binary()  	
@@ -34,7 +42,7 @@ Statement = string() | binary()
 	emysql:execute(mypoolname, <<"UPDATE mytable SET bar = 'baz' WHERE id = 1">>).
 	#ok_packet{affected_rows=1}
 	
-### Executing prepared statements
+#### Executing prepared statements
 emysql:prepare(StmtName, Statement) -> ok  
 StmtName = atom()  
 Statement = binary() | string()  
@@ -49,7 +57,7 @@ Args = [term()]
 	emysql:execute(my_stmt, [1]).
 	#result_packet{field_list=[...], rows=[...]}
 
-### Converting Row Data To Records
+#### Converting Row Data To Records
 emysql\_util:as\_record(ResultPacket, RecordName, Fields) -> Result  
 ResultPacket = result\_packet()  
 RecordName = atom() (the name of the record to generate)  
@@ -65,6 +73,32 @@ Result = [record()]
 	   [begin
 		  io:format("foo: ~p, ~p, ~p~n", [Foo#foo.bar, Foo#foo.baz, Foo#foo.bat])
 	    end || Foo <- Recs].
+
+### Sample program
+To run this, first build emysql.app and have ./ebin in your Erlang path. 
+See sample programms.
+	
+	-module(a_hello).
+	-export([run/0]).
+
+	run() ->
+
+		crypto:start(),
+		application:start(emysql),
+
+		emysql:add_pool(hello_pool, 1,
+			"hello_username", "hello_password", "localhost", 3306,
+			"hello_database", utf8),
+
+		emysql:execute(hello_pool,
+			<<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
+
+	    Result = emysql:execute(hello_pool,
+    		<<"select hello_text from hello_table">>),
+
+		io:format("~n~p~n", [Result]).
+
+Sample programs are in ./samples
 
 ### TODO:
 * decrementing pool size could close sockets that are in use
