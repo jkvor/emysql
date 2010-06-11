@@ -1,12 +1,31 @@
 ## emysql
 
-Erlang mysql driver. Fork of JacobVorreuter/emysql with a tad more docu & samples.
-Jacob rewrote Process-Ones Yxa and Yariv's derivate erlang-mysql-driver.
+Erlang mysql driver. Fork with a tad more doku and samples.
 
-While you can use mysql via ODBC as well, using emysql should perform better.
+
+#### Situation
+
+While you can use mysql via ODBC as well, using emysql, or another native solution, should perform better.
+
+There are three native solutions out there it seems
+* [erlang-mysql](https://support.process-one.net/doc/display/CONTRIBS/Yxa) by Process One
+* [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/) a 2006 derivate by Yariv Sadan, Dave Smith et al
+* [emysql](http://github.com/JacobVorreuter/emysql) a 2009 rewrite by Jacob Vorreuter, Bill Warnecke
+
+This here is a fork of [JacobVorreuter/emysql](http://github.com/JacobVorreuter/emysql) with a tad more docu & samples.
+
+Jacob rewrote [Yariv Sadan's](http://yarivsblog.com/) derivate [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/)
+of [Process One's Yxa erlang-mysql](https://support.process-one.net/doc/display/CONTRIBS/Yxa). 
+Yxa meanwhile had patches that never made it into Yariv's driver, which itself had not
+been updated since Oct '07. In Feb '10, Dave Smith started making some [updates](http://github.com/dizzyd/erlang-mysql-driver) and moved it from Google Code to github.
+
+Jake's rewrote the erlang-mysql-driver code, because he felt it had been touched by so many people that it had
+become more complicated than necessary. Emysql is pretty stable and ran without issue in our production environment at Electronic Arts.
+
 
 #### Contents
 
+* Situation
 * Hints on Usage
 * Samples
 * Todo
@@ -136,10 +155,10 @@ For the above sample, create a local mysql database:
 
 ## License
 
-Copyright (c) 2009-2010 
-Bill Warnecke <bill@rupture.com>
-Jacob Vorreuter <jacob.vorreuter@gmail.com>
-Henning Diedrich <hd2010@eonblast.com> http://www.eonblast.com
+Copyright (c) 2009-2010   
+Bill Warnecke <bill@rupture.com> [http://github.com/wwarneck]  
+Jacob Vorreuter <jacob.vorreuter@gmail.com> [http://github.com/JacobVorreuter]  
+Henning Diedrich <hd2010@eonblast.com> [http://www.eonblast.com]  
  
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
