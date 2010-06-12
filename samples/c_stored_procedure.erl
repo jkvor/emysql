@@ -1,21 +1,22 @@
 % ------------------------------------------------------------------------
-% Hello World 2: Another minimal sample usage of emysql
+% Emysql Stored Procedures: A minimal sample 
 % H. Diedrich <hd2010@eonblast.com> - Eonblast http://www.eonblast.com
-% 11 Jun 2010
+% 12 Jun 2010
 % ------------------------------------------------------------------------
 %
-% This sample shows rawer output. It is more robust.
+% This sample does the same as the hello world examples but creating and
+% using a stored procedure for the the select.
 %
-% Instructions:
+% Instructions: 
 %
-% Create local mysql database (same as for previous sample):
+% Create local mysql database (same as for previous samples):
 % mysql> create database hello_database;
 % mysql> use hello_database;
 % mysql> create table hello_table (hello_text char(20));
 % mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
 %
-% On *nix build and run using batch a_hello2 in folder samples:
-% $ ./a_hello2
+% On *nix build and run using batch c_stored_procedure in folder samples:
+% $ ./c_stored_procedure
 %
 % - or - 
 %
@@ -23,14 +24,14 @@
 % $ cd ..
 % $ make
 % $ cd samples
-% $ erlc a_hello2.erl
-% $ erl -pa ../ebin -s a_hello2 run -s init stop -noshell
+% $ erlc c_stored_procedure.erl
+% $ erl -pa ../ebin -s c_stored_procedure run -s init stop -noshell
 %
 % As output you should see a lot of PROGRESS-REPORTS from sasl and finally:
 %
 % ------------------------------------------------------------------------
-% Result: {result_packet,5,
-%                       [{field,2,<<"def">>,<<"hello_database">>,
+% Result: {result_packet,32,
+%                      [{field,2,<<"def">>,<<"hello_database">>,
 %                               <<"hello_table">>,<<"hello_table">>,
 %                               <<"hello_text">>,<<"hello_text">>,254,<<>>,33,
 %                               60,0,0}],
@@ -41,7 +42,7 @@
 % ------------------------------------------------------------------------
 
 
--module(a_hello2).
+-module(c_stored_procedure).
 -export([run/0]).
 
 run() ->
@@ -58,10 +59,14 @@ run() ->
 		<<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
 
 	%% ------------------------------------------------------------------- 
-	%% Vs a_hello.erl: get complete Result, not merely {_,_,_,Result,_}
+	%% Stored procedure:
 	%% ...................................................................
-    Result = emysql:execute(hello_pool,
-    	<<"select hello_text from hello_table">>),
+
+	emysql:prepare(hello_stmt, 
+		<<"SELECT * from hello_table WHERE hello_text like ?">>),
+
+	Result = emysql:execute(hello_pool, hello_stmt, ["Hello%"]),
+
 	%% ------------------------------------------------------------------- 
 
 	io:format("~n~s~n", [string:chars($-,72)]),
@@ -69,3 +74,4 @@ run() ->
 
     ok.
     
+

@@ -24,18 +24,6 @@
 % $ erlc a_hello.erl
 % $ erl -pa ../ebin -s a_hello run -s init stop -noshell
 %
-% As output you should see a lot of PROGRESS-REPORTS from sasl and finally:
-%
-% ------------------------------------------------------------------------
-% Result: {result_packet,5,
-%                       [{field,2,<<"def">>,<<"hello_database">>,
-%                               <<"hello_table">>,<<"hello_table">>,
-%                               <<"hello_text">>,<<"hello_text">>,254,<<>>,33,
-%                               60,0,0}],
-%                       [[<<"Hello World!">>]],
-%                       <<>>}
-% ------------------------------------------------------------------------
-%                       <<>>}
 % ------------------------------------------------------------------------
 % Questions, mail Henning <hd2010@eonblast.com>, welcome.
 % ------------------------------------------------------------------------

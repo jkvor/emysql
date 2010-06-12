@@ -8,7 +8,7 @@ Erlang mysql driver. Fork with a tad more doku and samples.
 While you can use mysql via ODBC, using emysql, or another native solution, should perform better.
 
 There are three native solutions out there it seems  
-* [erlang-mysql / Yxa](https://support.process-one.net/doc/display/CONTRIBS/Yxa) by Process One  
+* [erlang-mysql / Yxa](https://support.process-one.net/doc/display/CONTRIBS/Yxa) of 2005-08 by Process One  
 * [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/) a 2006 derivate by Yariv Sadan, Dave Smith et al  
 * [emysql](http://github.com/JacobVorreuter/emysql) a 2009 rewrite by Jacob Vorreuter, Bill Warnecke  
 
