@@ -80,11 +80,11 @@ Statement = binary() | string()
 	emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>).
 	ok
 	
-emysql:execute(StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
+emysql:execute(PoolName, StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
 StmtName = atom()  
 Args = [term()]  
 
-	emysql:execute(my_stmt, [1]).
+	emysql:execute(mypoolname, my_stmt, [1]).
 	#result_packet{field_list=[...], rows=[...]}
 
 #### Converting Row Data To Records
@@ -141,14 +141,23 @@ For the above sample, create a local mysql database:
 
 
 #### Run Samples
-Sample programs are in ./samples. To run a hello world sample, 
-create the database above at localhost, and:
+Sample programs are in ./samples. 
+
+* [a_hello](http:blob/master/samples/a_hello.erl) - Hello World
+* [a_hello2](http:blob/master/samples/a_hello2.erl) - Hello World somewhat rawer
+* [b_rows_as_records](http:blob/master/samples/b_rows_as_records.erl) - Using Erlang records to access result rows
+* [c_stored_procedure](http:blob/master/samples/c_stored_procedure.erl) - Using Stored procedures
+
+To run the samples, create the database above at localhost, and:
 
 	$ cd samples
 	$ ./a_hello
+	$ ./a_hello2
+	$ ./b_rows_as_records
+	$ ./c_stored_procedure
 	
-or make emysql.app and start a_hello manually along these lines (but
-also first create the database as given above):
+or make emysql.app and start a_hello etc. manually along these lines (but
+first create the database as given above):
 
 	$ make
 	$ cd samples
