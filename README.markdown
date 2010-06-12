@@ -1,4 +1,4 @@
-## emysql
+## Emysql
 
 Erlang mysql driver. Fork with a tad more doku and samples.
 
@@ -8,22 +8,27 @@ Erlang mysql driver. Fork with a tad more doku and samples.
 While you can use mysql via ODBC, using emysql, or another native solution, should perform better.
 
 There are three native solutions out there it seems  
-* [erlang-mysql](https://support.process-one.net/doc/display/CONTRIBS/Yxa) by Process One  
+* [erlang-mysql / Yxa](https://support.process-one.net/doc/display/CONTRIBS/Yxa) by Process One  
 * [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/) a 2006 derivate by Yariv Sadan, Dave Smith et al  
 * [emysql](http://github.com/JacobVorreuter/emysql) a 2009 rewrite by Jacob Vorreuter, Bill Warnecke  
 
-This here is a fork of [JacobVorreuter/emysql](http://github.com/JacobVorreuter/emysql) with a tad more docu & samples.
+This here is a fork of the newest one, [JacobVorreuter/emysql](http://github.com/JacobVorreuter/emysql) with a tad more docu & samples.
 
-Jacob rewrote [Yariv Sadan's](http://yarivsblog.com/) 2006-07 derivate [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/)
-of [Process One's Yxa erlang-mysql](https://support.process-one.net/doc/display/CONTRIBS/Yxa) from 2006. 
-Yxa meanwhile had an extension patch in 2008 that never made it into Yariv's driver, which has not
-been updated since Oct '07. In Feb '10, Dave Smith started making some [updates](http://github.com/dizzyd/erlang-mysql-driver) and put them on github.
+[Jacob Vorreuter](http://github.com/JacobVorreuter) in 2009 rewrote
+[Yariv Sadan's](http://yarivsblog.com/) 2006-07 
+[erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/),
+which was a derivate and extension of
+[Process One's Yxa erlang-mysql](https://support.process-one.net/doc/display/CONTRIBS/Yxa) of 2006. 
+Yxa meanwhile had an extension patch in 2008 that never made it into Yariv's driver, 
+which has not been updated since Oct '07. 
+In Feb '10, [Dave Smith](http://github.com/dizzyd) started making some
+[updates](http://github.com/dizzyd/erlang-mysql-driver) and put them on github.
 
-Jake rewrote the erlang-mysql-driver code because he felt it had been touched by so many people that it had
-become more complicated than necessary. Emysql is pretty stable and ran without issue in an production environment at Electronic Arts.
+Jacob rewrote the erlang-mysql-driver code because he felt it had been touched by so many
+people that it had become more complicated than necessary. According to Jacob, Emysql
+is pretty stable and ran without issue in an production environment at Electronic Arts.
 
-
-#### Contents
+### Contents
 
 * Situation
 * Hints on Usage
@@ -125,19 +130,6 @@ and be sure to have ./ebin in your Erlang path. See sample programms, below.
 
 		io:format("~n~p~n", [Result]).
 
-#### Run Samples
-Sample programs are in ./samples. To run a hello world sample:
-
-	$ cd samples
-	$ ./a_hello
-	
-or make emysql.app and start a_hello manually along these lines:
-
-	$ make
-	$ cd samples
-	$ erlc a_hello.erl
-	$ erl -pa ../ebin -s a_hello run -s init stop -noshell
-
 
 #### Sample database
 For the above sample, create a local mysql database:
@@ -146,6 +138,22 @@ For the above sample, create a local mysql database:
 	mysql> use hello_database;
 	mysql> create table hello_table (hello_text char(20));
 	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
+
+
+#### Run Samples
+Sample programs are in ./samples. To run a hello world sample, 
+create the database above at localhost, and:
+
+	$ cd samples
+	$ ./a_hello
+	
+or make emysql.app and start a_hello manually along these lines (but
+also first create the database as given above):
+
+	$ make
+	$ cd samples
+	$ erlc a_hello.erl
+	$ erl -pa ../ebin -s a_hello run -s init stop -noshell
 
 
 ## TODO
@@ -158,7 +166,7 @@ For the above sample, create a local mysql database:
 Copyright (c) 2009-2010   
 [Bill Warnecke](http://github.com/wwarneck) <bill@rupture.com>   
 [Jacob Vorreuter](http://github.com/JacobVorreuter) <jacob.vorreuter@gmail.com>  
-[Henning Diedrich](http://www.eonblast.com) <hd2010@eonblast.com>   
+[Eonblast Corporation](http://www.eonblast.com) <hd2010@eonblast.com>   
  
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -179,4 +187,4 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
 HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-%% OTHER DEALINGS IN THE SOFTWARE.
+OTHER DEALINGS IN THE SOFTWARE.
