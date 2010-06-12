@@ -143,12 +143,12 @@ For the above sample, create a local mysql database:
 #### Run Samples
 Sample programs are in ./samples. 
 
-* [a_hello](http:blob/master/samples/a_hello.erl) - Hello World
-* [a_hello2](http:blob/master/samples/a_hello2.erl) - Hello World somewhat rawer
-* [b_rows_as_records](http:blob/master/samples/b_rows_as_records.erl) - Using Erlang records to access result rows
-* [c_stored_procedure](http:blob/master/samples/c_stored_procedure.erl) - Using Stored procedures
+* [a_hello](http:Emysql/blob/master/samples/a_hello.erl) - Hello World
+* [a_hello2](http:Emysql/blob/master/samples/a_hello2.erl) - Hello World somewhat rawer
+* [b_rows_as_records](http:Emysql/blob/master/samples/b_rows_as_records.erl) - Using Erlang records to access result rows
+* [c_stored_procedure](http:Emysql/blob/master/samples/c_stored_procedure.erl) - Using Stored procedures
 
-To run the samples, create the database above at localhost, and:
+To run the samples, create the database as listed above at localhost, and:
 
 	$ cd samples
 	$ ./a_hello
@@ -157,7 +157,7 @@ To run the samples, create the database above at localhost, and:
 	$ ./c_stored_procedure
 	
 or make emysql.app and start a_hello etc. manually along these lines (but
-first create the database as given above):
+first create the database as listed above):
 
 	$ make
 	$ cd samples
