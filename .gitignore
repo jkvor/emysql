@@ -4,3 +4,4 @@ t/*.beam
 samples/*.beam
 *.dump
 priv/*.config
+*~

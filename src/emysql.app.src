@@ -1,0 +1,8 @@
+{application, emysql, [
+    {description, "emysql"},
+    {vsn, "0.1.0"},
+    {modules, []},
+    {mod, {emysql, []}},
+    {registered, []},
+    {applications, [kernel, stdlib, crypto]}
+]}.

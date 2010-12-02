@@ -1,13 +1,16 @@
 LIBDIR=$(shell erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -noshell)
-VERSION=0.1.0
 PKGNAME=emysql
 
+MODULES=$(shell ls -1 src/*.erl | awk -F[/.] '{ print "\t\t" $$2 }' | sed '$$q;s/$$/,/g')
+	
 all: app
 	mkdir -p ebin
 	(cd src;$(MAKE))
 
-app:
-	sh ebin/$(PKGNAME).app.in $(VERSION)
+app: ebin/$(PKGNAME).app
+
+ebin/$(PKGNAME).app: src/$(PKGNAME).app.src
+	@sed -e 's/{modules, \[\]}/{modules, [$(MODULES)]}/' < $< > $@
 
 clean:
 	(cd src;$(MAKE) clean)
