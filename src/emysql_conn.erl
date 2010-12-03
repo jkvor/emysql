@@ -52,14 +52,19 @@ execute(Connection, StmtName, []) when is_atom(StmtName) ->
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 	
 execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
+    StmtName = "stmt_"++integer_to_list(erlang:phash2(Query)),
+    prepare(Connection, StmtName, Query),
+    Ret =
 	case set_params(Connection, 1, Args, undefined) of
-		OK when is_record(OK, ok_packet) ->
-			ParamNamesBin = list_to_binary(string:join([[$@, I+48] || I <- lists:seq(1, length(Args))], ", ")),
-			Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary, " USING ", ParamNamesBin/binary>>,
-			emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
-		Error ->
-			Error
-	end;
+	    OK when is_record(OK, ok_packet) ->
+		ParamNamesBin = list_to_binary(string:join([[$@, I+48] || I <- lists:seq(1, length(Args))], ", ")),
+		Packet = <<?COM_QUERY, "EXECUTE ", (list_to_binary(StmtName))/binary, " USING ", ParamNamesBin/binary>>,
+		emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
+	    Error ->
+		Error
+	end,
+    unprepare(Connection, StmtName),
+    Ret;
 
 execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 	prepare_statement(Connection, StmtName),
@@ -73,12 +78,16 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 			Error
 	end.
 	
+prepare(Connection, Name, Statement) when is_atom(Name) ->
+    prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-	Packet = <<?COM_QUERY, "PREPARE ", (atom_to_binary(Name, utf8))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,
+    Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 	
+unprepare(Connection, Name) when is_atom(Name)->
+    unprepare(Connection, atom_to_list(Name));
 unprepare(Connection, Name) ->
-	Packet = <<?COM_QUERY, "DEALLOCATE PREPARE ", (atom_to_binary(Name, utf8))/binary>>,
+	Packet = <<?COM_QUERY, "DEALLOCATE PREPARE ", (list_to_binary(Name))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 
 open_n_connections(PoolId, N) ->
