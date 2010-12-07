@@ -112,7 +112,7 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %%		 PoolId = atom()
 %%		 Query = binary() | string()
 %%		 Args = [any()]
-%%		 Timeout = integer() (millisecond query timeout)
+%%		 Timeout = integer()
 %%		 Result = ok_packet() | result_packet() | error_packet()	
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
@@ -122,7 +122,7 @@ execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Quer
 %%		 PoolId = atom()
 %%		 StmtName = atom()
 %%		 Args = [any()]
-%%		 Timeout = integer() (millisecond query timeout)
+%%		 Timeout = integer()
 %%		 Result = ok_packet() | result_packet() | error_packet()
 execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),

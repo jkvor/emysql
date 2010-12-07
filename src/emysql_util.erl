@@ -30,9 +30,11 @@
 field_names(Result) when is_record(Result, result_packet) -> 
 	[Field#field.name || Field <- Result#result_packet.field_list].
 
-%% @spec as_record(RecordName, Fields) -> Result
-%%		 RecordName = atom() (the name of the record to generate)
-%%		 Fields = [atom()] (the field names to generate for each record)
+%% @spec as_record(Result, RecordName, Fields, Fun) -> Result
+%%		 Result = #result_packet{}
+%%		 RecordName = atom()
+%%		 Fields = [atom()]
+%%		 Fun = fun()
 %%		 Result = [Row]
 %%		 Row = [record()]
 %% @doc package row data as records
@@ -145,7 +147,7 @@ rnd(N, List, Seed1, Seed2) ->
 
 %% @doc Encode a value so that it can be included safely in a MySQL query.
 %%
-%% @spec encode(Val::term(), AsBinary::bool()) ->
+%% @spec encode(Val::term()) ->
 %%   string() | binary() | {error, Error}
 encode(Val) ->
     encode(Val, false).
@@ -219,3 +221,4 @@ quote([26 | Rest], Acc) ->
     quote(Rest, [$Z, $\\ | Acc]);
 quote([C | Rest], Acc) ->
     quote(Rest, [C | Acc]).
+
