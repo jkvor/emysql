@@ -57,7 +57,7 @@ execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) a
     Ret =
 	case set_params(Connection, 1, Args, undefined) of
 	    OK when is_record(OK, ok_packet) ->
-		ParamNamesBin = list_to_binary(string:join([[$@, I+48] || I <- lists:seq(1, length(Args))], ", ")),
+		ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
 		Packet = <<?COM_QUERY, "EXECUTE ", (list_to_binary(StmtName))/binary, " USING ", ParamNamesBin/binary>>,
 		emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 	    Error ->
