@@ -1,4 +1,5 @@
 -module(emysql_tracer).
+-export([trace_module/1]).
 -compile(export_all).
 
 trace_module(Fun) ->

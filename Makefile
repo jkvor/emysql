@@ -1,5 +1,6 @@
 LIBDIR=$(shell erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -noshell)
 PKGNAME=emysql
+APP_NAME=emysql
 
 MODULES=$(shell ls -1 src/*.erl | awk -F[/.] '{ print "\t\t" $$2 }' | sed '$$q;s/$$/,/g')
 	

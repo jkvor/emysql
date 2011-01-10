@@ -5,4 +5,4 @@ samples/*.beam
 *.dump
 priv/*.config
 *~
-/doc
+# /doc

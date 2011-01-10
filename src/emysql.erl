@@ -108,22 +108,22 @@ execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) ore
 execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_integer(Timeout) ->
 	execute(PoolId, StmtName, [], Timeout).
 
-%% @spec execute(PoolId, Query, Args, Timeout) -> Result
+%% @spec execute(PoolId, Query|StmtName, Args, Timeout) -> Result
 %%		 PoolId = atom()
 %%		 Query = binary() | string()
+%%		 StmtName = atom()
 %%		 Args = [any()]
 %%		 Timeout = integer()
 %%		 Result = ok_packet() | result_packet() | error_packet()	
+%%
+%% @doc execute query
+%%
+%% Timeout is the query timeout in milliseconds
+%%
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
 	
-%% @spec execute(PoolId, StmtName, Args, Timeout) -> Result
-%%		 PoolId = atom()
-%%		 StmtName = atom()
-%%		 Args = [any()]
-%%		 Timeout = integer()
-%%		 Result = ok_packet() | result_packet() | error_packet()
 execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).

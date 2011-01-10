@@ -23,6 +23,9 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql_util).
+-export([field_names/1, as_record/4, as_record/3, length_coded_binary/1, length_coded_string/1,
+	null_terminated_string/2, asciz/1, bxor_binary/1, bxor_binary/2, dualmap/3, hash/1,
+	rnd/3, encode/1, encode/2, quote/1]).
 -compile(export_all).
 
 -include("emysql.hrl").
@@ -37,13 +40,17 @@ field_names(Result) when is_record(Result, result_packet) ->
 %%		 Fun = fun()
 %%		 Result = [Row]
 %%		 Row = [record()]
+%%
 %% @doc package row data as records
+%%
+%% RecordName is the name of the record to generate.
+%% Fields are the field names to generate for each record.
 %%
 %% -module(fetch_example).
 %%
 %% fetch_foo() ->
 %%	  Res = emysql:execute(pool1, "select * from foo"),
-%%	  Res:as_record(foo, record_info(fields, foo)).	
+%%	  Res:as_record(foo, record_info(fields, foo)).
 as_record(Result, RecordName, Fields, Fun) when is_record(Result, result_packet), is_atom(RecordName), is_list(Fields), is_function(Fun) ->
 	{Lookup, _} = lists:mapfoldl(
 		fun(#field{name=Name}, Acc) ->
@@ -221,4 +228,3 @@ quote([26 | Rest], Acc) ->
     quote(Rest, [$Z, $\\ | Acc]);
 quote([C | Rest], Acc) ->
     quote(Rest, [C | Acc]).
-
