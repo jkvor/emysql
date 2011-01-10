@@ -27,8 +27,7 @@ package: clean
 	@rm -rf $(PKGNAME)-$(VERSION)/
 		
 install:
-	mkdir -p $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/{ebin,include}
-	for i in ebin/*.beam ebin/*.app include/*.hrl; do install $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
+	@for i in ebin/*.beam ebin/*.app include/*.hrl; do install -m 644 -D $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
 
 test: all
 	(cd t;$(MAKE))

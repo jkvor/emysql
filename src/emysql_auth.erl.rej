@@ -1,0 +1,22 @@
+***************
+*** 44,51 ****
+         GreetingPacket = emysql_tcp:recv_packet(Sock),
+         case GreetingPacket#packet.data of
+                 <<255, _/binary>> ->
+-                        Error = emysql_tcp:package_server_response(Sock, GreetingPacket),
+-                        exit({Error:code(), Error:msg()});
+                 <<ProtocolVersion:8/integer, Rest1/binary>> ->
+                         {ServerVersion, Rest2} = emysql_util:asciz(Rest1),
+                     <<TreadID:32/little, Rest3/binary>> = Rest2,
+--- 44,54 ----
+         GreetingPacket = emysql_tcp:recv_packet(Sock),
+         case GreetingPacket#packet.data of
+                 <<255, _/binary>> ->
++                        #error_packet{
++                                code = Code,
++                                msg = Msg
++                        } = emysql_tcp:package_server_response(Sock, GreetingPacket),
++                        exit({Code, Msg});
+                 <<ProtocolVersion:8/integer, Rest1/binary>> ->
+                         {ServerVersion, Rest2} = emysql_util:asciz(Rest1),
+                     <<TreadID:32/little, Rest3/binary>> = Rest2,
