@@ -6,3 +6,4 @@ samples/*.beam
 priv/*.config
 *~
 # /doc
+.DS_Store
