@@ -7,3 +7,5 @@ priv/*.config
 *~
 # /doc
 .DS_Store
+*.orig
+*.rej
