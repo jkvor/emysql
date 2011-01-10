@@ -13,6 +13,9 @@ app: ebin/$(PKGNAME).app
 ebin/$(PKGNAME).app: src/$(PKGNAME).app.src
 	@sed -e 's/{modules, \[\]}/{modules, [$(MODULES)]}/' < $< > $@
 
+docs:
+	erl -noshell -run edoc_run application "'$(APP_NAME)'" '"."' '[{def,{vsn,"$(VSN)"}}]'
+	
 clean:
 	(cd src;$(MAKE) clean)
 	(cd t;$(MAKE) clean)
