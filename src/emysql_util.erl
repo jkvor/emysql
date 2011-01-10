@@ -24,7 +24,7 @@
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql_util).
 -export([field_names/1, as_record/4, as_record/3, length_coded_binary/1, length_coded_string/1,
-	null_terminated_string/2, asciz/1, bxor_binary/1, bxor_binary/2, dualmap/3, hash/1,
+	null_terminated_string/2, asciz/1, bxor_binary/2, dualmap/3, hash/1,
 	rnd/3, encode/1, encode/2, quote/1]).
 -compile(export_all).
 
