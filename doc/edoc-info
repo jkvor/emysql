@@ -1,0 +1,4 @@
+{application,emysql}.
+{packages,[]}.
+{modules,[emysql,emysql_auth,emysql_conn,emysql_conn_mgr,emysql_statements,
+          emysql_tcp,emysql_tracer,emysql_util,emysql_worker]}.
