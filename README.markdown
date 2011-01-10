@@ -1,9 +1,9 @@
 ## Emysql
 
-Erlang mysql driver. Fork with a tad more doku and samples.
+Erlang mysql driver. Fork with a tad more doku and samples, some fixes.
 
 
-#### Situation
+#### History
 
 While you can use mysql via ODBC, using emysql, or another native solution, should perform better.
 
@@ -27,6 +27,10 @@ In Feb '10, [Dave Smith](http://github.com/dizzyd) started making some
 Jacob rewrote the erlang-mysql-driver code because he felt it had been touched by so many
 people that it had become more complicated than necessary. According to Jacob, Emysql
 is pretty stable and ran without issue in an production environment at Electronic Arts.
+
+[Vitaliy Batichko](https://github.com/bva) and [jugg](https://github.com/jugg) have contributed fixes to this branch.
+
+Thank you!
 
 ### Contents
 
@@ -172,11 +176,11 @@ first create the database as listed above):
 
 ## License
 
-Copyright (c) 2009-2010   
+Copyright (c) 2009-2011
 [Bill Warnecke](http://github.com/wwarneck) <bill@rupture.com>   
 [Jacob Vorreuter](http://github.com/JacobVorreuter) <jacob.vorreuter@gmail.com>  
 [Eonblast Corporation](http://www.eonblast.com) <hd2010@eonblast.com>   
- 
+
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
