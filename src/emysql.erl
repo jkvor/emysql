@@ -1,7 +1,7 @@
-%% Copyright (c) 2009 
+%% Copyright (c) 2009
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%% 
+%%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
 %% files (the "Software"), to deal in the Software without
@@ -10,10 +10,10 @@
 %% copies of the Software, and to permit persons to whom the
 %% Software is furnished to do so, subject to the following
 %% conditions:
-%% 
+%%
 %% The above copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 %% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -25,9 +25,9 @@
 -module(emysql).
 
 -export([start/0, stop/0, modules/0, default_timeout/0]).
--export([add_pool/8, remove_pool/1, prepare/2, 
- 		 increment_pool_size/2, decrement_pool_size/2, 
- 	     execute/2, execute/3, execute/4, execute/5]).
+-export([add_pool/8, remove_pool/1, prepare/2,
+	increment_pool_size/2, decrement_pool_size/2,
+	execute/2, execute/3, execute/4, execute/5]).
 
 -include("emysql.hrl").
 
@@ -45,7 +45,7 @@ default_timeout() ->
 
 add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	Pool = #pool{
-		pool_id = PoolId, 
+		pool_id = PoolId,
 		size = Size,
 		user = User,
 		password = Password,
@@ -56,7 +56,7 @@ add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	},
 	Pool1 = emysql_conn:open_connections(Pool),
 	emysql_conn_mgr:add_pool(Pool1).
-		
+
 remove_pool(PoolId) ->
 	Pool = emysql_conn_mgr:remove_pool(PoolId),
 	[emysql_conn:close_connection(Conn) || Conn <- lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))],
@@ -72,36 +72,36 @@ decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 	ok.
 
 %% @spec prepare(StmtName, Statement) -> ok
-%%		 StmtName = atom()
-%%		 Statement = binary() | string()
+%%		StmtName = atom()
+%%		Statement = binary() | string()
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
 	emysql_statements:add(StmtName, Statement).
-		
+
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
-	
+
 execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
-		
+
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	execute(PoolId, Query, Args, default_timeout());
-	
+
 execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
 	execute(PoolId, StmtName, Args, default_timeout());
-	
+
 execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	execute(PoolId, Query, [], Timeout);
-	
+
 execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_integer(Timeout) ->
 	execute(PoolId, StmtName, [], Timeout).
 
 %% @spec execute(PoolId, Query|StmtName, Args, Timeout) -> Result
-%%		 PoolId = atom()
-%%		 Query = binary() | string()
-%%		 StmtName = atom()
-%%		 Args = [any()]
-%%		 Timeout = integer()
-%%		 Result = ok_packet() | result_packet() | error_packet()	
+%%		PoolId = atom()
+%%		Query = binary() | string()
+%%		StmtName = atom()
+%%		Args = [any()]
+%%		Timeout = integer()
+%%		Result = ok_packet() | result_packet() | error_packet()
 %%
 %% @doc execute query
 %%
@@ -110,11 +110,11 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
-	
+
 execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).
-	
+
 %%
 %% NON-BLOCKING CONNECTION LOCKING
 %% non-blocking means the process will not attempt to wait in line
@@ -136,10 +136,10 @@ execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_a
 		Other ->
 			Other
 	end.
-	
+
 %%--------------------------------------------------------------------
 %%% Internal functions
-%%--------------------------------------------------------------------	
+%%--------------------------------------------------------------------
 monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
 	%% spawn a new process to do work, then monitor that process until
 	%% it either dies, returns data or times out.
@@ -173,4 +173,3 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
 		exit(mysql_timeout)
 	end.
-

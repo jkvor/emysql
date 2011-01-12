@@ -1,7 +1,7 @@
-%% Copyright (c) 2009 
+%% Copyright (c) 2009
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%% 
+%%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
 %% files (the "Software"), to deal in the Software without
@@ -10,10 +10,10 @@
 %% copies of the Software, and to permit persons to whom the
 %% Software is furnished to do so, subject to the following
 %% conditions:
-%% 
+%%
 %% The above copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 %% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -43,26 +43,26 @@
 %%--------------------------------------------------------------------
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-	
+
 all() ->
 	State = gen_server:call(?MODULE, all, infinity),
 	[{statements, [StmtName || {StmtName, _} <- gb_trees:to_list(State#state.statements)]},
-	 {prepared, gb_trees:to_list(State#state.prepared)}].
-	
+		{prepared, gb_trees:to_list(State#state.prepared)}].
+
 fetch(StmtName) ->
 	gen_server:call(?MODULE, {fetch, StmtName}, infinity).
-	
+
 add(StmtName, Statement) ->
 	gen_server:call(?MODULE, {add, StmtName, Statement}, infinity).
-	
+
 version(ConnId, StmtName) ->
 	gen_server:call(?MODULE, {version, ConnId, StmtName}, infinity).
-	
+
 prepare(ConnId, StmtName, Version) ->
 	gen_server:call(?MODULE, {prepare, ConnId, StmtName, Version}, infinity).
 
 remove(ConnId) ->
-	gen_server:call(?MODULE, {remove, ConnId}, infinity).	
+	gen_server:call(?MODULE, {remove, ConnId}, infinity).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -88,7 +88,7 @@ init([]) ->
 %%--------------------------------------------------------------------
 handle_call(all, _From, State) ->
 	{reply, State, State};
-	
+
 handle_call({fetch, StmtName}, _From, State) ->
 	{reply, lookup(StmtName, State#state.statements), State};
 
@@ -109,15 +109,15 @@ handle_call({add, StmtName, Statement}, _From, State) ->
 	{reply, ok, State1};
 
 handle_call({version, ConnId, StmtName}, _From, State) ->
-	Version = 
+	Version =
 		case lookup(ConnId, State#state.prepared) of
 			undefined -> undefined;
 			Versions -> lookup(StmtName, Versions)
 		end,
 	{reply, Version, State};
-	
+
 handle_call({prepare, ConnId, StmtName, Version}, _From, State) ->
-	Versions = 
+	Versions =
 		case lookup(ConnId, State#state.prepared) of
 			undefined ->
 				gb_trees:enter(StmtName, Version, gb_trees:empty());
@@ -128,14 +128,14 @@ handle_call({prepare, ConnId, StmtName, Version}, _From, State) ->
 	{reply, ok, State#state{prepared=Prepared}};
 
 handle_call({remove, ConnId}, _From, State) ->
-	StmtNames = 
+	StmtNames =
 		case lookup(ConnId, State#state.prepared) of
 			undefined -> [];
 			Versions -> gb_trees:keys(Versions)
 		end,
 	Prepared = gb_trees:delete_any(ConnId, State#state.prepared),
 	{reply, StmtNames, State#state{prepared=Prepared}};
-			
+
 handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
 
 %%--------------------------------------------------------------------
@@ -145,7 +145,7 @@ handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
-    {noreply, State}.
+	{noreply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_info(Info, State) -> {noreply, State} |
@@ -154,7 +154,7 @@ handle_cast(_Msg, State) ->
 %% Description: Handling all non call/cast messages
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
-    {noreply, State}.
+	{noreply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: terminate(Reason, State) -> void()
@@ -164,14 +164,14 @@ handle_info(_Info, State) ->
 %% The return value is ignored.
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-    ok.
+	ok.
 
 %%--------------------------------------------------------------------
 %% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% Description: Convert process state when code is changed
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+	{ok, State}.
 
 %%--------------------------------------------------------------------
 %%% Internal functions

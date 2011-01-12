@@ -1,7 +1,7 @@
-%% Copyright (c) 2009 
+%% Copyright (c) 2009
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%% 
+%%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
 %% files (the "Software"), to deal in the Software without
@@ -10,10 +10,10 @@
 %% copies of the Software, and to permit persons to whom the
 %% Software is furnished to do so, subject to the following
 %% conditions:
-%% 
+%%
 %% The above copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 %% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -24,10 +24,10 @@
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql_conn).
 -export([set_database/2, set_encoding/2,
-		 execute/3, prepare/3, unprepare/2,
-		 open_connections/1, open_connection/1, 
-		 reset_connection/2, close_connection/1,
-		 open_n_connections/2
+		execute/3, prepare/3, unprepare/2,
+		open_connections/1, open_connection/1,
+		reset_connection/2, close_connection/1,
+		open_n_connections/2
 ]).
 
 -include("emysql.hrl").
@@ -36,7 +36,7 @@ set_database(_, undefined) -> ok;
 set_database(Connection, Database) ->
 	Packet = <<?COM_QUERY, "use ", (iolist_to_binary(Database))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
-	
+
 set_encoding(Connection, Encoding) ->
 	Packet = <<?COM_QUERY, "set names '", (erlang:atom_to_binary(Encoding, utf8))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
@@ -44,27 +44,27 @@ set_encoding(Connection, Encoding) ->
 execute(Connection, Query, []) when is_list(Query); is_binary(Query) ->
 	Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
-	
+
 execute(Connection, StmtName, []) when is_atom(StmtName) ->
 	prepare_statement(Connection, StmtName),
 	StmtNameBin = atom_to_binary(StmtName, utf8),
 	Packet = <<?COM_QUERY, "EXECUTE ", StmtNameBin/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
-	
+
 execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
-    StmtName = "stmt_"++integer_to_list(erlang:phash2(Query)),
-    prepare(Connection, StmtName, Query),
-    Ret =
+	StmtName = "stmt_"++integer_to_list(erlang:phash2(Query)),
+	prepare(Connection, StmtName, Query),
+	Ret =
 	case set_params(Connection, 1, Args, undefined) of
-	    OK when is_record(OK, ok_packet) ->
-		ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
-		Packet = <<?COM_QUERY, "EXECUTE ", (list_to_binary(StmtName))/binary, " USING ", ParamNamesBin/binary>>,
-		emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
-	    Error ->
-		Error
+		OK when is_record(OK, ok_packet) ->
+			ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
+			Packet = <<?COM_QUERY, "EXECUTE ", (list_to_binary(StmtName))/binary, " USING ", ParamNamesBin/binary>>,
+			emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
+		Error ->
+			Error
 	end,
-    unprepare(Connection, StmtName),
-    Ret;
+	unprepare(Connection, StmtName),
+	Ret;
 
 execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 	prepare_statement(Connection, StmtName),
@@ -77,15 +77,15 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 		Error ->
 			Error
 	end.
-	
+
 prepare(Connection, Name, Statement) when is_atom(Name) ->
-    prepare(Connection, atom_to_list(Name), Statement);
+	prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-    Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,
+	Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
-	
+
 unprepare(Connection, Name) when is_atom(Name)->
-    unprepare(Connection, atom_to_list(Name));
+	unprepare(Connection, atom_to_list(Name));
 unprepare(Connection, Name) ->
 	Packet = <<?COM_QUERY, "DEALLOCATE PREPARE ", (list_to_binary(Name))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
@@ -97,7 +97,7 @@ open_n_connections(PoolId, N) ->
 		_ ->
 			exit(pool_not_found)
 	end.
-		
+
 open_connections(Pool) ->
 	case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
 		true ->
@@ -106,14 +106,14 @@ open_connections(Pool) ->
 		false ->
 			Pool
 	end.
-	
+
 open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
 	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
 		{ok, Sock} ->
 			Mgr = whereis(emysql_conn_mgr),
 			Mgr /= undefined orelse
-				exit({failed_to_find_conn_mgr, 
-					'Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path.'}),
+				exit({failed_to_find_conn_mgr,
+					"Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."}),
 			gen_tcp:controlling_process(Sock, Mgr),
 			Greeting = emysql_auth:do_handshake(Sock, User, Password),
 			Connection = #connection{
@@ -141,7 +141,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 		{error, Reason} ->
 			exit({failed_to_connect_to_database, Reason})
 	end.
-	
+
 reset_connection(Pools, Conn) ->
 	%% if a process dies or times out while doing work
 	%% the socket must be closed and the connection reset
@@ -163,15 +163,15 @@ close_connection(Conn) ->
 	%% CLOSE SOCKET
 	gen_tcp:close(Conn#connection.socket),
 	ok.
-		
+
 %%--------------------------------------------------------------------
 %%% Internal functions
-%%--------------------------------------------------------------------			
+%%--------------------------------------------------------------------
 set_params(_, _, [], Result) -> Result;
 set_params(_, _, _, Error) when is_record(Error, error_packet) -> Error;
 set_params(Connection, Num, [Val|Tail], _) ->
 	NumBin = emysql_util:encode(Num, true),
-    ValBin = emysql_util:encode(Val, true),
+	ValBin = emysql_util:encode(Val, true),
 	Packet = <<?COM_QUERY, "SET @", NumBin/binary, "=", ValBin/binary>>,
 	Result = emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0),
 	set_params(Connection, Num+1, Tail, Result).

@@ -1,7 +1,7 @@
-%% Copyright (c) 2009 
+%% Copyright (c) 2009
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%% 
+%%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
 %% files (the "Software"), to deal in the Software without
@@ -10,10 +10,10 @@
 %% copies of the Software, and to permit persons to whom the
 %% Software is furnished to do so, subject to the following
 %% conditions:
-%% 
+%%
 %% The above copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 %% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -29,13 +29,13 @@
 
 -define(PACKETSIZE, 1460).
 -define(ETS_SELECT(TableID), ets:select(TableID,[{{'_','$2'},[],['$2']}])).
-		
+
 send_and_recv_packet(Sock, Packet, SeqNum) ->
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
 		ok -> ok;
 		{error, Reason} ->
 			exit({failed_to_send_packet_to_server, Reason})
-	end,	
+	end,
 	package_server_response(Sock, recv_packet(Sock)).
 
 recv_packet(Sock) ->
@@ -48,11 +48,11 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/bina
 	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
 	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
 	#ok_packet{
-		seq_num = SeqNum, 
-		affected_rows = AffectedRows, 
-		insert_id = InsertId, 
-		status = ServerStatus, 
-		warning_count = WarningCount, 
+		seq_num = SeqNum,
+		affected_rows = AffectedRows,
+		insert_id = InsertId,
+		status = ServerStatus,
+		warning_count = WarningCount,
 		msg = binary_to_list(Msg)
 	};
 
@@ -60,12 +60,12 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<254:8>>}) ->
 	#eof_packet{
 		seq_num = SeqNum
 	};
-	
+
 package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
 	<<Code:16/little, Msg/binary>> = Rest,
 	#error_packet{
-		seq_num = SeqNum, 
-		code = Code, 
+		seq_num = SeqNum,
+		code = Code,
 		msg = binary_to_list(Msg)
 	};
 
@@ -81,9 +81,9 @@ package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 	end,
 	{SeqNum2, Rows} = recv_row_data(Sock, FieldList, SeqNum1+1),
 	#result_packet{
-		seq_num = SeqNum2, 
-		field_list = FieldList, 
-		rows = Rows, 
+		seq_num = SeqNum2,
+		field_list = FieldList,
+		rows = Rows,
 		extra = Extra
 	}.
 
@@ -96,7 +96,7 @@ recv_packet_header(Sock) ->
 		{error, Reason} ->
 			exit({failed_to_recv_packet_header, Reason})
 	end.
-	
+
 recv_packet_body(Sock, PacketLength) ->
 	Tid = ets:new(emysql_buffer, [ordered_set, private]),
 	Bin = recv_packet_body(Sock, PacketLength, Tid, 0),
@@ -122,18 +122,18 @@ recv_packet_body(Sock, PacketLength, Tid, Key) ->
 					end;
 				{error, Reason1} ->
 					exit({failed_to_recv_packet_body, Reason1})
-			end			
+			end
 	end.
-		
+
 recv_field_list(Sock, SeqNum) ->
 	Tid = ets:new(emysql_field_list, [ordered_set, private]),
 	Res = recv_field_list(Sock, SeqNum, Tid, 0),
 	ets:delete(Tid),
 	Res.
-	
+
 recv_field_list(Sock, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
-		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} -> 
+		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} ->
 			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = Data} ->
 			{Catalog, Rest2} = emysql_util:length_coded_string(Data),
@@ -163,16 +163,16 @@ recv_field_list(Sock, _SeqNum, Tid, Key) ->
 			ets:insert(Tid, {Key, Field}),
 			recv_field_list(Sock, SeqNum1, Tid, Key+1)
 	end.
-	
+
 recv_row_data(Sock, FieldList, SeqNum) ->
 	Tid = ets:new(emysql_row_data, [ordered_set, private]),
 	Res = recv_row_data(Sock, FieldList, SeqNum, Tid, 0),
 	ets:delete(Tid),
 	Res.
-	
+
 recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
-		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} -> 
+		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} ->
 			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = RowData} ->
 			Row = decode_row_data(RowData, FieldList, []),
@@ -180,47 +180,47 @@ recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
 			recv_row_data(Sock, FieldList, SeqNum1, Tid, Key+1)
 	end.
 
-decode_row_data(<<>>, [], Acc) -> 
-	lists:reverse(Acc);	
+decode_row_data(<<>>, [], Acc) ->
+	lists:reverse(Acc);
 decode_row_data(Bin, [Field|Rest], Acc) ->
 	{Data, Tail} = emysql_util:length_coded_string(Bin),
 	decode_row_data(Tail, Rest, [type_cast_row_data(Data, Field)|Acc]).
-			
+
 type_cast_row_data(undefined, _) ->
 	undefined;
-	
-type_cast_row_data(Data, #field{type=Type}) 
+
+type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_VARCHAR;
-		 Type == ?FIELD_TYPE_TINY_BLOB;
-		 Type == ?FIELD_TYPE_MEDIUM_BLOB;
-		 Type == ?FIELD_TYPE_LONG_BLOB;
-		 Type == ?FIELD_TYPE_BLOB;
-		 Type == ?FIELD_TYPE_VAR_STRING;
-		 Type == ?FIELD_TYPE_STRING ->
+		Type == ?FIELD_TYPE_TINY_BLOB;
+		Type == ?FIELD_TYPE_MEDIUM_BLOB;
+		Type == ?FIELD_TYPE_LONG_BLOB;
+		Type == ?FIELD_TYPE_BLOB;
+		Type == ?FIELD_TYPE_VAR_STRING;
+		Type == ?FIELD_TYPE_STRING ->
 	Data;
-	
-type_cast_row_data(Data, #field{type=Type}) 
+
+type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_TINY;
-		 Type == ?FIELD_TYPE_SHORT;
-		 Type == ?FIELD_TYPE_LONG;
-		 Type == ?FIELD_TYPE_LONGLONG;
-		 Type == ?FIELD_TYPE_INT24;
-		 Type == ?FIELD_TYPE_YEAR ->
+		Type == ?FIELD_TYPE_SHORT;
+		Type == ?FIELD_TYPE_LONG;
+		Type == ?FIELD_TYPE_LONGLONG;
+		Type == ?FIELD_TYPE_INT24;
+		Type == ?FIELD_TYPE_YEAR ->
 	list_to_integer(binary_to_list(Data));
-	
-type_cast_row_data(Data, #field{type=Type, decimals=_Decimals}) 
+
+type_cast_row_data(Data, #field{type=Type, decimals=_Decimals})
 	when Type == ?FIELD_TYPE_DECIMAL;
-		 Type == ?FIELD_TYPE_NEWDECIMAL;
-		 Type == ?FIELD_TYPE_FLOAT;
-		 Type == ?FIELD_TYPE_DOUBLE ->
+		Type == ?FIELD_TYPE_NEWDECIMAL;
+		Type == ?FIELD_TYPE_FLOAT;
+		Type == ?FIELD_TYPE_DOUBLE ->
 	{ok, [Num], _Leftovers} = case io_lib:fread("~f", binary_to_list(Data)) of
 		{error, _} -> io_lib:fread("~d", binary_to_list(Data));
 		Res -> Res
 	end,
 	Num;
 	%try_formats(["~f", "~d"], binary_to_list(Data));
-	
-type_cast_row_data(Data, #field{type=Type}) 
+
+type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_DATE ->
 	case io_lib:fread("~d-~d-~d", binary_to_list(Data)) of
 		{ok, [Year, Month, Day], _} ->
@@ -230,8 +230,8 @@ type_cast_row_data(Data, #field{type=Type})
 		_ ->
 			exit({error, bad_date})
 	end;
-	
-type_cast_row_data(Data, #field{type=Type}) 
+
+type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_TIME ->
 	case io_lib:fread("~d:~d:~d", binary_to_list(Data)) of
 		{ok, [Hour, Minute, Second], _} ->
@@ -241,10 +241,10 @@ type_cast_row_data(Data, #field{type=Type})
 		_ ->
 			exit({error, bad_time})
 	end;
-		
-type_cast_row_data(Data, #field{type=Type}) 
+
+type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_TIMESTAMP;
-		 Type == ?FIELD_TYPE_DATETIME ->
+		Type == ?FIELD_TYPE_DATETIME ->
 	case io_lib:fread("~d-~d-~d ~d:~d:~d", binary_to_list(Data)) of
 		{ok, [Year, Month, Day, Hour, Minute, Second], _} ->
 			{datetime, {{Year, Month, Day}, {Hour, Minute, Second}}};
@@ -253,14 +253,14 @@ type_cast_row_data(Data, #field{type=Type})
 		_ ->
 			exit({error, datetime})
 	end;
-	
+
 type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_BIT ->
 	case Data of
 		<<1>> -> 1;
 		<<0>> -> 0
 	end;
-			
+
 % ?FIELD_TYPE_NEWDATE
 % ?FIELD_TYPE_ENUM
 % ?FIELD_TYPE_SET
