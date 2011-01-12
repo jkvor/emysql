@@ -2,15 +2,15 @@ LIBDIR=$(shell erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -nos
 PKGNAME=emysql
 APP_NAME=emysql
 
-MODULES=$(shell ls -1 src/*.erl | awk -F[/.] '{ print "\t\t" $$2 }' | sed '$$q;s/$$/,/g')
+MODULES=$(shell ls -1 src/*.erl | awk -F[/.] '{ print $$2 }' | sed '$$q;s/$$/,/g')
 	
 all: app
-	mkdir -p ebin
 	(cd src;$(MAKE))
 
 app: ebin/$(PKGNAME).app
 
 ebin/$(PKGNAME).app: src/$(PKGNAME).app.src
+	mkdir -p ebin
 	@sed -e 's/{modules, \[\]}/{modules, [$(MODULES)]}/' < $< > $@
 
 docs:

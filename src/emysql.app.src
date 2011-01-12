@@ -2,7 +2,7 @@
     {description, "emysql"},
     {vsn, "0.1.1"},
     {modules, []},
-    {mod, {emysql, []}},
+    {mod, {emysql_app, []}},
     {registered, []},
     {applications, [kernel, stdlib, crypto]}
 ]}.
