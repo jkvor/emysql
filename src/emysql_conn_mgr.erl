@@ -261,24 +261,19 @@ initialize_pools() ->
 	%% if the emysql application values are not present in the config
 	%% file we will initialize and empty set of pools. Otherwise, the
 	%% values defined in the config are used to initialize the state.
-	case application:get_env(emysql, pools) of
-		undefined ->
-			[];
-		{ok, Pools} ->
-			[begin
-				#pool{
-					pool_id = PoolId, 
-					size = proplists:get_value(size, Props, 1),
-					user = proplists:get_value(user, Props),
-					password = proplists:get_value(password, Props), 
-					host = proplists:get_value(host, Props), 
-					port = proplists:get_value(port, Props), 
-					database = proplists:get_value(database, Props), 
-					encoding = proplists:get_value(encoding, Props)
-				}
-			 end || {PoolId, Props} <- Pools]
-	end.
-	
+	[
+		#pool{
+			pool_id = PoolId,
+			size = proplists:get_value(size, Props, 1),
+			user = proplists:get_value(user, Props),
+			password = proplists:get_value(password, Props),
+			host = proplists:get_value(host, Props),
+			port = proplists:get_value(port, Props),
+			database = proplists:get_value(database, Props),
+			encoding = proplists:get_value(encoding, Props)
+		} || {PoolId, Props} <- emysql_app:pools()
+	].
+
 find_pool(_, [], _) -> undefined;
 
 find_pool(PoolId, [#pool{pool_id = PoolId} = Pool|Tail], OtherPools) ->
@@ -338,7 +333,4 @@ pass_connection_to_waiting_pid(State, Connection, Waiting) ->
 	end.
 
 lock_timeout() ->
-	case application:get_env(emysql, lock_timeout) of
-		undefined -> ?LOCK_TIMEOUT;
-		{ok, Timeout} -> Timeout
-	end.
+	emysql_app:lock_timeout().

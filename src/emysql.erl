@@ -23,39 +23,26 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql).
--behaviour(application).
 
--export([start/2, stop/1, init/1, modules/0, default_timeout/0]).
+-export([start/0, stop/0, modules/0, default_timeout/0]).
 -export([add_pool/8, remove_pool/1, prepare/2, 
  		 increment_pool_size/2, decrement_pool_size/2, 
  	     execute/2, execute/3, execute/4, execute/5]).
 
 -include("emysql.hrl").
 
-start(_, _) ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
-	
-stop(_) -> 
-	[[begin
-		emysql_conn:close_connection(Conn)
-	end || Conn <- lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))] || Pool <- emysql_conn_mgr:pools()],
-	ok.
+start() ->
+	application:start(emysql).
 
-init(_) ->
-	{ok, {{one_for_one, 10, 10}, [
-		{emysql_statements, {emysql_statements, start_link, []}, permanent, 5000, worker, [emysql_statements]},
-		{emysql_conn_mgr, {emysql_conn_mgr, start_link, []}, permanent, 5000, worker, [emysql_conn_mgr]}
-	]}}.
+stop() ->
+	application:stop(emysql).
 
 modules() ->
-    {ok, Modules} = application_controller:get_key(emysql, modules), Modules.
+	emysql_app:modules().
 
 default_timeout() ->
-	case application:get_env(?MODULE, default_timeout) of
-		undefined -> ?TIMEOUT;
-		{ok, Timeout} -> Timeout
-	end.
-	
+	emysql_app:default_timeout().
+
 add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	Pool = #pool{
 		pool_id = PoolId, 
