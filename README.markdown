@@ -28,7 +28,7 @@ Jacob rewrote the erlang-mysql-driver code because he felt it had been touched b
 people that it had become more complicated than necessary. According to Jacob, Emysql
 is pretty stable and ran without issue in an production environment at Electronic Arts.
 
-[Vitaliy Batichko](https://github.com/bva) and [jugg](https://github.com/jugg) have contributed fixes to this branch.
+[Vitaliy Batichko](https://github.com/bva) and [Chris Rempel](https://github.com/csrl) have contributed updates to this branch.
 
 Thank you!
 
