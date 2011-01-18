@@ -147,10 +147,10 @@ For the above sample, create a local mysql database:
 #### Run Samples
 Sample programs are in ./samples. 
 
-* [a_hello](http:Emysql/blob/master/samples/a_hello.erl) - Hello World
-* [a_hello2](http:Emysql/blob/master/samples/a_hello2.erl) - Hello World somewhat rawer
-* [b_rows_as_records](http:Emysql/blob/master/samples/b_rows_as_records.erl) - Using Erlang records to access result rows
-* [c_stored_procedure](http:Emysql/blob/master/samples/c_stored_procedure.erl) - Using Stored procedures
+* [a_hello](http://github.com/Eonblast/Emysql/blob/master/samples/a_hello.erl) - Hello World
+* [a_hello2](http://github.com/Eonblast/Emysql/blob/master/samples/a_hello2.erl) - Hello World somewhat rawer
+* [b_rows_as_records](http://github.com/Eonblast/Emysql/blob/master/samples/b_rows_as_records.erl) - Using Erlang records to access result rows
+* [c_stored_procedure](http://github.com/Eonblast/Emysql/blob/master/samples/c_stored_procedure.erl) - Using Stored procedures
 
 To run the samples, create the database as listed above at localhost, and:
 
@@ -176,7 +176,7 @@ first create the database as listed above):
 
 ## License
 
-Copyright (c) 2009-2011
+Copyright (c) 2009-2011  
 [Bill Warnecke](http://github.com/wwarneck) <bill@rupture.com>   
 [Jacob Vorreuter](http://github.com/JacobVorreuter) <jacob.vorreuter@gmail.com>  
 [Eonblast Corporation](http://www.eonblast.com) <hd2010@eonblast.com>   
