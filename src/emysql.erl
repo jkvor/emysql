@@ -1,27 +1,31 @@
-%% Copyright (c) 2009
+%% Copyright (c) 2009-2011
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%%
-%% Permission is hereby granted, free of charge, to any person
-%% obtaining a copy of this software and associated documentation
-%% files (the "Software"), to deal in the Software without
-%% restriction, including without limitation the rights to use,
-%% copy, modify, merge, publish, distribute, sublicense, and/or sell
-%% copies of the Software, and to permit persons to whom the
-%% Software is furnished to do so, subject to the following
+%% Henning Diedrich <hd2010@eonblast.com>
+%% Eonblast Corporation <http://www.eonblast.com>
+%% 
+%% Permission is  hereby  granted,  free of charge,  to any person
+%% obtaining  a copy of this software and associated documentation
+%% files (the "Software"),to deal in the Software without restric-
+%% tion,  including  without  limitation the rights to use,  copy, 
+%% modify, merge,  publish,  distribute,  sublicense,  and/or sell
+%% copies  of the  Software,  and to  permit  persons to  whom the
+%% Software  is  furnished  to do  so,  subject  to the  following 
 %% conditions:
-%%
-%% The above copyright notice and this permission notice shall be
+%% 
+%% The above  copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%%
+%% 
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-%% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-%% NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-%% HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-%% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+%% OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+%% NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+%% HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+%% WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+%% FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
+
+
 -module(emysql).
 
 -export([start/0, stop/0, modules/0, default_timeout/0]).
@@ -31,9 +35,43 @@
 
 -include("emysql.hrl").
 
+%% @spec start() -> ok
+%% @doc Start the Emysql application.
+%%
+%% Simply calls `application:start(emysql).'
+%%
+%% === From the Erlang Manual ===
+%% If the application is not already loaded, the application controller will
+%% first load it using application:load/1. It will check the value of the
+%% applications key, to ensure that all applications that should be started
+%% before this application are running. The application controller then
+%% creates an application master for the application. The application master
+%% is the group leader of all the processes in the application. The
+%% application master starts the application by calling the application
+%% callback function start/2 in the module, and with the start argument,
+%% defined by the mod key in the .app file.
+%%
+%% application:start(Application) is the same as calling 
+%% application:start(Application, temporary). If a temporary application
+%% terminates, this is reported but no other applications are terminated.
+%%
+%% See [http://www.erlang.org/doc/design_principles/applications.html]
+%%
 start() ->
 	application:start(emysql).
 
+%% @spec stop() -> ok
+%% @doc Stop the Emysql application.
+%% 
+%% Simply calls `application:stop(emysql).'
+%%
+%% === From the Erlang Manual ===
+%% It is always possible to stop an application explicitly by calling
+%% application:stop/1. Regardless of the mode, no other applications will be
+%% affected.
+%%
+%% See [http://www.erlang.org/doc/design_principles/applications.html]
+%%
 stop() ->
 	application:stop(emysql).
 
@@ -74,15 +112,123 @@ decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 %% @spec prepare(StmtName, Statement) -> ok
 %%		StmtName = atom()
 %%		Statement = binary() | string()
+%%
+%% @doc Prepare a statement.
+%% 
+%% The atom given by parameter 'StmtName' is bound to the SQL string
+%% 'Statement'. Calling ``execute(<Pool>, StmtName, <ParamList>)'' executes the
+%% statement with parameters from ``<ParamList>''.
+%%
+%% This is not a mySQL prepared statement, but an implementation on the side of 
+%% Emysql.
+%%
+%% === Sample ===
+%% ```
+%% -module(sample).
+%% -export([run/0]).
+%% 
+%% run() ->
+%% 
+%% 	application:start(sasl),
+%% 	crypto:start(),
+%% 	application:start(emysql),
+%% 
+%% 	emysql:add_pool(hello_pool, 1,
+%% 		"hello_username", "hello_password", "localhost", 3306,
+%% 		"hello_database", utf8),
+%% 
+%% 	emysql:execute(hello_pool,
+%% 		<<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
+%% 
+%% 	emysql:prepare(hello_stmt, 
+%% 		<<"SELECT * from hello_table WHERE hello_text like ?">>),
+%% 
+%% 	Result = emysql:execute(hello_pool, hello_stmt, ["Hello%"]),
+%% 
+%% 	io:format("~n~s~n", [string:chars($-,72)]),
+%% 	io:format("~p~n", [Result]),
+%% 
+%%     ok.
+%% '''
+%% Output:
+%% ```
+%% {result_packet,32,
+%%               [{field,2,<<"def">>,<<"hello_database">>,
+%%                        <<"hello_table">>,<<"hello_table">>,
+%%                        <<"hello_text">>,<<"hello_text">>,254,<<>>,33,
+%%                        60,0,0}],
+%%                [[<<"Hello World!">>]],
+%%                <<>>}
+%% ''' 
+%% === Implementation ===
+%%
+%% Hands parameters over to emysql_statements:add/2:
+%% ``emysql_statements:add(StmtName, Statement).'', which calls 
+%% ``handle_call({add, StmtName, Statement}, _From, State)''.
+%%
+%% The statement is there added to the Emysql statement GB tree:
+%% ... ```
+%%				State#state{
+%%					statements = gb_trees:enter(StmtName, {1, Statement},
+%%						State#state.statements)
+%% '''
+%% Execution is called like this:
+%% ```
+%% execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
+%% 	prepare_statement(Connection, StmtName),
+%% 	case set_params(Connection, 1, Args, undefined) of
+%% 		OK when is_record(OK, ok_packet) ->
+%% 			ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
+%% 			StmtNameBin = atom_to_binary(StmtName, utf8),
+%% 			Packet = <<?COM_QUERY, "EXECUTE ", StmtNameBin/binary, " USING ", ParamNamesBin/binary>>,
+%% 			emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
+%% 		Error ->
+%% 			Error
+%% 	end.
+%% '''
+%%
+%% @see emysql_statements:add/2
+%% @see emysql_statements:handle/3
+%% @see emysql_conn:execute/3
+
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
 	emysql_statements:add(StmtName, Statement).
 
+%% @spec execute(PoolId, Query|StmtName) -> Result
+%%		PoolId = atom()
+%%		Query = binary() | string()
+%%		StmtName = atom()
+%%		Result = ok_packet() | result_packet() | error_packet()
+%%
+%% @doc Execute a query or a prepared statement / stored procedure.
+%%
+%% Same as `execute(PoolId, Query, [], default_timeout())'.
+%%
+%% @see execute/4.
+%%
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
 
 execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 
+%% @spec execute(PoolId, Query|StmtName, Args|Timeout) -> Result
+%%		PoolId = atom()
+%%		Query = binary() | string()
+%%		StmtName = atom()
+%%		Args = [any()]
+%%		Timeout = integer()
+%%		Result = ok_packet() | result_packet() | error_packet()
+%%
+%% @doc Execute a query or a prepared statement / stored procedure.
+%%
+%% Same as `execute(PoolId, Query, Args, default_timeout())' 
+%% or `execute(PoolId, Query, [], Timeout)'.
+%%
+%% Timeout is the query timeout in milliseconds.
+%%
+%% @see execute/4.
+%%
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	execute(PoolId, Query, Args, default_timeout());
 
@@ -103,9 +249,25 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %%		Timeout = integer()
 %%		Result = ok_packet() | result_packet() | error_packet()
 %%
-%% @doc execute query
+%% @doc Execute a query or a prepared statement / stored procedure.
 %%
-%% Timeout is the query timeout in milliseconds
+%% <ll>
+%% <li>Opens a connection,</li>
+%% <li>sends the query string, or statement atom, and</li>
+%% <li>returns the result packet.</li>
+%% </ll>
+%%
+%% Basically:
+%% ```
+%% Connection = emysql_conn_mgr:wait_for_connection(PoolId),
+%% monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query_or_StmtName, Args]}).
+%% '''
+%% Timeout is the query timeout in milliseconds.
+%%
+%% All other execute function eventually call this function.
+%% 
+%% @see execute/2.
+%% @see execute/3. 
 %%
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
@@ -115,7 +277,6 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName)
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).
 
-%%
 %% NON-BLOCKING CONNECTION LOCKING
 %% non-blocking means the process will not attempt to wait in line
 %% until a connection is available. If no connections are available

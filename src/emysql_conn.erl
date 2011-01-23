@@ -1,33 +1,36 @@
-%% Copyright (c) 2009
-%% Bill Warnecke <bill@rupture.com>
-%% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%%
-%% Permission is hereby granted, free of charge, to any person
-%% obtaining a copy of this software and associated documentation
-%% files (the "Software"), to deal in the Software without
-%% restriction, including without limitation the rights to use,
-%% copy, modify, merge, publish, distribute, sublicense, and/or sell
-%% copies of the Software, and to permit persons to whom the
-%% Software is furnished to do so, subject to the following
+%% Copyright (c) 2009-2011
+%% Bill Warnecke <bill@rupture.com>,
+%% Jacob Vorreuter <jacob.vorreuter@gmail.com>,
+%% Henning Diedrich <hd2010@eonblast.com>,
+%% Eonblast Corporation <http://www.eonblast.com>
+%% 
+%% Permission is  hereby  granted,  free of charge,  to any person
+%% obtaining  a copy of this software and associated documentation
+%% files (the "Software"),to deal in the Software without restric-
+%% tion,  including  without  limitation the rights to use,  copy, 
+%% modify, merge,  publish,  distribute,  sublicense,  and/or sell
+%% copies  of the  Software,  and to  permit  persons to  whom the
+%% Software  is  furnished  to do  so,  subject  to the  following 
 %% conditions:
-%%
-%% The above copyright notice and this permission notice shall be
+%% 
+%% The above  copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%%
+%% 
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-%% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-%% NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-%% HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-%% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+%% OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+%% NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+%% HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+%% WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+%% FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
+
 -module(emysql_conn).
 -export([set_database/2, set_encoding/2,
 		execute/3, prepare/3, unprepare/2,
 		open_connections/1, open_connection/1,
 		reset_connection/2, close_connection/1,
-		open_n_connections/2
+		open_n_connections/2, hstate/1
 ]).
 
 -include("emysql.hrl").
@@ -42,6 +45,7 @@ set_encoding(Connection, Encoding) ->
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 
 execute(Connection, Query, []) when is_list(Query); is_binary(Query) ->
+	%-% io:format("~n~p~n", [iolist_to_binary(Query)]),
 	Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
 
@@ -193,3 +197,11 @@ prepare_statement(Connection, StmtName) ->
 					end
 			end
 	end.
+
+% human readable string rep of the server state flag
+%% @private
+hstate(State) ->
+
+	   case (State band ?SERVER_STATUS_AUTOCOMMIT) of 0 -> ""; _-> "AUTOCOMMIT " end
+	++ case (State band ?SERVER_MORE_RESULTS_EXISTS) of 0 -> ""; _-> "MORE_RESULTS_EXISTS " end
+	++ case (State band ?SERVER_QUERY_NO_INDEX_USED) of 0 -> ""; _-> "NO_INDEX_USED " end.

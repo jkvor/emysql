@@ -85,6 +85,8 @@ init([]) ->
 %%                                      {stop, Reason, Reply, State} |
 %%                                      {stop, Reason, State}
 %% Description: Handling call messages
+%%
+%% GB trees, see [http://www.erlang.org/doc/man/gb_trees.html]
 %%--------------------------------------------------------------------
 handle_call(all, _From, State) ->
 	{reply, State, State};

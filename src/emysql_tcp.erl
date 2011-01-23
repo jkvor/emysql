@@ -1,27 +1,30 @@
-%% Copyright (c) 2009
-%% Bill Warnecke <bill@rupture.com>
-%% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%%
-%% Permission is hereby granted, free of charge, to any person
-%% obtaining a copy of this software and associated documentation
-%% files (the "Software"), to deal in the Software without
-%% restriction, including without limitation the rights to use,
-%% copy, modify, merge, publish, distribute, sublicense, and/or sell
-%% copies of the Software, and to permit persons to whom the
-%% Software is furnished to do so, subject to the following
+%% Copyright (c) 2009-2011
+%% Bill Warnecke <bill@rupture.com>,
+%% Jacob Vorreuter <jacob.vorreuter@gmail.com>,
+%% Henning Diedrich <hd2010@eonblast.com>,
+%% Eonblast Corporation <http://www.eonblast.com>
+%% 
+%% Permission is  hereby  granted,  free of charge,  to any person
+%% obtaining  a copy of this software and associated documentation
+%% files (the "Software"),to deal in the Software without restric-
+%% tion,  including  without  limitation the rights to use,  copy, 
+%% modify, merge,  publish,  distribute,  sublicense,  and/or sell
+%% copies  of the  Software,  and to  permit  persons to  whom the
+%% Software  is  furnished  to do  so,  subject  to the  following 
 %% conditions:
-%%
-%% The above copyright notice and this permission notice shall be
+%% 
+%% The above  copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%%
+%% 
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-%% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-%% NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-%% HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-%% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+%% OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+%% NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+%% HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+%% WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+%% FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
+
 -module(emysql_tcp).
 -export([send_and_recv_packet/3, recv_packet/1, package_server_response/2]).
 
@@ -31,6 +34,7 @@
 -define(ETS_SELECT(TableID), ets:select(TableID,[{{'_','$2'},[],['$2']}])).
 
 send_and_recv_packet(Sock, Packet, SeqNum) ->
+	%-% io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
 		ok -> ok;
 		{error, Reason} ->
@@ -41,12 +45,31 @@ send_and_recv_packet(Sock, Packet, SeqNum) ->
 recv_packet(Sock) ->
 	{PacketLength, SeqNum} = recv_packet_header(Sock),
 	Data = recv_packet_body(Sock, PacketLength),
+	%-% io:format("~nrecv_packet: len: ~p, data: ~p~n", [PacketLength, Data]),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 
-package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
+read_rest(Sock) ->
+	%-% io:format("~nread_rest: ", []),
+	case recv_packet_header_if_present(Sock) of
+		{PacketLength, SeqNum} ->
+			%-% io:format("recv_packet ('rest'): len: ~p, seq#: ~p ", [PacketLength, SeqNum]),
+			Data = recv_packet_body(Sock, PacketLength),
+			%-% io:format("data: ~p~n", [Data]),
+			Packet = #packet{size=PacketLength, seq_num=SeqNum, data=Data},
+			package_server_response(Sock, Packet);
+		none ->
+			%-% io:format("nothing~n", []),
+			nothing
+	end.
+
+% OK response: first byte 0.
+package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}=_Packet) ->
+	%-% io:format("~npackage_server_response (OK): ~p~n", [_Packet]),
 	{AffectedRows, Rest1} = emysql_util:length_coded_binary(Rest),
 	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
-	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
+	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2, % (*)!
+	%-% io:format("- warnings: ~p~n", [WarningCount]),
+	%-% io:format("- server status: ~p~n", [emysql_conn:hstate(ServerStatus)]),
 	#ok_packet{
 		seq_num = SeqNum,
 		affected_rows = AffectedRows,
@@ -56,12 +79,27 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/bina
 		msg = binary_to_list(Msg)
 	};
 
-package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<254:8>>}) ->
+% EOF: MySQL format <= 4.0, single byte.
+package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<?RESP_EOF:8>>}=_Packet) ->
+	%-% io:format("~npackage_server_response (EOF v 4.0): ~p~n", [_Packet]),
 	#eof_packet{
 		seq_num = SeqNum
 	};
 
-package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
+% EOF: MySQL format >= 4.1, with warnings and status.
+package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<?RESP_EOF:8, WarningCount:16/little, ServerStatus:16/little>>}=_Packet) -> % (*)!
+	%-% io:format("~npackage_server_response (EOF v 4.1), Warn Count: ~p, Status ~p, Raw: ~p~n", [WarningCount, ServerStatus, _Packet]),
+	%-% io:format("- warnings: ~p~n", [WarningCount]),
+	%-% io:format("- server status: ~p~n", [emysql_conn:hstate(ServerStatus)]),
+	#eof_packet{
+		seq_num = SeqNum,
+		status = ServerStatus,
+		warning_count = WarningCount
+	};
+
+% ERROR response. 
+package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}=_Packet) ->
+	%-% io:format("~npackage_server_response (Response is ERROR): SeqNum: ~p, Packet: ~p~n", [SeqNum, _Packet]),
 	<<Code:16/little, Msg/binary>> = Rest,
 	#error_packet{
 		seq_num = SeqNum,
@@ -69,7 +107,9 @@ package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/bi
 		msg = binary_to_list(Msg)
 	};
 
-package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
+% DATA response. 
+package_server_response(Sock, #packet{seq_num = SeqNum, data = Data}=_Packet) ->
+	%-% io:format("~npackage_server_response (DATA): ~p~n", [_Packet]),
 	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
 	{Extra, _} = emysql_util:length_coded_binary(Rest1),
 	{SeqNum1, FieldList} = recv_field_list(Sock, SeqNum+1),
@@ -80,12 +120,14 @@ package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 			ok
 	end,
 	{SeqNum2, Rows} = recv_row_data(Sock, FieldList, SeqNum1+1),
-	#result_packet{
+	Response = #result_packet{
 		seq_num = SeqNum2,
 		field_list = FieldList,
 		rows = Rows,
 		extra = Extra
-	}.
+	},
+	read_rest(Sock),
+	Response.
 
 recv_packet_header(Sock) ->
 	case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
@@ -93,6 +135,19 @@ recv_packet_header(Sock) ->
 			{PacketLength, SeqNum};
 		{ok, Bin} when is_binary(Bin) ->
 			exit({bad_packet_header_data, Bin});
+		{error, Reason} ->
+			exit({failed_to_recv_packet_header, Reason})
+	end.
+
+% Helper for unclear format detection.
+recv_packet_header_if_present(Sock) ->
+	case gen_tcp:recv(Sock, 4, 0) of
+		{ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
+			{PacketLength, SeqNum};
+		{ok, Bin} when is_binary(Bin) ->
+			exit({bad_packet_header_data, Bin});
+		{error, timeout} ->
+			none;
 		{error, Reason} ->
 			exit({failed_to_recv_packet_header, Reason})
 	end.
@@ -133,7 +188,11 @@ recv_field_list(Sock, SeqNum) ->
 
 recv_field_list(Sock, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
-		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} ->
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, _ServerStatus:16/little>>} -> % (*)!
+			%-% io:format("- eof: ~p~n", [emysql_conn:hstate(_ServerStatus)]),
+			{SeqNum1, ?ETS_SELECT(Tid)};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
+			%-% io:format("- eof~n", []),
 			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = Data} ->
 			{Catalog, Rest2} = emysql_util:length_coded_string(Data),
@@ -171,10 +230,16 @@ recv_row_data(Sock, FieldList, SeqNum) ->
 	Res.
 
 recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
+	%-% io:format("~nreceive row ~p: ", [Key]),
 	case recv_packet(Sock) of
-		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} ->
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, _ServerStatus:16/little>>} ->
+			%-% io:format("- eof: ~p~n", [emysql_conn:hstate(_ServerStatus)]),
+			{SeqNum1, ?ETS_SELECT(Tid)};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
+			%-% io:format("- eof.~n", []),
 			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = RowData} ->
+			%-% io:format("Seq: ~p raw: ~p~n", [SeqNum1, RowData]),
 			Row = decode_row_data(RowData, FieldList, []),
 			ets:insert(Tid, {Key, Row}),
 			recv_row_data(Sock, FieldList, SeqNum1, Tid, Key+1)
@@ -261,8 +326,53 @@ type_cast_row_data(Data, #field{type=Type})
 		<<0>> -> 0
 	end;
 
+% TODO:
 % ?FIELD_TYPE_NEWDATE
 % ?FIELD_TYPE_ENUM
 % ?FIELD_TYPE_SET
 % ?FIELD_TYPE_GEOMETRY
+
 type_cast_row_data(Data, _) -> Data.
+
+% TODO:  http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol#COM_QUERY
+% field_count:          The value is always 0xfe (decimal ?RESP_EOF).
+%                       However ... recall (from the
+%                       section "Elements", above) that the value ?RESP_EOF can begin
+%                       a Length-Encoded-Binary value which contains an 8-byte
+%                       integer. So, to ensure that a packet is really an EOF
+%                       Packet: (a) check that first byte in packet = 0xfe, (b)
+%                       check that size of packet < 9.
+
+% -------------------------------------------------------------------------------
+% Note: (*) The order of status and warnings count reversed for eof vs. ok packet.
+% -------------------------------------------------------------------------------
+
+% -------------------------------------------------------------------------------
+% EOF packet format
+% -------------------------------------------------------------------------------
+% VERSION 4.0
+%  Bytes                 Name
+%  -----                 ----
+%  1                     field_count, always = 0xfe
+%  
+%  VERSION 4.1
+%  Bytes                 Name
+%  -----                 ----
+%  1                     field_count, always = 0xfe
+%  2                     warning_count
+%  2                     Status Flags
+%  
+%  field_count:          The value is always 0xfe (decimal 254).
+%                        However ... recall (from the
+%                        section "Elements", above) that the value 254 can begin
+%                        a Length-Encoded-Binary value which contains an 8-byte
+%                        integer. So, to ensure that a packet is really an EOF
+%                        Packet: (a) check that first byte in packet = 0xfe, (b)
+%                        check that size of packet < 9.
+%  
+%  warning_count:        Number of warnings. Sent after all data has been sent
+%                        to the client.
+%  
+%  server_status:        Contains flags like SERVER_MORE_RESULTS_EXISTS
+% 
+% Source: http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol
