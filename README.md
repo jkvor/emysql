@@ -17,7 +17,7 @@ While you can use mysql via ODBC, using Emysql, or another native solution, shou
 
 ## History
 
-There are three native solutions out there 
+There are three native solutions out there  
 * [erlang-mysql / Yxa](https://support.process-one.net/doc/display/CONTRIBS/Yxa) of 2005-08 by Process One  
 * [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/) a 2006 derivate by Yariv Sadan, Dave Smith et al  
 * [emysql](http://github.com/JacobVorreuter/emysql) a 2009 rewrite by Jacob Vorreuter, Bill Warnecke  
@@ -52,7 +52,8 @@ Thank you!
 	application:start(emysql).
 	
 #### Add a pool
-	% emysql:add\_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) -> ok | {error, pool\_already\_exists}  
+	% emysql:add_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) ->
+	%	ok | {error, pool_already_exists}  
 	% PoolName = atom()  
 	% PoolSize = integer()  
 	% Username = string()  
@@ -70,7 +71,7 @@ Thank you!
 	-record(result_packet, {seq_num, field_list, rows, extra}).
 
 #### Executing SQL statements
-	% emysql:execute(PoolName, Statement) -> result\_packet() | ok\_packet() | error\_packet()  
+	% emysql:execute(PoolName, Statement) -> result_packet() | ok_packet() | error_packet()  
 	% PoolName = atom()  
 	% Statement = string() | binary()  	
 
@@ -88,7 +89,7 @@ Thank you!
 	emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>).
 	ok
 	
-	% emysql:execute(PoolName, StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
+	% emysql:execute(PoolName, StmtName, Args) -> result_packet() | ok_packet() | error_packet()  
 	% StmtName = atom()  
 	% Args = [term()]  
 
@@ -97,7 +98,7 @@ Thank you!
 
 #### Executing stored procedures
 
-	% emysql:execute(PoolName, StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
+	% emysql:execute(PoolName, StmtName, Args) -> result_packet() | ok_packet() | error_packet()  
 	% StmtName = atom()  
 	% Args = [term()]  
 
@@ -115,8 +116,8 @@ Thank you!
 	{ok_packet,7,0,0,34,0,[]}]
  
 #### Converting Row Data To Records
-	% emysql\_util:as\_record(ResultPacket, RecordName, Fields) -> Result  
-	% ResultPacket = result\_packet()  
+	% emysql_util:as_record(ResultPacket, RecordName, Fields) -> Result  
+	% ResultPacket = result_packet()  
 	% RecordName = atom() (the name of the record to generate)  
 	% Fields = [atom()] (the field names to generate for each record)  
 	% Result = [record()]  
@@ -139,7 +140,7 @@ Thank you!
 
 #### Hello World
 
-This is a hello world program. Follow the steps below to get up and running in minutes.
+This is a hello world program. Follow the three steps below to try it out.
 	
 	-module(a_hello).
 	-export([run/0]).
@@ -174,8 +175,7 @@ Build emysql.app, using make:
 
 #### Sample database
 
-You should have a mysql server installed and running.  
-For the above sample, create a local mysql database:
+For the above sample, create a local mysql database. You should have a mysql server installed and running:
 	
 	$ mysql [-u<user> -p]
 	mysql> create database hello_database;
@@ -183,15 +183,16 @@ For the above sample, create a local mysql database:
 	mysql> create table hello_table (hello_text char(20));
 	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
 
+#### Run Hello
 
-and be sure to have ./ebin in your Erlang path. See sample programms, below.
-Copy this source into a file hello
+Be sure to have ./ebin in your Erlang path. Now copy the Hello World source above into a file hello.erl and run it (in the Emysql root directory):
 
+	$ erlc hello.erl
+	$ erl -pa ../ebin -s hello run -s init stop -noshell
 
+See more sample programms, below.
 
-
-
-#### Run Samples
+#### Running the Samples
 Sample programs are in ./samples. 
 
 * [a_hello](http://github.com/Eonblast/Emysql/blob/master/samples/a_hello.erl) - Hello World
@@ -223,33 +224,34 @@ first create the database as listed above):
 
 ## TODO
 * decrementing pool size could close sockets that are in use
-* spawn individual conn\_mgr gen\_server processes for each pool
+* spawn individual conn_mgr gen_server processes for each pool
 * allow row results to be returned as binary
 
 ## License
 
-Copyright (c) 2009-2011  
-[Bill Warnecke](http://github.com/wwarneck) <bill@rupture.com>,   
-[Jacob Vorreuter](http://github.com/JacobVorreuter) <jacob.vorreuter@gmail.com>,  
-[Eonblast Corporation](http://www.eonblast.com) <hd2010@eonblast.com>   
+Copyright (c) 2009-2011
+Bill Warnecke <bill@rupture.com>,
+Jacob Vorreuter <jacob.vorreuter@gmail.com>,
+Henning Diedrich <hd2010@eonblast.com>,
+Eonblast Corporation [http://www.eonblast.com].
 
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
+Permission is  hereby  granted,  free of charge,  to any person
+obtaining  a copy of this software and associated documentation
+files (the "Software"),to deal in the Software without restric-
+tion,  including  without  limitation the rights to use,  copy, 
+modify, merge,  publish,  distribute,  sublicense,  and/or sell
+copies  of the  Software,  and to  permit  persons to  whom the
+Software  is  furnished  to do  so,  subject  to the  following 
 conditions:
 
 The above copyright notice and this permission notice shall be
 included in all copies or substantial portions of the Software.
- 
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.

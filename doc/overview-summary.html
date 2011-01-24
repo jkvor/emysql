@@ -36,7 +36,7 @@
 
 <h3><a name="History">History</a></h3>
 
-<p>There are three native solutions out there 
+<p>There are three native solutions out there<br>
 <li> <a href="https://support.process-one.net/doc/display/CONTRIBS/Yxa">erlang-mysql / Yxa</a> of 2005-08 by Process One  </li>
 <li> <a href="http://code.google.com/p/erlang-mysql-driver/">erlang-mysql-driver</a> a 2006 derivate by Yariv Sadan, Dave Smith et al  </li>
 <li> <a href="http://github.com/JacobVorreuter/emysql">emysql</a> a 2009 rewrite by Jacob Vorreuter, Bill Warnecke  </li></p>
@@ -71,7 +71,8 @@ is pretty stable and ran without issue in an production environment at Electroni
 <pre>   	application:start(emysql).</pre>
 	
 <h5><a name="Add_a_pool">Add a pool</a></h5>
-<pre>   	% emysql:add\_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) -&gt; ok | {error, pool\_already\_exists}</pre>
+<pre>   	% emysql:add_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) -&gt;</pre>
+<pre>   	%	ok | {error, pool_already_exists}</pre>
 <pre>   	% PoolName = atom()</pre>
 <pre>   	% PoolSize = integer()</pre>
 <pre>   	% Username = string()</pre>
@@ -89,7 +90,7 @@ is pretty stable and ran without issue in an production environment at Electroni
 <pre>   	-record(result_packet, {seq_num, field_list, rows, extra}).</pre>
 
 <h5><a name="Executing_SQL_statements">Executing SQL statements</a></h5>
-<pre>   	% emysql:execute(PoolName, Statement) -&gt; result\_packet() | ok\_packet() | error\_packet()</pre>
+<pre>   	% emysql:execute(PoolName, Statement) -&gt; result_packet() | ok_packet() | error_packet()</pre>
 <pre>   	% PoolName = atom()</pre>
 <pre>   	% Statement = string() | binary()</pre>
 
@@ -107,7 +108,7 @@ is pretty stable and ran without issue in an production environment at Electroni
 <pre>   	emysql:prepare(my_stmt, &lt;&lt;"SELECT * from mytable WHERE id = ?"&gt;&gt;).</pre>
 <pre>   	ok</pre>
 	
-<pre>   	% emysql:execute(PoolName, StmtName, Args) -&gt; result\_packet() | ok\_packet() | error\_packet()</pre>
+<pre>   	% emysql:execute(PoolName, StmtName, Args) -&gt; result_packet() | ok_packet() | error_packet()</pre>
 <pre>   	% StmtName = atom()</pre>
 <pre>   	% Args = [term()]</pre>
 
@@ -116,7 +117,7 @@ is pretty stable and ran without issue in an production environment at Electroni
 
 <h5><a name="Executing_stored_procedures">Executing stored procedures</a></h5>
 
-<pre>   	% emysql:execute(PoolName, StmtName, Args) -&gt; result\_packet() | ok\_packet() | error\_packet()</pre>
+<pre>   	% emysql:execute(PoolName, StmtName, Args) -&gt; result_packet() | ok_packet() | error_packet()</pre>
 <pre>   	% StmtName = atom()</pre>
 <pre>   	% Args = [term()]</pre>
 
@@ -134,8 +135,8 @@ is pretty stable and ran without issue in an production environment at Electroni
 <pre>   	{ok_packet,7,0,0,34,0,[]}]</pre>
  
 <h5><a name="Converting_Row_Data_To_Records">Converting Row Data To Records</a></h5>
-<pre>   	% emysql\_util:as\_record(ResultPacket, RecordName, Fields) -&gt; Result</pre>
-<pre>   	% ResultPacket = result\_packet()</pre>
+<pre>   	% emysql_util:as_record(ResultPacket, RecordName, Fields) -&gt; Result</pre>
+<pre>   	% ResultPacket = result_packet()</pre>
 <pre>   	% RecordName = atom() (the name of the record to generate)</pre>
 <pre>   	% Fields = [atom()] (the field names to generate for each record)</pre>
 <pre>   	% Result = [record()]</pre>
@@ -158,7 +159,7 @@ is pretty stable and ran without issue in an production environment at Electroni
 
 <h5><a name="Hello_World">Hello World</a></h5>
 
-<p>This is a hello world program. Follow the steps below to get up and running in minutes.</p>
+<p>This is a hello world program. Follow the three steps below to try it out.</p>
 	
 <pre>   	-module(a_hello).</pre>
 <pre>   	-export([run/0]).</pre>
@@ -193,8 +194,7 @@ is pretty stable and ran without issue in an production environment at Electroni
 
 <h5><a name="Sample_database">Sample database</a></h5>
 
-<p>You should have a mysql server installed and running.<br>
-For the above sample, create a local mysql database:</p>
+<p>For the above sample, create a local mysql database. You should have a mysql server installed and running:</p>
 	
 <pre>   	$ mysql [-u&lt;user&gt; -p]</pre>
 <pre>   	mysql&gt; create database hello_database;</pre>
@@ -202,15 +202,16 @@ For the above sample, create a local mysql database:</p>
 <pre>   	mysql&gt; create table hello_table (hello_text char(20));</pre>
 <pre>   	mysql&gt; grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';</pre>
 
+<h5><a name="Run_Hello">Run Hello</a></h5>
 
-<p>and be sure to have ./ebin in your Erlang path. See sample programms, below.
-Copy this source into a file hello</p>
+<p>Be sure to have ./ebin in your Erlang path. Now copy the Hello World source above into a file hello.erl and run it (in the Emysql root directory):</p>
 
+<pre>   	$ erlc hello.erl</pre>
+<pre>   	$ erl -pa ../ebin -s hello run -s init stop -noshell</pre>
 
+<p>See more sample programms, below.</p>
 
-
-
-<h5><a name="Run_Samples">Run Samples</a></h5><p>
+<h5><a name="Running_the_Samples">Running the Samples</a></h5><p>
 Sample programs are in ./samples. </p>
 
 <p><li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/a_hello.erl">a_hello</a> - Hello World</li>
@@ -242,39 +243,40 @@ first create the database as listed above):</p>
 
 <h3><a name="TODO">TODO</a></h3><p>
 <li> decrementing pool size could close sockets that are in use</li>
-<li> spawn individual conn\_mgr gen\_server processes for each pool</li>
+<li> spawn individual conn_mgr gen_server processes for each pool</li>
 <li> allow row results to be returned as binary</li></p>
 
 <h3><a name="License">License</a></h3>
 
-<p>Copyright (c) 2009-2011<br>
-<a href="http://github.com/wwarneck">Bill Warnecke</a> <a href="mailto:bill@rupture.com">bill@rupture.com</a>, <br>
-<a href="http://github.com/JacobVorreuter">Jacob Vorreuter</a> <a href="mailto:jacob.vorreuter@gmail.com">jacob.vorreuter@gmail.com</a>,<br>
-<a href="http://www.eonblast.com">Eonblast Corporation</a> <a href="mailto:hd2010@eonblast.com">hd2010@eonblast.com</a> <br></p>
+<p>Copyright (c) 2009-2011
+Bill Warnecke <a href="mailto:bill@rupture.com">bill@rupture.com</a>,
+Jacob Vorreuter <a href="mailto:jacob.vorreuter@gmail.com">jacob.vorreuter@gmail.com</a>,
+Henning Diedrich <a href="mailto:hd2010@eonblast.com">hd2010@eonblast.com</a>,
+Eonblast Corporation <a href="http://www.eonblast.com" target="_top"><tt>http://www.eonblast.com</tt></a>.</p>
 
-<p>Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
+<p>Permission is  hereby  granted,  free of charge,  to any person
+obtaining  a copy of this software and associated documentation
+files (the "Software"),to deal in the Software without restric-
+tion,  including  without  limitation the rights to use,  copy, 
+modify, merge,  publish,  distribute,  sublicense,  and/or sell
+copies  of the  Software,  and to  permit  persons to  whom the
+Software  is  furnished  to do  so,  subject  to the  following 
 conditions:</p>
 
 <p>The above copyright notice and this permission notice shall be
 included in all copies or substantial portions of the Software.</p>
- 
+
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 <hr>
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Jan 24 2011, 09:39:13.</i></p>
+<p><i>Generated by EDoc, Jan 24 2011, 09:49:36.</i></p>
 </body>
 </html>
