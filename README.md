@@ -1,18 +1,28 @@
-## Emysql
+## Emysql 
 
-Erlang mysql driver. Fork with a tad more doku and samples, some fixes.
+Erlang mysql driver. Fork with fixes, more docs and samples. Supports prepared statements and stored procedures.
+
+While you can use mysql via ODBC, using Emysql, or another native solution, should perform better. This is one of the multiple maintained mysql drivers on github.
 
 
-#### History
+## Contents
 
-While you can use mysql via ODBC, using emysql, or another native solution, should perform better.
+* History
+* Hints on Usage
+* Samples
+* Links
+* Todo
+* License
 
-There are three native solutions out there it seems  
+
+## History
+
+There are three native solutions out there 
 * [erlang-mysql / Yxa](https://support.process-one.net/doc/display/CONTRIBS/Yxa) of 2005-08 by Process One  
 * [erlang-mysql-driver](http://code.google.com/p/erlang-mysql-driver/) a 2006 derivate by Yariv Sadan, Dave Smith et al  
 * [emysql](http://github.com/JacobVorreuter/emysql) a 2009 rewrite by Jacob Vorreuter, Bill Warnecke  
 
-This here is a fork of the newest one, [JacobVorreuter/emysql](http://github.com/JacobVorreuter/emysql) with a tad more docu & samples.
+This is a fork of the newest one, [JacobVorreuter/emysql](http://github.com/JacobVorreuter/emysql) with fixes, more docu and samples.
 
 [Jacob Vorreuter](http://github.com/JacobVorreuter) in 2009 rewrote
 [Yariv Sadan's](http://yarivsblog.com/) 2006-07 
@@ -28,17 +38,11 @@ Jacob rewrote the erlang-mysql-driver code because he felt it had been touched b
 people that it had become more complicated than necessary. According to Jacob, Emysql
 is pretty stable and ran without issue in an production environment at Electronic Arts.
 
-[Vitaliy Batichko](https://github.com/bva) and [Chris Rempel](https://github.com/csrl) have contributed updates to this branch.
+[Vitaliy Batichko](https://github.com/bva) and
+[Chris Rempel](https://github.com/csrl) have contributed updates to this branch.
 
 Thank you!
 
-### Contents
-
-* Situation
-* Hints on Usage
-* Samples
-* Todo
-* License
 
 ## Hints on Usage 
 
@@ -48,15 +52,15 @@ Thank you!
 	application:start(emysql).
 	
 #### Add a pool
-emysql:add\_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) -> ok | {error, pool\_already\_exists}  
-PoolName = atom()  
-PoolSize = integer()  
-Username = string()  
-Password = string()  
-Host = string()  
-Port = integer()  
-Database = string()  
-Encoding = atom()  
+	% emysql:add\_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) -> ok | {error, pool\_already\_exists}  
+	% PoolName = atom()  
+	% PoolSize = integer()  
+	% Username = string()  
+	% Password = string()  
+	% Host = string()  
+	% Port = integer()  
+	% Database = string()  
+	% Encoding = atom()  
 
 	emysql:add_pool(mypoolname, 1, "username", "mypassword", "localhost", 3306, "mydatabase", utf8).
 	
@@ -66,9 +70,9 @@ Encoding = atom()
 	-record(result_packet, {seq_num, field_list, rows, extra}).
 
 #### Executing SQL statements
-emysql:execute(PoolName, Statement) -> result\_packet() | ok\_packet() | error\_packet()  
-PoolName = atom()  
-Statement = string() | binary()  	
+	% emysql:execute(PoolName, Statement) -> result\_packet() | ok\_packet() | error\_packet()  
+	% PoolName = atom()  
+	% Statement = string() | binary()  	
 
 	emysql:execute(mypoolname, <<"SELECT * from mytable">>).
 	#result_packet{field_list=[...], rows=[...]}
@@ -77,26 +81,45 @@ Statement = string() | binary()
 	#ok_packet{affected_rows=1}
 	
 #### Executing prepared statements
-emysql:prepare(StmtName, Statement) -> ok  
-StmtName = atom()  
-Statement = binary() | string()  
+	% emysql:prepare(StmtName, Statement) -> ok  
+	% StmtName = atom()  
+	% Statement = binary() | string()  
 
 	emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>).
 	ok
 	
-emysql:execute(PoolName, StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
-StmtName = atom()  
-Args = [term()]  
+	% emysql:execute(PoolName, StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
+	% StmtName = atom()  
+	% Args = [term()]  
 
 	emysql:execute(mypoolname, my_stmt, [1]).
 	#result_packet{field_list=[...], rows=[...]}
 
+#### Executing stored procedures
+
+	% emysql:execute(PoolName, StmtName, Args) -> result\_packet() | ok\_packet() | error\_packet()  
+	% StmtName = atom()  
+	% Args = [term()]  
+
+	emysql:execute(hello_pool,
+		<<"create procedure sp_hello() begin select * from hello_table; end">>).
+	{ok_packet,1,0,0,2,0,[]}
+
+	emysql:execute(hello_pool, <<"call sp_hello();">>).
+	[{result_packet,6,
+	                [{field,2,<<"def">>,<<"hello_database">>,<<"hello_table">>,
+	                        <<"hello_table">>,<<"hello_text">>,<<"hello_text">>,
+	                        254,<<>>,33,60,0,0}],
+	                [[<<"Hello World!">>],[<<"Hello World!">>]],
+	                <<>>},
+	{ok_packet,7,0,0,34,0,[]}]
+ 
 #### Converting Row Data To Records
-emysql\_util:as\_record(ResultPacket, RecordName, Fields) -> Result  
-ResultPacket = result\_packet()  
-RecordName = atom() (the name of the record to generate)  
-Fields = [atom()] (the field names to generate for each record)  
-Result = [record()]  
+	% emysql\_util:as\_record(ResultPacket, RecordName, Fields) -> Result  
+	% ResultPacket = result\_packet()  
+	% RecordName = atom() (the name of the record to generate)  
+	% Fields = [atom()] (the field names to generate for each record)  
+	% Result = [record()]  
 
 	-module(fetch_example).
 	-record(foo, {bar, baz, bat}).
@@ -108,11 +131,15 @@ Result = [record()]
 		  io:format("foo: ~p, ~p, ~p~n", [Foo#foo.bar, Foo#foo.baz, Foo#foo.bat])
 	    end || Foo <- Recs].
 
+## Getting Emysql
+
+	$ git clone git://github.com/Eonblast/Emysql.git Emysql
+	
 ## Samples
 
 #### Hello World
-To run the following, first build emysql.app, using make, 
-and be sure to have ./ebin in your Erlang path. See sample programms, below.
+
+This is a hello world program. Follow the steps below to get up and running in minutes.
 	
 	-module(a_hello).
 	-export([run/0]).
@@ -130,18 +157,38 @@ and be sure to have ./ebin in your Erlang path. See sample programms, below.
 			<<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
 
 	    Result = emysql:execute(hello_pool,
-    		<<"select hello_text from hello_table">>),
+			<<"select hello_text from hello_table">>),
 
 		io:format("~n~p~n", [Result]).
 
 
+We come back to that source, but first:
+
+#### Building Emysql
+
+Build emysql.app, using make:
+
+	$ cd Emysql
+	$ make
+
+
 #### Sample database
+
+You should have a mysql server installed and running.  
 For the above sample, create a local mysql database:
 	
+	$ mysql [-u<user> -p]
 	mysql> create database hello_database;
 	mysql> use hello_database;
 	mysql> create table hello_table (hello_text char(20));
 	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
+
+
+and be sure to have ./ebin in your Erlang path. See sample programms, below.
+Copy this source into a file hello
+
+
+
 
 
 #### Run Samples
@@ -168,6 +215,11 @@ first create the database as listed above):
 	$ erlc a_hello.erl
 	$ erl -pa ../ebin -s a_hello run -s init stop -noshell
 
+## Links
+
+* [Emysql on Github](http://github.com/Eonblast/Emysql)
+* [MySQL Client Server Protocol](http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol)
+* [MySQL 5.5 Source](ftp://ftp.fu-berlin.de/unix/databases/mysql/Downloads/MySQL-5.5/mysql-5.5.8.tar.gz)
 
 ## TODO
 * decrementing pool size could close sockets that are in use
@@ -177,8 +229,8 @@ first create the database as listed above):
 ## License
 
 Copyright (c) 2009-2011  
-[Bill Warnecke](http://github.com/wwarneck) <bill@rupture.com>   
-[Jacob Vorreuter](http://github.com/JacobVorreuter) <jacob.vorreuter@gmail.com>  
+[Bill Warnecke](http://github.com/wwarneck) <bill@rupture.com>,   
+[Jacob Vorreuter](http://github.com/JacobVorreuter) <jacob.vorreuter@gmail.com>,  
 [Eonblast Corporation](http://www.eonblast.com) <hd2010@eonblast.com>   
 
 Permission is hereby granted, free of charge, to any person

@@ -9,3 +9,4 @@ priv/*.config
 .DS_Store
 *.orig
 *.rej
+readme.edoc

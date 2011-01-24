@@ -15,12 +15,16 @@ ebin/$(PKGNAME).app: src/$(PKGNAME).app.src
 	@sed -e 's/{modules, \[\]}/{modules, [$(MODULES)]}/' < $< > $@
 
 docs:
-	erl -noshell -run edoc_run application "'$(APP_NAME)'" '"."' '[{def,{vsn,"$(VSN)"}}]'
+	echo "@doc " > doc/readme.edoc; sed -E -f doc/overview.sed README.md >> doc/readme.edoc
+	echo "@doc " > doc/changes.edoc; sed -E -f doc/overview.sed CHANGES.md >> doc/changes.edoc
+	erl -noshell -run edoc_run application "'emysql'" '"."' '[{def,{vsn,""}},{stylesheet, "emysql-style.css"}]'
+	sed -E -i "" -e "s/<table width=\"100%\" border=\"1\"/<table width=\"100%\" class=index border=\"0\"/" doc/*.html
 
 clean:
 	(cd src;$(MAKE) clean)
 	(cd t;$(MAKE) clean)
 	rm -rf ebin/*.app cover erl_crash.dump
+	rm doc/*.html
 
 package: clean
 	@mkdir emysql-$(VERSION)/ && cp -rf ebin include Makefile README src support t $(PKGNAME)-$(VERSION)

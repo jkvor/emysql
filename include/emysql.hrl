@@ -1,35 +1,38 @@
-%% Copyright (c) 2009 
-%% Bill Warnecke <bill@rupture.com>
-%% Jacob Vorreuter <jacob.vorreuter@gmail.com>
+%% Copyright (c) 2009-2011
+%% Bill Warnecke <bill@rupture.com>,
+%% Jacob Vorreuter <jacob.vorreuter@gmail.com>,
+%% Henning Diedrich <hd2010@eonblast.com>,
+%% Eonblast Corporation <http://www.eonblast.com>
 %% 
-%% Permission is hereby granted, free of charge, to any person
-%% obtaining a copy of this software and associated documentation
-%% files (the "Software"), to deal in the Software without
-%% restriction, including without limitation the rights to use,
-%% copy, modify, merge, publish, distribute, sublicense, and/or sell
-%% copies of the Software, and to permit persons to whom the
-%% Software is furnished to do so, subject to the following
+%% Permission is  hereby  granted,  free of charge,  to any person
+%% obtaining  a copy of this software and associated documentation
+%% files (the "Software"),to deal in the Software without restric-
+%% tion,  including  without  limitation the rights to use,  copy, 
+%% modify, merge,  publish,  distribute,  sublicense,  and/or sell
+%% copies  of the  Software,  and to  permit  persons to  whom the
+%% Software  is  furnished  to do  so,  subject  to the  following 
 %% conditions:
 %% 
-%% The above copyright notice and this permission notice shall be
+%% The above  copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
 %% 
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-%% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-%% NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-%% HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-%% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+%% OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+%% NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+%% HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+%% WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+%% FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
+
 -record(pool, {pool_id, size, user, password, host, port, database, encoding, available=queue:new(), locked=gb_trees:empty()}).
 -record(connection, {id, pool_id, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at}).
 -record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, language, status, seq_num}).
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).
 -record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
--record(error_packet, {seq_num, code, msg}).
--record(eof_packet, {seq_num}).
+-record(error_packet, {seq_num, code, status, msg}).
+-record(eof_packet, {seq_num, status, warning_count}). % extended to mySQL 4.1+ format
 -record(result_packet, {seq_num, field_list, rows, extra}).
 
 -define(TIMEOUT, 8000).
@@ -103,3 +106,32 @@
 -define(FIELD_TYPE_VAR_STRING, 16#fd).
 -define(FIELD_TYPE_STRING, 16#fe).
 -define(FIELD_TYPE_GEOMETRY, 16#ff).
+
+%% MSQL SERVER STATES (mysql_com.h)
+-define(SERVER_NO_STATUS, 0).
+-define(SERVER_STATUS_IN_TRANS, 1).	% Transaction has started */
+-define(SERVER_STATUS_AUTOCOMMIT, 2). % Server in auto_commit mode */
+-define(SERVER_MORE_RESULTS_EXIST, 8). % Multi query - next query exists */
+-define(SERVER_QUERY_NO_GOOD_INDEX_USED, 16).
+-define(SERVER_QUERY_NO_INDEX_USED, 32).
+
+%  The server was able to fulfill the clients request and opened a
+%  read-only non-scrollable cursor for a query. This flag comes
+%  in reply to COM_STMT_EXECUTE and COM_STMT_FETCH commands.
+-define(SERVER_STATUS_CURSOR_EXISTS, 64). 
+
+%  This flag is sent when a read-only cursor is exhausted, in reply to
+%  COM_STMT_FETCH command.
+-define(SERVER_STATUS_LAST_ROW_SENT, 128).
+-define(SERVER_STATUS_DB_DROPPED, 256). % A database was dropped 
+-define(SERVER_STATUS_NO_BACKSLASH_ESCAPES, 512).
+
+%  Sent to the client if after a prepared statement reprepare
+%  we discovered that the new statement returns a different 
+%  number of result set columns.
+-define(SERVER_STATUS_METADATA_CHANGED, 1024).
+
+%% RESPONSE
+-define(RESP_OK, 0).
+-define(RESP_EOF, 254).
+-define(RESP_ERROR, 255).

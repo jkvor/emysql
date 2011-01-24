@@ -1,0 +1,11 @@
+@doc 
+== Changes ==
+
+=== 0.2 Stored Procedures and Docs ===
+
+<li> Correct handling of stored procedures result packages</li>
+<li> Module emysql_tcp extended to handle the flag SERVER_MORE_RESULTS_EXIST correctly</li>
+<li> Error packages parse additional sql status flag of mysql 4.1 format.</li>
+<li> Additional example for stored procedures</li>
+<li> Renaming of samples</li>
+<li> Much extended docs</li>

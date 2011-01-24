@@ -1,35 +1,40 @@
 % ------------------------------------------------------------------------
-% Emysql Stored Procedures: A minimal sample 
+% Emysql: Prepared Statement, a minimal sample
 % H. Diedrich <hd2010@eonblast.com> - Eonblast http://www.eonblast.com
 % 12 Jun 2010
 % ------------------------------------------------------------------------
 %
-% This sample does the same as the hello world examples but creating and
-% using a stored procedure for the the select.
+% Create local mysql database (or re-use the one made for a_hello):
 %
-% Instructions: 
-%
-% Create local mysql database (same as for previous samples):
+% $ mysql ...
 % mysql> create database hello_database;
 % mysql> use hello_database;
 % mysql> create table hello_table (hello_text char(20));
 % mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
+% mysql> quit
 %
-% On *nix build and run using batch c_stored_procedure in folder samples:
-% $ ./c_stored_procedure
+% On *nix build and run using the batch a_hello in folder samples/:
+%
+% $ ./d_prepared_statement
 %
 % - or - 
 %
-% Make emysql and start this sample manually along these lines:
-% $ cd ..
+% Make emysql and start this sample directly, along these lines:
+%
+% $ cd Emysql
 % $ make
 % $ cd samples
-% $ erlc c_stored_procedure.erl
-% $ erl -pa ../ebin -s c_stored_procedure run -s init stop -noshell
-%
-% As output you should see a lot of PROGRESS-REPORTS from sasl and finally:
+% $ erlc d_prepared_statement.erl
+% $ erl -pa ../ebin -s d_prepared_statement run -s init stop -noshell
 %
 % ------------------------------------------------------------------------
+%
+% Expected Output:
+%
+% ...
+% ... many PROGRESS REPORT lines ...
+% ...
+%
 % Result: {result_packet,32,
 %                      [{field,2,<<"def">>,<<"hello_database">>,
 %                               <<"hello_table">>,<<"hello_table">>,
@@ -37,12 +42,10 @@
 %                               60,0,0}],
 %                       [[<<"Hello World!">>]],
 %                       <<>>}
-% ------------------------------------------------------------------------
-% Questions, mail Henning <hd2010@eonblast.com>, welcome.
+%
 % ------------------------------------------------------------------------
 
-
--module(c_stored_procedure).
+-module(d_prepared_statement).
 -export([run/0]).
 
 run() ->
@@ -60,7 +63,7 @@ run() ->
 
 	%% ------------------------------------------------------------------- 
 	%% Stored procedure:
-	%% ...................................................................
+	%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 	emysql:prepare(hello_stmt, 
 		<<"SELECT * from hello_table WHERE hello_text like ?">>),

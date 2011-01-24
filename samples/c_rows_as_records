@@ -1,8 +1,8 @@
 #! /bin/bash
 # This runs the sample for rows access as records.
-# For windows, see source of b_rows_as_records.erl
+# For windows, see source of c_rows_as_records.erl
 cd ..
 make
 cd samples
-erlc b_rows_as_records.erl
-erl -pa ../ebin -s b_rows_as_records run -s init stop -noshell
+erlc c_rows_as_records.erl
+erl -pa ../ebin -s c_rows_as_records run -s init stop -noshell

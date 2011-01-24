@@ -194,17 +194,20 @@ decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
 	emysql_statements:add(StmtName, Statement).
 
-%% @spec execute(PoolId, Query|StmtName) -> Result
+%% @spec execute(PoolId, Query|StmtName) -> Result | [Result]
 %%		PoolId = atom()
 %%		Query = binary() | string()
 %%		StmtName = atom()
 %%		Result = ok_packet() | result_packet() | error_packet()
 %%
-%% @doc Execute a query or a prepared statement / stored procedure.
+%% @doc Execute a query, prepared statement or a stored procedure.
 %%
 %% Same as `execute(PoolId, Query, [], default_timeout())'.
 %%
+%% The result is a list for stored procedure execution >= MySQL 4.1
+%%
 %% @see execute/4.
+%% @see prepare/2.
 %%
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
@@ -212,7 +215,7 @@ execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_bi
 execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 
-%% @spec execute(PoolId, Query|StmtName, Args|Timeout) -> Result
+%% @spec execute(PoolId, Query|StmtName, Args|Timeout) -> Result | [Result]
 %%		PoolId = atom()
 %%		Query = binary() | string()
 %%		StmtName = atom()
@@ -220,14 +223,17 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 %%		Timeout = integer()
 %%		Result = ok_packet() | result_packet() | error_packet()
 %%
-%% @doc Execute a query or a prepared statement / stored procedure.
+%% @doc Execute a query, prepared statement or a stored procedure.
 %%
 %% Same as `execute(PoolId, Query, Args, default_timeout())' 
 %% or `execute(PoolId, Query, [], Timeout)'.
 %%
 %% Timeout is the query timeout in milliseconds.
 %%
+%% The result is a list for stored procedure execution >= MySQL 4.1
+%%
 %% @see execute/4.
+%% @see prepare/2.
 %%
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	execute(PoolId, Query, Args, default_timeout());
@@ -241,7 +247,7 @@ execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) ore
 execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_integer(Timeout) ->
 	execute(PoolId, StmtName, [], Timeout).
 
-%% @spec execute(PoolId, Query|StmtName, Args, Timeout) -> Result
+%% @spec execute(PoolId, Query|StmtName, Args, Timeout) -> Result | [Result]
 %%		PoolId = atom()
 %%		Query = binary() | string()
 %%		StmtName = atom()
@@ -249,7 +255,7 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %%		Timeout = integer()
 %%		Result = ok_packet() | result_packet() | error_packet()
 %%
-%% @doc Execute a query or a prepared statement / stored procedure.
+%% @doc Execute a query, prepared statement or a stored procedure.
 %%
 %% <ll>
 %% <li>Opens a connection,</li>
@@ -264,10 +270,13 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %% '''
 %% Timeout is the query timeout in milliseconds.
 %%
+%% The result is a list for stored procedure execution >= MySQL 4.1
+%%
 %% All other execute function eventually call this function.
 %% 
 %% @see execute/2.
 %% @see execute/3. 
+%% @see prepare/2.
 %%
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
