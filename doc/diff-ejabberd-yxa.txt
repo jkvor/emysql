@@ -1,9 +1,12 @@
 Diff of ejabberd mysql driver vs yxa mysql driver
 -------------------------------------------------
 
-Both depend on Magnus Ahltorp' code. Half of the difference are simply changed comments, as Yxa went edoc. The remainder are mostly result inspection extensions on the part of the ejabberd source.
+Both depend on Magnus Ahltorp's code. Half of the difference are simply changed
+comments, as Yxa went edoc. The remainder are mostly result inspection extensions
+on the part of the ejabberd source.
 
-This diff includes changes to comments.
+This diff includes changes to comments. Find one ignoring comments here: 
+https://github.com/Eonblast/Emysql/blob/master/doc/diff-ejabberd-yxa-2.txt
 
 https://github.com/fredrikt/yxa/tree/master/src/mysql/
 http://svn.process-one.net/ejabberd-modules/mysql/trunk/
