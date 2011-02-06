@@ -27,7 +27,7 @@ ERL_TEMPLATES := $(ERL_TEMPLATE:%.et=$(EBIN_DIR)/%.beam)
 ERL_OBJECTS_LOCAL := $(ERL_SOURCES:%.erl=./%.$(EMULATOR))
 EBIN_FILES = $(ERL_OBJECTS) $(APP_FILES:%.app=../ebin/%.app) $(ERL_TEMPLATES)
 
-$(EBIN_DIR)/%.$(EMULATOR): %.erl
+$(EBIN_DIR)/%.$(EMULATOR): %.erl $(ERL_HEADERS)
 	$(ERLC) $(ERLC_FLAGS) -o $(EBIN_DIR) $<
 
 ./%.$(EMULATOR): %.erl
