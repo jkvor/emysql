@@ -1,4 +1,4 @@
-@doc 
+@doc
 == Changes ==
 
 === 0.2 Stored Procedures and Docs ===
@@ -9,3 +9,8 @@
 <li> Additional example for stored procedures</li>
 <li> Renaming of samples</li>
 <li> Much extended docs</li>
+<script>
+// Jump directly to a referenced url given in trailing '[]:...'-notation
+function goto(tag) { parent.document.location.href = url(tag); }
+function url(tag) { var o=document.getElementById(tag); return o ? o.href : '#'+tag; }
+</script>

@@ -30,6 +30,8 @@
 -include("emysql.hrl").
 
 start(_Type, _StartArgs) ->
+
+	io:format("Build time: ~p~n", _StartArgs),
 	emysql_sup:start_link().
 
 stop(_State) ->

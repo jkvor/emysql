@@ -170,3 +170,11 @@ h1 a, h2 a, h3 a, h4 a, h5 a {
 h3.function a {
 	color: white;
 	}
+	
+pre { margin: 1em; 
+	  padding: 1em; 
+	  background-color: #f0f0f0; 
+	  border-radius: 1em; }
+span.comment {
+	color: dimgrey;
+	}

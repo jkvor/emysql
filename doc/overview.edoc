@@ -1,13 +1,7 @@
-@author Bill Warnecke <bill@rupture.com>   
-@author Jacob Vorreuter <jacob.vorreuter@gmail.com>  
-@author Henning Diedrich <hd2010@eonblast.com>   
-
-@copyright 2009-2011 Bill Warnecke, Jacob Vorreuter, Henning Diedrich, Eonblast Corporation
+@author Bill Warnecke, Jacob Vorreuter, Henning Diedrich
 
 @title  Emysql - Erlang MySQL driver
 
 @version 0.2
 
 @docfile "doc/readme.edoc"
-
-@reference See <a href="https://github.com/Eonblast/Emysql">Eonblast/Emysql on github</a> for this readme and download the newest version.

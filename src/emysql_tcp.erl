@@ -61,22 +61,6 @@ recv_packet(Sock) ->
 	%-% io:format("~nrecv_packet: len: ~p, data: ~p~n", [PacketLength, Data]),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 
-% This was used to approach a solution for proper handling of SERVER_MORE_RESULTS_EXIST
-%
-% recv_rest(Sock) ->
-%	%-% io:format("~nrecv_rest: ", []),
-%	case recv_packet_header_if_present(Sock) of
-%		{PacketLength, SeqNum} ->
-%			%-% io:format("recv_packet ('rest'): len: ~p, seq#: ~p ", [PacketLength, SeqNum]),
-%			Data = recv_packet_body(Sock, PacketLength),
-%			%-% io:format("data: ~p~n", [Data]),
-%			Packet = #packet{size=PacketLength, seq_num=SeqNum, data=Data},
-%			response(Sock, Packet);
-%		none ->
-%			%-% io:format("nothing~n", []),
-%			nothing
-%	end.
-
 % OK response: first byte 0. See -1-
 response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}=_Packet) ->
 	%-% io:format("~nresponse (OK): ~p~n", [_Packet]),
@@ -366,6 +350,24 @@ type_cast_row_data(Data, _) -> Data.
 %                       integer. So, to ensure that a packet is really an EOF
 %                       Packet: (a) check that first byte in packet = 0xfe, (b)
 %                       check that size of packet smaller than 9.
+
+
+% This was used to approach a solution for proper handling of SERVER_MORE_RESULTS_EXIST
+%
+% recv_rest(Sock) ->
+%	%-% io:format("~nrecv_rest: ", []),
+%	case recv_packet_header_if_present(Sock) of
+%		{PacketLength, SeqNum} ->
+%			%-% io:format("recv_packet ('rest'): len: ~p, seq#: ~p ", [PacketLength, SeqNum]),
+%			Data = recv_packet_body(Sock, PacketLength),
+%			%-% io:format("data: ~p~n", [Data]),
+%			Packet = #packet{size=PacketLength, seq_num=SeqNum, data=Data},
+%			response(Sock, Packet);
+%		none ->
+%			%-% io:format("nothing~n", []),
+%			nothing
+%	end.
+
 
 % -------------------------------------------------------------------------------
 % Note: (*) The order of status and warnings count reversed for eof vs. ok packet.

@@ -8,8 +8,9 @@ on the part of the ejabberd source.
 This diff ignores changes to comments but lists added comments. Find one listing all
 changes here: https://github.com/Eonblast/Emysql/blob/master/doc/diff-ejabberd-yxa.txt
 
-https://github.com/fredrikt/yxa/tree/master/src/mysql/
-http://svn.process-one.net/ejabberd-modules/mysql/trunk/
+Yxa: https://github.com/fredrikt/yxa/tree/master/src/mysql/
+Ejabberd: http://svn.process-one.net/ejabberd-modules/mysql/trunk/
+Diff: Jan 2011
 
 Only in ejabberd-modules/mysql/trunk/: .svn
 Only in yxa-1.0/src/mysql/: Makefile.in

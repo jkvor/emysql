@@ -9,19 +9,76 @@
 <hr>
 
 <h1>Module emysql</h1>
-<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>The main Emysql module.
 
 
+<h2><a name="description">Description</a></h2><p>The main Emysql module.</p>
+ 
+  <p>Emysql is implemented as an Erlang
+  <b>application</b>. The term has a special meaning in Erlang, see
+  <a href="http://www.erlang.org/doc/design_principles/applications.html" target="_top"><tt>http://www.erlang.org/doc/design_principles/applications.html</tt></a></p>
+ 
+  <p>This module exports functions to:
+  <li><b>start</b> and <b>stop</b> the driver (the 'application'),</li>
+  <li><b>execute</b> queries or prepared statements,</li>
+  <li><b>prepare</b> such statements,</li>
+  <li>change the <b>connection pool</b> size.</li></p>
+ 
+  <h4><a name="Sample">Sample</a></h4>
+  <pre>  	-module(sample).
+ 	-export([run/0]).
+ 	
+ 	run() -&gt;
+ 	
+ 		crypto:start(),
+ 		emysql:start(),
+ 	
+ 		emysql:add_pool(hello_pool, 1,
+ 			"hello_username", "hello_password", "localhost", 3306,
+ 			"hello_database", utf8),
+ 	
+ 		emysql:execute(hello_pool,
+ 			&lt;&lt;"INSERT INTO hello_table SET hello_text = 'Hello World!'"&gt;&gt;),
+ 
+ 		emysql:prepare(my_stmt, &lt;&lt;"SELECT * from mytable WHERE id = ?"&gt;&gt;),
+ 
+ 		Result = emysql:execute(mypoolname, my_stmt, [1]).</pre>
+ 
+  <h4><a name="Implementation">Implementation</a></h4>
+ 
+  <p>Under this headline, <b>Implementation</b>, you will find details about the  
+inner workings of Emysql. If you are new to Emysql, you can safely ignore  
+them.</p>
+ 
+  start(), stop(), modules() and default_timeout() are one-line 'fascades':
+  <pre>  	start() -&gt; application:start(emysql).
+  	stop() -&gt; application:stop(emysql).
+  	modules() -&gt; emysql_app:modules().
+  	default_timeout() -&gt; emysql_app:default_timeout().</pre>
+ 
+  execute() and prepare() are the bulk of the source
+  of this module. A lot gets repeated for default values in lesser arities.
+  The quintessential execute however is this, in execute/2:
+  <pre>  	execute(PoolId, Query, Args, Timeout)
+ 		when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) -&gt;
+ 		
+ 			Connection =
+ 				emysql_conn_mgr:wait_for_connection(PoolId),
+ 				monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});</pre><p>  
+As all executions, it uses the monitor_work/3 function to create a process to  
+asynchronously handle the execution.</p>
+ 
+  The pool-related functions execute brief operations using the primitive
+  functions exported by <code>emysql_conn_mgr</code> and <code>emysql_conn_mgr</code>.
 <h2><a name="index">Function Index</a></h2>
 <table width="100%" class=index border="0" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_pool-8">add_pool/8</a></td><td></td></tr>
 <tr><td valign="top"><a href="#decrement_pool_size-2">decrement_pool_size/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#default_timeout-0">default_timeout/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#default_timeout-0">default_timeout/0</a></td><td>Returns the default timeout in milliseconds.</td></tr>
 <tr><td valign="top"><a href="#execute-2">execute/2</a></td><td>Execute a query, prepared statement or a stored procedure.</td></tr>
 <tr><td valign="top"><a href="#execute-3">execute/3</a></td><td>Execute a query, prepared statement or a stored procedure.</td></tr>
 <tr><td valign="top"><a href="#execute-4">execute/4</a></td><td>Execute a query, prepared statement or a stored procedure.</td></tr>
-<tr><td valign="top"><a href="#execute-5">execute/5</a></td><td></td></tr>
+<tr><td valign="top"><a href="#execute-5">execute/5</a></td><td>Execute a query, prepared statement or a stored procedure - but return immediately, returning the atom 'unavailable', when no connection in the pool is readily available without wait.</td></tr>
 <tr><td valign="top"><a href="#increment_pool_size-2">increment_pool_size/2</a></td><td></td></tr>
-<tr><td valign="top"><a href="#modules-0">modules/0</a></td><td></td></tr>
 <tr><td valign="top"><a href="#prepare-2">prepare/2</a></td><td>Prepare a statement.</td></tr>
 <tr><td valign="top"><a href="#remove_pool-1">remove_pool/1</a></td><td></td></tr>
 <tr><td valign="top"><a href="#start-0">start/0</a></td><td>Start the Emysql application.</td></tr>
@@ -42,8 +99,17 @@
 
 <h3 class="function"><a name="default_timeout-0">default_timeout/0</a></h3>
 <div class="spec">
-<p><tt>default_timeout() -&gt; any()</tt></p>
-</div>
+<p><tt>default_timeout() -&gt; Timeout</tt>
+<ul class="definitions"><li><tt>Timeout = integer()</tt></li>
+</ul></p>
+</div><p><p>Returns the default timeout in milliseconds. As set in emysql.app.src,  
+or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).</p>
+ 
+  <h4><a name="Implementation">Implementation</a></h4>
+ 
+  src/emysql.app.src is a template for the emysql app file from which
+  ebin/emysql.app is created during building, by a sed command in 'Makefile'.
+ </p>
 
 <h3 class="function"><a name="execute-2">execute/2</a></h3>
 <div class="spec">
@@ -59,7 +125,7 @@
  
   The result is a list for stored procedure execution &gt;= MySQL 4.1
  </p>
-<p><b>See also:</b> <a href="#execute-4">execute/4</a>, <a href="#prepare-2">prepare/2</a>.</p>
+<p><b>See also:</b> <a href="#execute-3">execute/3</a>, <a href="#execute-4">execute/4</a>, <a href="#execute-5">execute/5</a>, <a href="#prepare-2">prepare/2</a>.</p>
 
 <h3 class="function"><a name="execute-3">execute/3</a></h3>
 <div class="spec">
@@ -80,7 +146,7 @@
  
   The result is a list for stored procedure execution &gt;= MySQL 4.1
  </p>
-<p><b>See also:</b> <a href="#execute-4">execute/4</a>, <a href="#prepare-2">prepare/2</a>.</p>
+<p><b>See also:</b> <a href="#execute-2">execute/2</a>, <a href="#execute-4">execute/4</a>, <a href="#execute-5">execute/5</a>, <a href="#prepare-2">prepare/2</a>.</p>
 
 <h3 class="function"><a name="execute-4">execute/4</a></h3>
 <div class="spec">
@@ -105,25 +171,46 @@
   monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query_or_StmtName, Args]}).</pre><p>  
 Timeout is the query timeout in milliseconds.</p>
  
+  All other execute function eventually call this function.
+ </p>
+<p><b>See also:</b> <a href="#execute-2">execute/2</a>, <a href="#execute-3">execute/3</a>, <a href="#execute-5">execute/5</a>, <a href="#prepare-2">prepare/2</a>.</p>
+
+<h3 class="function"><a name="execute-5">execute/5</a></h3>
+<div class="spec">
+<p><tt>execute(PoolId, Query::Query | StmtName, Args, Timeout, X5::nonblocking) -&gt; Result | [Result]</tt>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
+<li><tt>Query = binary() | string()</tt></li>
+<li><tt>StmtName = atom()</tt></li>
+<li><tt>Args = [any()]</tt></li>
+<li><tt>Timeout = integer()</tt></li>
+<li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li>
+</ul></p>
+</div><p><p>Execute a query, prepared statement or a stored procedure - but return immediately, returning the atom 'unavailable', when no connection in the pool is readily available without wait.</p>
+ 
+  <p><ll>
+  <li>Checks if a connection is available,</li>
+  <li>returns 'unavailable' if not,</li>
+  <li>else as the other exception functions(): sends the query string, or statement atom, and</li>
+  <li>returns the result packet.</li>
+  </ll></p>
+ 
+  <p>Timeout is the query timeout in milliseconds.</p>
+ 
+  <h5><a name="Implementation">Implementation</a></h5>
+ 
+  Basically:
+  <pre>  {Connection, connection} = case emysql_conn_mgr:lock_connection(PoolId),
+  		monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query_or_StmtName, Args]}).</pre>
+ 
   <p>The result is a list for stored procedure execution &gt;= MySQL 4.1</p>
  
   All other execute function eventually call this function.
  </p>
-<p><b>See also:</b> <a href="#execute-2">execute/2</a>, <a href="#execute-3">execute/3</a>, <a href="#prepare-2">prepare/2</a>.</p>
-
-<h3 class="function"><a name="execute-5">execute/5</a></h3>
-<div class="spec">
-<p><tt>execute(PoolId, Query, Args, Timeout, X5) -&gt; any()</tt></p>
-</div>
+<p><b>See also:</b> <a href="#execute-2">execute/2</a>, <a href="#execute-3">execute/3</a>, <a href="#execute-4">execute/4</a>, <a href="#prepare-2">prepare/2</a>.</p>
 
 <h3 class="function"><a name="increment_pool_size-2">increment_pool_size/2</a></h3>
 <div class="spec">
 <p><tt>increment_pool_size(PoolId, Num) -&gt; any()</tt></p>
-</div>
-
-<h3 class="function"><a name="modules-0">modules/0</a></h3>
-<div class="spec">
-<p><tt>modules() -&gt; any()</tt></p>
 </div>
 
 <h3 class="function"><a name="prepare-2">prepare/2</a></h3>
@@ -247,6 +334,6 @@ affected.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Jan 24 2011, 09:49:36.</i></p>
+<p><i>Generated by EDoc, Feb 6 2011, 08:42:20.</i></p>
 </body>
 </html>

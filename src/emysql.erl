@@ -26,13 +26,83 @@
 %% OTHER DEALINGS IN THE SOFTWARE.
 
 
+%% @doc The main Emysql module. 
+%%
+%% Emysql is implemented as an Erlang
+%% <b>application</b>. The term has a special meaning in Erlang, see
+%% [http://www.erlang.org/doc/design_principles/applications.html]
+%%
+%% This module exports functions to: 
+%% <li><b>start</b> and <b>stop</b> the driver (the 'application'),</li>
+%% <li><b>execute</b> queries or prepared statements,</li>
+%% <li><b>prepare</b> such statements,</li>
+%% <li>change the <b>connection pool</b> size.</li>
+%% 
+%% === Sample ===
+%% ```
+%% 	-module(sample).
+%%	-export([run/0]).
+%%	
+%%	run() ->
+%%	
+%%		crypto:start(),
+%%		emysql:start(),
+%%	
+%%		emysql:add_pool(hello_pool, 1,
+%%			"hello_username", "hello_password", "localhost", 3306,
+%%			"hello_database", utf8),
+%%	
+%%		emysql:execute(hello_pool,
+%%			<<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
+%%
+%%		emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>),
+%%
+%%		Result = emysql:execute(mypoolname, my_stmt, [1]).
+%%
+%% '''
+%%
+%% === Implementation ===
+%%
+%% Under this headline, <b>Implementation</b>, you will find details about the
+%% inner workings of Emysql. If you are new to Emysql, you can safely ignore
+%% them.
+%%
+%% start(), stop(), modules() and default_timeout() are one-line 'fascades':
+%% ```
+%% 	start() -> application:start(emysql).                
+%% 	stop() -> application:stop(emysql).                  
+%% 	modules() -> emysql_app:modules().                   
+%% 	default_timeout() -> emysql_app:default_timeout().   
+%% '''
+%%
+%% execute() and prepare() are the bulk of the source
+%% of this module. A lot gets repeated for default values in lesser arities.
+%% The quintessential execute however is this, in execute/2:
+%% ```
+%% 	execute(PoolId, Query, Args, Timeout) 
+%%		when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+%%		
+%%			Connection = 
+%%				emysql_conn_mgr:wait_for_connection(PoolId),
+%%				monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
+%% '''
+%% As all executions, it uses the monitor_work/3 function to create a process to
+%% asynchronously handle the execution.
+%% 
+%% The pool-related functions execute brief operations using the primitive
+%% functions exported by `emysql_conn_mgr' and `emysql_conn_mgr'.
+
 -module(emysql).
 
--export([start/0, stop/0, modules/0, default_timeout/0]).
--export([add_pool/8, remove_pool/1, prepare/2,
-	increment_pool_size/2, decrement_pool_size/2,
-	execute/2, execute/3, execute/4, execute/5]).
+-export([	start/0, stop/0,
+			add_pool/8, remove_pool/1, increment_pool_size/2, decrement_pool_size/2,
+			prepare/2,
+			execute/2, execute/3, execute/4, execute/5,
+			default_timeout/0,
+			modules/0	
+		]).
 
+% for record and constant defines
 -include("emysql.hrl").
 
 %% @spec start() -> ok
@@ -75,9 +145,38 @@ start() ->
 stop() ->
 	application:stop(emysql).
 
+%% @spec modules() -> list()
+%%
+%% @doc Returns the list of Emysql modules.
+%%
+%% === Sample ===
+%% ```
+%%	$ erl
+%%	1> crypto:start().
+%%	2> application:start(emysql).
+%%	3> emysql:modules().
+%%	[emysql,emysql_auth,emysql_conn,emysql_conn_mgr,
+%%	 emysql_statements,emysql_tcp,emysql_tracer,emysql_util,
+%%   emysql_worker]
+%% '''
+%% === Implementation ===
+%%
+%% Simply a call to `emysql_app:modules()'.
+%% @private
 modules() ->
 	emysql_app:modules().
 
+%% @spec default_timeout() -> Timeout
+%%		Timeout = integer()
+%%
+%% @doc Returns the default timeout in milliseconds. As set in emysql.app.src,
+%% or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).
+%%
+%% === Implementation ===
+%%
+%% src/emysql.app.src is a template for the emysql app file from which 
+%% ebin/emysql.app is created during building, by a sed command in 'Makefile'.
+%%
 default_timeout() ->
 	emysql_app:default_timeout().
 
@@ -206,7 +305,9 @@ prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) 
 %%
 %% The result is a list for stored procedure execution >= MySQL 4.1
 %%
+%% @see execute/3.
 %% @see execute/4.
+%% @see execute/5.
 %% @see prepare/2.
 %%
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
@@ -232,7 +333,9 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 %%
 %% The result is a list for stored procedure execution >= MySQL 4.1
 %%
+%% @see execute/2.
 %% @see execute/4.
+%% @see execute/5.
 %% @see prepare/2.
 %%
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
@@ -270,12 +373,11 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %% '''
 %% Timeout is the query timeout in milliseconds.
 %%
-%% The result is a list for stored procedure execution >= MySQL 4.1
-%%
 %% All other execute function eventually call this function.
 %% 
 %% @see execute/2.
-%% @see execute/3. 
+%% @see execute/3.
+%% @see execute/5.
 %% @see prepare/2.
 %%
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
@@ -286,10 +388,41 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName)
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).
 
-%% NON-BLOCKING CONNECTION LOCKING
-%% non-blocking means the process will not attempt to wait in line
-%% until a connection is available. If no connections are available
-%% then the result of these functions will be the atom unavailable.
+%% @spec execute(PoolId, Query|StmtName, Args, Timeout, nonblocking) -> Result | [Result]
+%%		PoolId = atom()
+%%		Query = binary() | string()
+%%		StmtName = atom()
+%%		Args = [any()]
+%%		Timeout = integer()
+%%		Result = ok_packet() | result_packet() | error_packet()
+%%
+%% @doc Execute a query, prepared statement or a stored procedure - but return immediately, returning the atom 'unavailable', when no connection in the pool is readily available without wait.
+%%
+%% <ll>
+%% <li>Checks if a connection is available,</li>
+%% <li>returns 'unavailable' if not,</li>
+%% <li>else as the other exception functions(): sends the query string, or statement atom, and</li>
+%% <li>returns the result packet.</li>
+%% </ll>
+%%
+%% Timeout is the query timeout in milliseconds.
+%%
+%% ==== Implementation ====
+%%
+%% Basically:
+%% ```
+%% {Connection, connection} = case emysql_conn_mgr:lock_connection(PoolId),
+%% 		monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query_or_StmtName, Args]}).
+%% '''
+%%
+%% The result is a list for stored procedure execution >= MySQL 4.1
+%%
+%% All other execute function eventually call this function.
+%% 
+%% @see execute/2.
+%% @see execute/3. 
+%% @see execute/4. 
+%% @see prepare/2.
 %%
 execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
@@ -310,6 +443,31 @@ execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_a
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
+%% @spec monitor_work(Connection, Timeout, {M, F, A}) -> Result | exit()
+%%		PoolId = atom()
+%%		Query = binary() | string()
+%%		StmtName = atom()
+%%		Args = [any()]
+
+%%		Timeout = integer()
+%%		Result = ok_packet() | result_packet() | error_packet()
+%%
+%% @doc Execute a query, prepared statement or a stored procedure.
+%%
+%% Same as `execute(PoolId, Query, Args, default_timeout())' 
+%% or `execute(PoolId, Query, [], Timeout)'.
+%%
+%% Timeout is the query timeout in milliseconds.
+%%
+%% The result is a list for stored procedure execution >= MySQL 4.1
+%%
+%% @see execute/2.
+%% @see execute/3.
+%% @see execute/4.
+%% @see execute/5.
+%% @see prepare/2.
+%% 
+%% @private 
 monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
 	%% spawn a new process to do work, then monitor that process until
 	%% it either dies, returns data or times out.
