@@ -86,12 +86,6 @@ This is a hello world program. Follow the three steps below to try it out.
 
 <p>We'll be coming back to this source in a minute.</p>
 
-<h4><a name="Starting_an_Application">Starting an Application</a></h4>
-
-<p>The Emysql driver is an Erlang gen-server, and, application.</p>
-
-<pre> emysql:start().</pre>
-
 <h4><a name="Executing_an_SQL_Statements">Executing an SQL Statements</a></h4>
 
 <pre> emysql:execute(my_pool, &lt;&lt;"SELECT * from mytable"&gt;&gt;).</pre>
@@ -110,6 +104,9 @@ This is a hello world program. Follow the three steps below to try it out.
  
  emysql:execute(my_pool, &lt;&lt;"call my_sp();"&gt;&gt;).</pre>
 
+<h4><a name="Result_Record">Result Record</a></h4>
+
+<pre> -record(result_packet, {seq_num, field_list, rows, extra}).</pre>
 <h4><a name="Converting_Row_Data_To_Records">Converting Row Data To Records</a></h4>
 
 <pre> -record(foo, {bar, baz}).</pre>
@@ -123,16 +120,6 @@ This is a hello world program. Follow the three steps below to try it out.
 <p>Emysql uses a sophisticated connection pooling mechanism.</p>
 
 <pre> emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306, "mydatabase", utf8).</pre>
-
-<h4><a name="Record_Types">Record Types</a></h4>
-
-<pre> -record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}). 
- 
- -record(error_packet, {seq_num, code, msg}).
- 
- -record(result_packet, {seq_num, field_list, rows, extra}).</pre>
-
-<p>For other record types, see include/emysql.hrl.</p>
 
 <h4><a name="Running_Hello_World">Running Hello World</a></h4>
 
@@ -196,6 +183,8 @@ or (after building emysql.app and the database, as explained above), start a_hel
 
 <h5><a name="Starting_an_Application">Starting an Application</a></h5>
 
+<p>The Emysql driver is an Erlang gen-server, and, application.</p>
+
 <pre> crypto:start(),
  application:start(emysql).</pre>
 
@@ -214,13 +203,15 @@ or (after building emysql.app and the database, as explained above), start a_hel
  
  emysql:add_pool(mypoolname, 1, "username", "mypassword", "localhost", 3306, "mydatabase", utf8).</pre>
 
-<h5><a name="Record_Types">Record Types</a></h5>
+<h5><a name="More_Record_Types">More Record Types</a></h5>
 
-<pre> -record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
+<pre> -record(result_packet, {seq_num, field_list, rows, extra}).
  
- -record(error_packet, {seq_num, code, msg}).
+ -record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
  
- -record(result_packet, {seq_num, field_list, rows, extra}).</pre>
+ -record(error_packet, {seq_num, code, msg}).</pre>
+
+<p>For other record types, see include/emysql.hrl.</p>
 
 <h5><a name="Executing_SQL_Statements">Executing SQL Statements</a></h5>
 
@@ -229,38 +220,38 @@ or (after building emysql.app and the database, as explained above), start a_hel
  % Statement = string() | binary()  
  
  emysql:execute(mypoolname, &lt;&lt;"SELECT * from mytable"&gt;&gt;).
- #result_packet{field_list=[...], rows=[...]}
+ # result_packet{field_list=[...], rows=[...]}
  
  emysql:execute(mypoolname, &lt;&lt;"UPDATE mytable SET bar = 'baz' WHERE id = 1"&gt;&gt;).
- #ok_packet{affected_rows=1}</pre>
+ # ok_packet{affected_rows=1}</pre>
 
 <h5><a name="Executing_Prepared_Statements">Executing Prepared Statements</a></h5>
 
 <pre> % emysql:prepare(StmtName, Statement) -&gt; ok  
  % StmtName = atom()  
- % Statement = binary() | string()</pre>
-
-<pre> emysql:prepare(my_stmt, &lt;&lt;"SELECT * from mytable WHERE id = ?"&gt;&gt;).
- ok
+ % Statement = binary() | string()  
  
- % emysql:execute(PoolName, StmtName, Args) -&gt; result_packet() | ok_packet() | error_packet()  
- % StmtName = atom()  
- % Args = [term()]</pre>
+ emysql:prepare(my_stmt, &lt;&lt;"SELECT * from mytable WHERE id = ?"&gt;&gt;).
+ # ok</pre>
 
-<pre> emysql:execute(mypoolname, my_stmt, [1]).
+<pre> % emysql:execute(PoolName, StmtName, Args) -&gt; result_packet() | ok_packet() | error_packet()  
+ % StmtName = atom()  
+ % Args = [term()]  
+ 
+ emysql:execute(mypoolname, my_stmt, [1]).
  #result_packet{field_list=[...], rows=[...]}</pre>
 
 <h5><a name="Executing_Stored_Procedures">Executing Stored Procedures</a></h5>
 
 <pre> % emysql:execute(PoolName, StmtName, Args) -&gt; result_packet() | ok_packet() | error_packet()  
  % StmtName = atom()  
- % Args = [term()]</pre>
-
-<pre> emysql:execute(hello_pool,
+ % Args = [term()]  
+ 
+ emysql:execute(hello_pool,
  	&lt;&lt;"create procedure sp_hello() begin select * from hello_table; end"&gt;&gt;).
- {ok_packet,1,0,0,2,0,[]}</pre>
-
-<pre> emysql:execute(hello_pool, &lt;&lt;"call sp_hello();"&gt;&gt;).
+ {ok_packet,1,0,0,2,0,[]}
+ 
+ emysql:execute(hello_pool, &lt;&lt;"call sp_hello();"&gt;&gt;).
  [{result_packet,6,
                  [{field,2,&lt;&lt;"def"&gt;&gt;,&lt;&lt;"hello_database"&gt;&gt;,&lt;&lt;"hello_table"&gt;&gt;,
                          &lt;&lt;"hello_table"&gt;&gt;,&lt;&lt;"hello_text"&gt;&gt;,&lt;&lt;"hello_text"&gt;&gt;,
@@ -407,6 +398,6 @@ function url(tag) { var o=document.getElementById(tag); return o ? o.href : '#'+
 
 <hr>
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Feb 6 2011, 08:42:20.</i></p>
+<p><i>Generated by EDoc, Feb 6 2011, 09:16:18.</i></p>
 </body>
 </html>

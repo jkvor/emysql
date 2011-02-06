@@ -43,7 +43,7 @@ To learn more about out the differences between the drivers, see the [mysql driv
 	$ git clone git://github.com/Eonblast/Emysql.git Emysql
 
 
-## Samples                                             <name=samples></a>
+## Samples                                             <a name=samples></a>
 
 ### Hello World
 
@@ -72,12 +72,6 @@ This is a hello world program. Follow the three steps below to try it out.
 
 We'll be coming back to this source in a minute.
 
-### Starting an Application
-
-The Emysql driver is an Erlang gen-server, and, application.
-
-	emysql:start().
-
 ### Executing an SQL Statements
 
 	emysql:execute(my_pool, <<"SELECT * from mytable">>).
@@ -96,6 +90,10 @@ For the exact spec, see below, [Usage][]. Regarding the 'pool', also see below.
 	
 	emysql:execute(my_pool, <<"call my_sp();">>).
 
+### Result Record
+
+	-record(result_packet, {seq_num, field_list, rows, extra}).
+	
 ### Converting Row Data To Records
 
 	-record(foo, {bar, baz}).
@@ -109,16 +107,6 @@ For the exact spec, see below, [Usage][]. Regarding the 'pool', also see below.
 Emysql uses a sophisticated connection pooling mechanism.
 
 	emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306, "mydatabase", utf8).
-
-### Record Types
-
-	-record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}). 
-	
-	-record(error_packet, {seq_num, code, msg}).
-	
-	-record(result_packet, {seq_num, field_list, rows, extra}).
-
-For other record types, see include/emysql.hrl.
 
 ### Running Hello World
 
@@ -184,6 +172,8 @@ General Notes on using Emysql, including the actual specs:
 
 #### Starting an Application
 
+The Emysql driver is an Erlang gen-server, and, application.
+
 	crypto:start(),
 	application:start(emysql).
 
@@ -202,13 +192,15 @@ General Notes on using Emysql, including the actual specs:
 	
 	emysql:add_pool(mypoolname, 1, "username", "mypassword", "localhost", 3306, "mydatabase", utf8).
 
-#### Record Types
+#### More Record Types
 
+	-record(result_packet, {seq_num, field_list, rows, extra}).
+	
 	-record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
 	
 	-record(error_packet, {seq_num, code, msg}).
-	
-	-record(result_packet, {seq_num, field_list, rows, extra}).
+
+For other record types, see include/emysql.hrl.
 
 #### Executing SQL Statements
 
@@ -217,24 +209,24 @@ General Notes on using Emysql, including the actual specs:
 	% Statement = string() | binary()  
 	
 	emysql:execute(mypoolname, <<"SELECT * from mytable">>).
-	#result_packet{field_list=[...], rows=[...]}
+	# result_packet{field_list=[...], rows=[...]}
 	
 	emysql:execute(mypoolname, <<"UPDATE mytable SET bar = 'baz' WHERE id = 1">>).
-	#ok_packet{affected_rows=1}
+	# ok_packet{affected_rows=1}
 
 #### Executing Prepared Statements
 
 	% emysql:prepare(StmtName, Statement) -> ok  
 	% StmtName = atom()  
 	% Statement = binary() | string()  
-
-	emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>).
-	ok
 	
+	emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>).
+	# ok
+
 	% emysql:execute(PoolName, StmtName, Args) -> result_packet() | ok_packet() | error_packet()  
 	% StmtName = atom()  
 	% Args = [term()]  
-
+	
 	emysql:execute(mypoolname, my_stmt, [1]).
 	#result_packet{field_list=[...], rows=[...]}
 
@@ -243,11 +235,11 @@ General Notes on using Emysql, including the actual specs:
 	% emysql:execute(PoolName, StmtName, Args) -> result_packet() | ok_packet() | error_packet()  
 	% StmtName = atom()  
 	% Args = [term()]  
-
+	
 	emysql:execute(hello_pool,
 		<<"create procedure sp_hello() begin select * from hello_table; end">>).
 	{ok_packet,1,0,0,2,0,[]}
-
+	
 	emysql:execute(hello_pool, <<"call sp_hello();">>).
 	[{result_packet,6,
 	                [{field,2,<<"def">>,<<"hello_database">>,<<"hello_table">>,
@@ -343,7 +335,7 @@ Jacob and Fredrik helped sheding light on the matter, thanks for taking the time
 [docs]:    http://eonblast.github.com/Emysql/  
            "Emysql online docs"  
 
-## Links                                         <name=links></a>
+## Links                                                    <a name=links></a>
 
 * [Emysql on Github](http://github.com/Eonblast/Emysql)
 * [Original Yxa mysql driver](https://github.com/fredrikt/yxa/tree/master/src/mysql)
@@ -359,12 +351,12 @@ Jacob and Fredrik helped sheding light on the matter, thanks for taking the time
 
 
 
-## TODO                                        <name=todo></a>
+## TODO                                                     <a name=todo></a>
 * decrementing pool size could close sockets that are in use
 * spawn individual conn_mgr gen_server processes for each pool
 * allow row results to be returned as binary
 
-## License                                  <name=license></a>
+## License                                                  <a name=license></a>
 
 Copyright (c) 2009-2011
 Bill Warnecke <bill@rupture.com>,
