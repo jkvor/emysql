@@ -203,5 +203,5 @@ prepare_statement(Connection, StmtName) ->
 hstate(State) ->
 
 	   case (State band ?SERVER_STATUS_AUTOCOMMIT) of 0 -> ""; _-> "AUTOCOMMIT " end
-	++ case (State band ?SERVER_MORE_RESULTS_EXISTS) of 0 -> ""; _-> "MORE_RESULTS_EXISTS " end
+	++ case (State band ?SERVER_MORE_RESULTS_EXIST) of 0 -> ""; _-> "MORE_RESULTS_EXIST " end
 	++ case (State band ?SERVER_QUERY_NO_INDEX_USED) of 0 -> ""; _-> "NO_INDEX_USED " end.
