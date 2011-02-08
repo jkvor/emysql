@@ -1,6 +1,6 @@
-﻿# Emysql 
+﻿## Emysql
 
-Erlang MySQL driver, faster and more reliable. Based on a rewrite at Electronic Arts to overcome stability and performance issues of the [erlang-mysql-driver][History]. [Easy][Samples] to use, Strong [connection pooling][conp], [prepared statements][preps] & [stored procedures][storps]. Optimized for a central node architecture and OLTP.
+Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, Strong [connection pooling][conp], [prepared statements][preps] & [stored procedures][storps]. Optimized for a central node architecture and OLTP.
 
 While you can use mysql via ODBC, using a driver, like Emysql, should perform better. For [samples][] and [docs][] see below. Read the brief on [choosing a package][choosing] and about the [history][] of the various MySQL drivers.
 
@@ -36,10 +36,10 @@ This package is a direct continuation of the original [emysql][1] with [fixes][]
 ## Choosing                                             <a name="choosing"></a>
 
 #### Best
-In most cases, especially for high performance and stability, this package, [Emysql][emysql] will be the best choice. It was written from the ground up to overcome fundamental issues of 'erlang-mysql-driver'. It also has some usable docs meanwhile. 
+In most cases, especially for high performance and stability, this package, [Emysql][emysql], will be the best choice. It was rewritten from the ground up to overcome fundamental issues of 'erlang-mysql-driver'. It also has some usable docs meanwhile. 
 
 #### Simple
-If you are looking for the **plain necessities**, you should use the [ejabberd][7] mysql driver. It is simple, battle tested and stable. 
+If you are looking for the **plain necessities**, you should use the [ejabberd][7] mysql driver. It is simple, battle tested and stable. There are comprehensive instructions in the source comments.
 
 #### Transaction
 For **mnesia-style transactions**, one of the multiple '[erlang-mysql-driver][22]s' may suite you best.  There are [quite many][16] branches of it out there, and they are based on the same project as the ejabberd driver. To learn more about out the differences between the drivers, see the [mysql driver history][history].
@@ -53,7 +53,7 @@ For **mnesia-style transactions**, one of the multiple '[erlang-mysql-driver][22
 
 ### Hello World
 
-This is a hello world program. Follow the three steps below to try it out.
+This is a hello world program. Follow the three steps below to try it out. 
 	
 	-module(a_hello).
 	-export([run/0]).
@@ -76,7 +76,7 @@ This is a hello world program. Follow the three steps below to try it out.
 		io:format("~n~p~n", [Result]).
 
 
-We'll be coming back to this source in a minute.
+We'll be coming back to this source to make it run on your machine in a minute. But let's look at the basic building blocks first:
 
 ### Executing an SQL Statement
 
@@ -143,7 +143,7 @@ Be sure to have ./ebin in your Erlang path. The hello-world source as shown abov
 	$ erlc hello.erl
 	$ erl -pa ./ebin -s hello run -s init stop -noshell
 
-That was easy!
+That's it. 
 
 There are more sample programs:
 
