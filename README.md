@@ -33,7 +33,7 @@ This package is a direct continuation of the original [emysql][1] with [fixes][]
 
 <hr/>
 
-## Choosing                                             <a name="choosing"></a>
+## Choosing                                             <a name="Choosing"></a>
 
 #### Best
 In most cases, especially for high performance and stability, this package, [Emysql][emysql], will be the best choice. It was rewritten from the ground up to overcome fundamental issues of 'erlang-mysql-driver'. It also has some usable docs meanwhile. 
@@ -42,14 +42,14 @@ In most cases, especially for high performance and stability, this package, [Emy
 If you are looking for the **plain necessities**, you should use the [ejabberd][7] mysql driver. It is simple, battle tested and stable. There are comprehensive instructions in the source comments.
 
 #### Transaction
-For **mnesia-style transactions**, one of the multiple '[erlang-mysql-driver][22]s' may suite you best.  There are [quite many][16] branches of it out there, and they are based on the same project as the ejabberd driver. To learn more about out the differences between the drivers, see the [mysql driver history][history].
+For **mnesia-style transactions**, one of the multiple '[erlang-mysql-driver][22]s' may suite you best.  There are [quite many][16] branches of it out there, and they are based on the same project as the ejabberd driver. To learn more about out the differences between the drivers, see the [mysql driver history][History].
 
 ## Getting Emysql
 
 	$ git clone git://github.com/Eonblast/Emysql.git Emysql
 
 
-## Samples                                             <a name=samples></a>
+## Samples                                             <a name=Samples></a>
 
 ### Hello World
 
@@ -276,7 +276,7 @@ For other record types, see include/emysql.hrl.
 	    end || Foo <- Recs].
 
 
-## History                                               <a name="history"></a>
+## History                                               <a name="History"></a>
 
 Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the source to find out about their relationship with each other - and which one to pick. Here is a brief history.
 
@@ -360,7 +360,7 @@ Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much
 [docs]:    http://eonblast.github.com/Emysql/  
            "Emysql online docs"  
 
-## Links                                                    <a name=links></a>
+## Links                                                    <a name=Links></a>
 
 * [Emysql on Github](http://github.com/Eonblast/Emysql)
 * [Original Yxa mysql driver](https://github.com/fredrikt/yxa/tree/master/src/mysql)
@@ -376,12 +376,12 @@ Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much
 
 
 
-## TODO                                                     <a name=todo></a>
+## TODO                                                     <a name=Todo></a>
 * decrementing pool size could close sockets that are in use
 * spawn individual conn_mgr gen_server processes for each pool
 * allow row results to be returned as binary
 
-## License                                                  <a name=license></a>
+## License                                                  <a name=License></a>
 
 Copyright (c) 2009-2011
 Bill Warnecke <bill@rupture.com>,
@@ -410,13 +410,13 @@ WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
 FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
-[choosing]: #choosing
-[history]:  #history
-[samples]:  #samples
-[usage]:    #usage
-[links]:    #links
-[todo]:     #todo
-[license]:  #license
+[Choosing]: #Choosing
+[History]:  #History
+[Samples]:  #Samples
+[Usage]:    #Usage
+[Links]:    #Links
+[Todo]:     #Todo
+[License]:  #License
 
 [Executing_Prepared_Statements]:    #Executing_Prepared_Statements
 [Executing_Stored_Procedures]:   #Executing_Stored_Procedures
