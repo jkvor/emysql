@@ -1,6 +1,6 @@
 ## Emysql
 
-Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, Strong [connection pooling][conp], [prepared statements][preps] & [stored procedures][storps]. Optimized for a central node architecture and OLTP.
+Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, Strong [connection pooling][Adding_a_Pool], [prepared statements][Executing_Prepared_Statements] & [stored procedures][Executing_Stored_Procedures]. Optimized for a central node architecture and OLTP.
 
 While you can use mysql via ODBC, using a driver, like Emysql, should perform better. For [samples][Samples] and [docs][] see below. Read the brief on [choosing][Choosing] a package and about the [history][History] of the various MySQL drivers.
 
@@ -183,7 +183,7 @@ The Emysql driver is an Erlang gen-server, and, application.
 	crypto:start(),
 	application:start(emysql).
 
-#### Adding a Pool                                       <a name="conp"></a>
+#### Adding a Pool                                       <a name="Adding_a_Pool"></a>
 
 	% emysql:add_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) ->
 	%	 ok | {error, pool_already_exists}  
@@ -220,7 +220,7 @@ For other record types, see include/emysql.hrl.
 	emysql:execute(mypoolname, <<"UPDATE mytable SET bar = 'baz' WHERE id = 1">>).
 	# ok_packet{affected_rows=1}
 
-#### Executing Prepared Statements                          <a name=preps></a>
+#### Executing Prepared Statements                          <a name="Executing_Prepared_Statements"></a>
 
 	% emysql:prepare(StmtName, Statement) -> ok  
 	% StmtName = atom()  
@@ -236,7 +236,7 @@ For other record types, see include/emysql.hrl.
 	emysql:execute(mypoolname, my_stmt, [1]).
 	#result_packet{field_list=[...], rows=[...]}
 
-#### Executing Stored Procedures                          <a name=storps></a>
+#### Executing Stored Procedures                          <a name="Executing_Stored_Procedures"></a>
 
 	% emysql:execute(PoolName, StmtName, Args) -> result_packet() | ok_packet() | error_packet()  
 	% StmtName = atom()  
@@ -280,7 +280,7 @@ For other record types, see include/emysql.hrl.
 
 Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the source to find out about their relationship with each other - and which one to pick. Here is a brief history.
 
-**Yxa:** The first Erlang MySQL driver, in [~270 lines][17] of code, seems to have been written between 2001 and 2004 by [Magnus Ahltorp][ma] at the Swedish [Royal Institute of Technology][3]. It exposes low level, blocking functions to talk 4.0 protocol with a MySQL server. In 2005 [Fredrik Thulin][fr] brought the driver into its current modular form to use it for the the SIP proxy [Yxa][5] while working at the [Stockholm University][19]. It has three process layers: a high level, round-robin connection pooling module; then, middle-man, single-connection, blocking processes that do the bit-level wrangling with the [MySQL protocol][18]. This module, mysql_conn, can also be used as a single-connection, stand-alone driver. And below this, there are small, protocol-agnostic receiver processes that handle the socket communication with the server, no matter the contents. Fredrik implemented gen-server behavior, added logging, error messages, upgraded authentication, and thoroughly commented the source. This [mysql driver][4] is working, complete and stable since at least 2007, it is available as part of [Yxa 1.0][5] (hosted on github][6]). It has no support for transactions or stored procedures. It is the basis for the following two packages. Its basic modular division and general functionality were not changed but only enhanced and it had originally been agreed upon that the Yxa branch should receive and merge the contributions of the later forks upstream. Unfortunately, that did not come to pass.
+**Yxa:** The first Erlang MySQL driver, in [~270 lines][17] of code, seems to have been written between 2001 and 2004 by [Magnus Ahltorp][ma] at the Swedish [Royal Institute of Technology][3]. It exposes low level, blocking functions to talk 4.0 protocol with a MySQL server. In 2005 [Fredrik Thulin][fr] brought the driver into its current modular form to use it for the the SIP proxy [Yxa][5] while working at the [Stockholm University][19]. It has three process layers: a high level, round-robin connection pooling module; then, middle-man, single-connection, blocking processes that do the bit-level wrangling with the [MySQL protocol][18]. This module, mysql_conn, can also be used as a single-connection, stand-alone driver. And below this, there are small, protocol-agnostic receiver processes that handle the socket communication with the server, no matter the contents. Fredrik implemented gen-server behavior, added logging, error messages, upgraded authentication, and thoroughly commented the source. This [mysql driver][4] is working, complete and stable since at least 2007, it is available as part of [Yxa 1.0][5] (hosted on [github][6]). It has no support for transactions or stored procedures. It is the basis for the following two packages. Its basic modular division and general functionality were not changed but only enhanced and it had originally been agreed upon that the Yxa branch should receive and merge the contributions of the later forks upstream. Unfortunately, that did not come to pass.
 
 
 **ejabberd:** In 2006, a [fork][7] of the Yxa driver was created by [Mickael Remond][mr] at [Process One][8] to become part of the successful instant messaging server [ejabberd][9] (also hosted [at github][10]). It can be assumed to be as stable as the Yxa branch, didn't change a byte in the lowest level, and only enhanced the higher levels. The difference to the original Yxa branch mainly consists of added inspection functions that help using the query results, and of an [independent adoption][11] to the MySQL 4.1 client-server protocol. The original Yxa branch has meanwhile adopted edoc comment format, which makes the sources look more different than they actually are.  Find a Jan 2011 diff between Yxa and the ejabberd version [here][12], and one ignoring comments [here][13]. These two branches could, be merged quiet easily, probably without any change in functionality.
@@ -418,6 +418,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 [todo]:     #todo
 [license]:  #license
 
-[preps]:    #preps
-[storps]:   #storps
-[conp]:     #conp
+[Executing_Prepared_Statements]:    #Executing_Prepared_Statements
+[Executing_Stored_Procedures]:   #Executing_Stored_Procedures
+[Adding_a_Pool]:     #Adding_a_Pool
