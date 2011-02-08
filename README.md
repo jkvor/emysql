@@ -1,6 +1,6 @@
-# Emysql 
+﻿# Emysql 
 
-Erlang MySQL driver, based on a rewrite for Electronic Arts. Connection pooling, prepared statements & stored procedures.
+Erlang MySQL driver, faster and more reliable. Based on a rewrite at Electronic Arts to overcome stability and performance issues of the [erlang-mysql-driver][History]. [Easy][Samples] to use, Strong [connection pooling][conp], [prepared statements][preps] & [stored procedures][storps]. Optimized for a central node architecture and OLTP.
 
 While you can use mysql via ODBC, using a driver, like Emysql, should perform better. For [samples][] and [docs][] see below. Read the brief on [choosing a package][choosing] and about the [history][] of the various MySQL drivers.
 
@@ -8,10 +8,11 @@ This package is a direct continuation of the original [emysql][1] with [fixes][]
 
 <hr/>
 
- **Which fork/package should I use?** See [Choosing][].  
+ **Which fork/package should I use?** Likely this one, but see [Choosing][].  
  **Why are there so many?** See [History][].  
- **Who used *this* fork?** Electronic Arts.  
+ **Who used *this* fork?** [Electronic Arts][History].  
  **How do I ...?** See [Samples][].  
+ **Hello ...?** See [Samples][].  
 
  **Download:** <https://github.com/Eonblast/Emysql/archives/master>  
  **Docs:** <http://eonblast.github.com/Emysql/>  
@@ -34,9 +35,14 @@ This package is a direct continuation of the original [emysql][1] with [fixes][]
 
 ## Choosing                                             <a name="choosing"></a>
 
-If you are looking for the plain necessities, you should use the [ejabberd][7] mysql driver. It is battle tested and stable. If you want stored procedures, use this package, [Emysql][emysql]. For mnesia-style transactions, one of the multiple [erlang-mysql-driver][16]s may suite you best.  
+#### Best
+In most cases, especially for high performance and stability, this package, [Emysql][emysql] will be the best choice. It was written from the ground up to overcome fundamental issues of 'erlang-mysql-driver'. It also has some usable docs meanwhile. 
 
-To learn more about out the differences between the drivers, see the [mysql driver history][history].
+#### Simple
+If you are looking for the **plain necessities**, you should use the [ejabberd][7] mysql driver. It is simple, battle tested and stable. 
+
+#### Transaction
+For **mnesia-style transactions**, one of the multiple '[erlang-mysql-driver][22]s' may suite you best.  There are [quite many][16] branches of it out there, and they are based on the same project as the ejabberd driver. To learn more about out the differences between the drivers, see the [mysql driver history][history].
 
 ## Getting Emysql
 
@@ -72,19 +78,19 @@ This is a hello world program. Follow the three steps below to try it out.
 
 We'll be coming back to this source in a minute.
 
-### Executing an SQL Statements
+### Executing an SQL Statement
 
 	emysql:execute(my_pool, <<"SELECT * from mytable">>).
 
 For the exact spec, see below, [Usage][]. Regarding the 'pool', also see below.
 
-### Executing a Prepared Statements
+### Executing a Prepared Statement
 
 	emysql:prepare(my_stmt, <<"SELECT * from mytable WHERE id = ?">>).
 	
 	emysql:execute(my_pool, my_stmt, [1]).
 
-### Executing a Stored Procedures
+### Executing Stored Procedures
 
 	emysql:execute(my_pool, <<"create procedure my_sp() begin select * from mytable; end">>).
 	
@@ -177,7 +183,7 @@ The Emysql driver is an Erlang gen-server, and, application.
 	crypto:start(),
 	application:start(emysql).
 
-#### Adding a Pool
+#### Adding a Pool                                       <a name="conp"></a>
 
 	% emysql:add_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) ->
 	%	 ok | {error, pool_already_exists}  
@@ -214,7 +220,7 @@ For other record types, see include/emysql.hrl.
 	emysql:execute(mypoolname, <<"UPDATE mytable SET bar = 'baz' WHERE id = 1">>).
 	# ok_packet{affected_rows=1}
 
-#### Executing Prepared Statements
+#### Executing Prepared Statements                          <a name=preps></a>
 
 	% emysql:prepare(StmtName, Statement) -> ok  
 	% StmtName = atom()  
@@ -230,7 +236,7 @@ For other record types, see include/emysql.hrl.
 	emysql:execute(mypoolname, my_stmt, [1]).
 	#result_packet{field_list=[...], rows=[...]}
 
-#### Executing Stored Procedures
+#### Executing Stored Procedures                          <a name=storps></a>
 
 	% emysql:execute(PoolName, StmtName, Args) -> result_packet() | ok_packet() | error_packet()  
 	% StmtName = atom()  
@@ -272,17 +278,22 @@ For other record types, see include/emysql.hrl.
 
 ## History                                               <a name="history"></a>
 
-Open Source Erlang MySQL driver efforts are currently a fractured matter. There are four main choices.
+Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the source to find out about their relationship with each other - and which one to pick. Here is a brief history.
 
-* **Yxa**: The [first][17] Erlang MySQL driver, in ~270 lines of code, seems to have been written between 2001 and 2004 by [Magnus Ahltorp][ma] at the Swedish [Royal Institute of Technology][3]. It is low level and on its own, blocking. In 2005 [Fredrik Thulin][fr] brought it into it's current modular form of three process layers: a high level, connection pooling, async module `mysql'; the underlying single-connection, blocking `mysql_conn.erl' that does the bit-level talk in the [MySQL protocol][18] and can also be used stand-alone. And which uses the protocol agnostic receiver processes `mysql_recv' that handle the low level socket communication with the server, no matter the content. To use the driver in the [Yxa][5] project, Fredrik gave it gen-server behavior, added logging, error messages, support for the new MySQL authentication protocol, and commented the source. This [mysql driver source][4] is complete and stable since at least 2007, it is available as part of the SIP proxy [Yxa 1.0][5] (hosted [on github][6]). It has no support for transactions or stored procedures. It is the basis for the following two packages. It's basic modular division and general functionality where not changed but only enhanced in later incarnations. It had originally been agreed that this package should receive and merge the upstream of the following two forks but unfortunately, that did not come to pass.
+**Yxa:** The first Erlang MySQL driver, in [~270 lines][17] of code, seems to have been written between 2001 and 2004 by [Magnus Ahltorp][ma] at the Swedish [Royal Institute of Technology][3]. It exposes low level, blocking functions to talk 4.0 protocol with a MySQL server. In 2005 [Fredrik Thulin][fr] brought the driver into its current modular form to use it for the the SIP proxy [Yxa][5] while working at the [Stockholm University][19]. It has three process layers: a high level, round-robin connection pooling module; then, middle-man, single-connection, blocking processes that do the bit-level wrangling with the [MySQL protocol][18]. This module, mysql_conn, can also be used as a single-connection, stand-alone driver. And below this, there are small, protocol-agnostic receiver processes that handle the socket communication with the server, no matter the contents. Fredrik implemented gen-server behavior, added logging, error messages, upgraded authentication, and thoroughly commented the source. This [mysql driver][4] is working, complete and stable since at least 2007, it is available as part of [Yxa 1.0][5] (hosted on github][6]). It has no support for transactions or stored procedures. It is the basis for the following two packages. Its basic modular division and general functionality were not changed but only enhanced and it had originally been agreed upon that the Yxa branch should receive and merge the contributions of the later forks upstream. Unfortunately, that did not come to pass.
 
-* **ejabberd**: In 2006, a [fork][7] of the Yxa driver was created by [Mickael Remond][mr] at [Process One][8] to become part of the successful instant messaging server [ejabberd][9] (also hosted [at github][10]). It can be assumed to be as stable as the Yxa branch, didn't change a byte in the lowest level, and only enhanced the higher levels. The difference to the original Yxa branch mainly consists of added inspection functions that help using the query results, and of an [independent adoption][11] to the MySQL 4.1 client-server protocol. The original Yxa branch has meanwhile adopted edoc comment format. Find a diff between Yxa and the ejabberd version [here][12], and one ignoring comments [here][13]. These two branches could, be merged quiet easily, probably without any change in functionality.
 
-* **erlang-mysql-driver**: The storied life of this package begain in 2006 when [Yariv Sadan][ys] created a fork from the ejabberd branch, made it a standalone project, gave it a maximally generic name that stuck, and hosted it at [Google Code][15]. Before he moved on to work at Facebook, he added high-level handling of prepared statements and transactions, and at long last completed some loose ends with the connection pooling that had been known to be lagging since the Yxa version. But there were also changes both in the original Yxa and the ejabberd branch after the forking off in 2006 that seem to never have made their way into this fork. Its main repository now lies dormant since Oct '07. It is not quite obvious if the original changes in erlang-mysql-driver had reached their intended final form. The third layer module, mysql.erl, has started to become entangled with the second, mysql_conn.erl. Docs beyond the source comments remained lacking. Then in Feb '10, Dave Smith started making some [updates][15] and put them on github, were the driver is now enjoying a couple of [active forks][16] that make for a convincing case in favor of the github Network graph.
+**ejabberd:** In 2006, a [fork][7] of the Yxa driver was created by [Mickael Remond][mr] at [Process One][8] to become part of the successful instant messaging server [ejabberd][9] (also hosted [at github][10]). It can be assumed to be as stable as the Yxa branch, didn't change a byte in the lowest level, and only enhanced the higher levels. The difference to the original Yxa branch mainly consists of added inspection functions that help using the query results, and of an [independent adoption][11] to the MySQL 4.1 client-server protocol. The original Yxa branch has meanwhile adopted edoc comment format, which makes the sources look more different than they actually are.  Find a Jan 2011 diff between Yxa and the ejabberd version [here][12], and one ignoring comments [here][13]. These two branches could, be merged quiet easily, probably without any change in functionality.
 
-* **Emysql** was started from scratch in 2009 by [Jacob Vorreuter][jv] and [Bill Warnecke][bw] at Electronic Arts. They decided to rewrite the erlang-mysql-driver code because they felt that, in Jacob's words, it had been touched by so many people that it had become more complicated than necessary. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module (`emysql_recv'), coupling the functionality by direct function calls. They borrowed some lines from Magnus but generally created a new, more straight forward, architecture based on pooled connections. According to Jacob, Emysql is pretty stable and ran without issue in a production environment at Electronic Arts. This fork is a continuation of [their work][1], including all their commits and adding [documentation][docs], [samples], [fixes][] and extensions. [Vitaliy Batichko][vb] and [Chris Rempel][cr] have contributed updates to this branch. Thank you!
+**erlang-mysql-driver:** The storied life of this branch began in 2006 when [Yariv Sadan][ys] created a fork from the ejabberd branch, made it a standalone project, gave it the maximally generic name that stuck, and hosted it at [Google Code][15]. Before he moved on to work at Facebook, he added high-level handling of prepared statements and transactions, and at long last completed some loose ends with the connection pooling that had been known to be lagging since the Yxa version. There were changes both in the original Yxa and the ejabberd branch after the forking off that never made their way into this fork, but in all likelihood they must be minor. It is not always obvious if the changes in erlang-mysql-driver had reached their intended final form. The separation of the three process layers seems to have suffered and complicated enhancements as the highest layer module, mysql.erl, started to become entangled with the second, mysql_conn.erl. Maybe that had a part in why the upstream merge never happened. The main repository of this fork lay dormant since Oct ‘07 when in Feb ‘10, Dave Smith started making some [updates][15] and put them on github. The driver is now enjoying a couple of active [forks][16] that make a convincing case for the github Network graphs.
 
-Jacob and Fredrik helped sheding light on the matter, thanks for taking the time! The archeology work was conducted by [Henning Diedrich][hd].
+A [parallel][20] fork from Yariv’s branch, not entangled with Dave’s tree, is [the one][22] by [Nick Gerakines][ng]. It may technically be the strongest of the erlang-mysql-driver forks, with a lot of clean up work by some very smart guys put in. It is generally less well known. And much less forked. In the end, the branch was abandoned in favor of [Emysql][]. In all branches, docs beyond the source comments remain lacking.
+
+**Emysql** was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by [Jacob Vorreuter][jv] at Electronic Arts and deployed at Shawn Fanning’s Rupture.com, a social network site for gamers. Initially, [Nick Gerakines][ng], Jacob’s boss at EA, rewrote large parts of erlang-mysql-server to [clean it up][21]. But some fundamental problems remained and when half a year in, they could still not overcome performance and stability issues, Nick gave Jacob green light to rewrite it from the ground up because they felt that, in Jacob’s words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, [Bill Warnecke][bw] helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality in direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straight forward architecture focussed on providing a high performance node. Not only can Emysql have multiple connections, but multiple pools of multiple connections each, which makes for a strong central OLTP manager. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: “The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling.” Rupture was killed in the consolidations of 2008. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.
+
+**Eonblast Emysql** is a continuation fork of [Jacob’s work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb] and [Chris Rempel][cr] have contributed updates to this branch. Support for stored procedures has been added, but the fork is otherwise still very close to the original, which currently lays dormant.
+
+Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about typos and errors you may be spotting. Thanks.
 
 
 ### Links and References
@@ -314,20 +325,34 @@ Jacob and Fredrik helped sheding light on the matter, thanks for taking the time
       "Earliest Yxa mysql driver"
 [18]: http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol
       "MySQL protocol"
+[19]:  http://www.su.se/english/
+	  "Stockholm University"
+[20]: https://github.com/ngerakines/erlang_mysql/network
+	  "Network graph of Nick's erlang-mysql-driver fork"
+[21]: https://github.com/ngerakines/erlang_mysql/commits/master
+	  "Commits in Nick Gerakines' erlang-mysql-driver fork"
+[22]: https://github.com/ngerakines/erlang_mysql
+	  "Nick Gerakines' erlang-mysql-driver fork"
+[23]: http://method.com/detail/CaseStudy/65
+	  "About Rupture"
+[24]: https://github.com/Eonblast/Emysql/commits/master
+      "Commits in the current Eonblast Emysql branch"
+
       
 [ma]: ahltorp@nada.kth.se               "Magnus Ahltorp"  
 [fr]: ft@it.su.se                       "Fredrik Thulin"
 [mr]: mickael.remond@process-one.net    "Mickael Remond"  
 [ys]: http://yarivsblog.blogspot.com    "Yariv Sadan"  
 [ds]: dizzyd@dizzyd.com                 "Dave Smith"
-[bw]: bill@rupture.com                  "Bill Warnecke"  
+[ng]: https://github.com/ngerakines     "Nick Gerakines"
 [jv]: https://github.com/JacobVorreuter "Jacob Vorreuter"  
+[bw]: bill@rupture.com                  "Bill Warnecke"  
 [hd]: hd2010@eonblast.com               "Henning Diedrich"  
 [vb]: https://github.com/bva            "Vitaliy Batichko"  
 [cr]: https://github.com/csrl           "Chris Rempel"  
 
 [emysql]:   https://github.com/Eonblast/Emysql  
-           "Emysql Repository"  
+           "Eonblast Emysql Repository"  
 [fixes]:   https://github.com/Eonblast/Emysql/issues/closed  
            "Emysql fixes"  
 [updates]: https://github.com/Eonblast/Emysql/commits/master
@@ -386,9 +411,13 @@ FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 [choosing]: #choosing
-[history]: #history
-[samples]: #samples
-[usage]:   #usage
-[links]:   #links
-[todo]:    #todo
-[license]: #license
+[history]:  #history
+[samples]:  #samples
+[usage]:    #usage
+[links]:    #links
+[todo]:     #todo
+[license]:  #license
+
+[preps]:    #preps
+[storps]:   #storps
+[conp]:     #conp
