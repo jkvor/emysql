@@ -3,8 +3,5 @@
 #
 # If you have trouble, try the simpler 'b_raw' sample.
 #
-cd ..
-make
-cd samples
 erlc a_hello.erl
 erl -pa ../ebin -s a_hello run -s init stop -noshell

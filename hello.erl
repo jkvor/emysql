@@ -6,9 +6,6 @@
 		crypto:start(),
 		application:start(emysql),
 
-		TO = application:get_env(emysql, default_timeout),
-		io:format("time out: ~p~n", [TO]),
-
 		emysql:add_pool(hello_pool, 1,
 			"hello_username", "hello_password", "localhost", 3306,
 			"hello_database", utf8),

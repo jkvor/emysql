@@ -1,6 +1,7 @@
 %% Emysql .app file template
-%% This template is filled out by make 
-%% and then copied from src/emysql.app.src to ebin/emysql.app
+%% This template is filled out by rebar, 
+%% or make (Makefile made to fill modules in)
+%% and then cp src/emysql.app.src ebin/emysql.app
 
 %% Settings (defaults in include/emysql.hrl):
 %% default_timeout (TIMEOUT = 8000)
@@ -9,7 +10,7 @@
 {application, emysql, [
     {description, "Emysql - Erlang MySQL driver"},
     {vsn, "0.2"},
-    {modules, [%MODULES%]}, 
+    {modules, []}, 
     {mod, {emysql_app, ["%MAKETIME%"]}},
     {registered, []},
     {applications, [kernel, stdlib, crypto]},
