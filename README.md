@@ -132,7 +132,6 @@ Or use rebar:
 
 Both yield an option to install but this is not needed for the samples.
 
-
 #### 2. Make a Sample Database
 
 For use in the above sample (and all of those below, too), create a local mysql database. You should have a mysql server installed and running:

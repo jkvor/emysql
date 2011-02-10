@@ -25,6 +25,7 @@ docs:
 # Make sure to do 'make docs' first.
 # will fail if you haven't checked out github pages into ../Emysql-github-pages
 pages:
+	(cd ../Emysql-github-pages; git pull)
 	cp -r doc/* ../Emysql-github-pages
 	(cd ../Emysql-github-pages; git add .; git commit -m 'auto doc update'; git push)
 
