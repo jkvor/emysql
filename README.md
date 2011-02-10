@@ -125,6 +125,13 @@ Build emysql.app, using make:
 	$ cd Emysql
 	$ make
 
+Or use rebar: 
+
+	$ cd Emysql
+	$ ./rebar compile
+
+Both yield an option to install but this is not needed for the samples.
+
 
 #### 2. Make a Sample Database
 
