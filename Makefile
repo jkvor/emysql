@@ -25,9 +25,9 @@ docs:
 # Make sure to do 'make docs' first.
 # will fail if you haven't checked out github pages into ../Emysql-github-pages
 pages:
-	(cd ../Emysql-github-pages; git pull)
+	(cd ../Emysql-github-pages; git pull origin gh-pages)
 	cp -r doc/* ../Emysql-github-pages
-	(cd ../Emysql-github-pages; git add .; git commit -m 'auto doc update'; git push)
+	(cd ../Emysql-github-pages; git add .; git commit -m 'make pages'; git push origin gh-pages)
 
 # Create HTML from Markdown to test README.md appearance
 markdown:
