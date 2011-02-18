@@ -59,8 +59,6 @@
 # your help making this better is much appreciated.
 # **********************************************************
 
-:start
-
 # as first line, make the @doc tag
 # --------------------------------
 1 i\

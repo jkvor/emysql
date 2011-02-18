@@ -1,6 +1,6 @@
 ## Emysql
 
-Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, Strong [connection pooling][Adding_a_Pool], [prepared statements][Executing_Prepared_Statements] & [stored procedures][Executing_Stored_Procedures]. Optimized for a central node architecture and OLTP.
+Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, strong [connection pooling][Adding_a_Pool], [prepared statements][Executing_Prepared_Statements] & [stored procedures][Executing_Stored_Procedures]. Optimized for a central node architecture and OLTP.
 
 While you can use mysql via ODBC, using a driver, like Emysql, should perform better. For [samples][Samples] and [docs][] see below. Read the brief on [choosing][Choosing] a package and about the [history][History] of the various MySQL drivers.
 
@@ -424,7 +424,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 [Links]:    #Links
 [Todo]:     #Todo
 [License]:  #License
-
-[Executing_Prepared_Statements]:    #Executing_Prepared_Statements
+[Executing_Prepared_Statements]: #Executing_Prepared_Statements
 [Executing_Stored_Procedures]:   #Executing_Stored_Procedures
-[Adding_a_Pool]:     #Adding_a_Pool
+[Adding_a_Pool]:                 #Adding_a_Pool

@@ -63,8 +63,8 @@
 %%
 %% === Implementation ===
 %%
-%% Under this headline, <b>Implementation</b>, you will find details about the
-%% inner workings of Emysql. If you are new to Emysql, you can safely ignore
+%% Under <b>Implementation</b>, you can find details about the
+%% inner workings of Emysql. If you are new to Emysql, you may safely ignore
 %% them.
 %%
 %% start(), stop(), modules() and default_timeout() are one-line 'fascades':
@@ -91,6 +91,7 @@
 %% 
 %% The pool-related functions execute brief operations using the primitive
 %% functions exported by `emysql_conn_mgr' and `emysql_conn_mgr'.
+%% @end doc: hd feb 11
 
 -module(emysql).
 
@@ -126,6 +127,7 @@
 %% terminates, this is reported but no other applications are terminated.
 %%
 %% See [http://www.erlang.org/doc/design_principles/applications.html]
+%% @end doc: hd feb 11
 %%
 start() ->
 	application:start(emysql).
@@ -141,6 +143,7 @@ start() ->
 %% affected.
 %%
 %% See [http://www.erlang.org/doc/design_principles/applications.html]
+%% @end doc: hd feb 11
 %%
 stop() ->
 	application:stop(emysql).
@@ -163,6 +166,8 @@ stop() ->
 %%
 %% Simply a call to `emysql_app:modules()'.
 %% @private
+%% @end doc: hd feb 11
+%%
 modules() ->
 	emysql_app:modules().
 
@@ -176,9 +181,30 @@ modules() ->
 %%
 %% src/emysql.app.src is a template for the emysql app file from which 
 %% ebin/emysql.app is created during building, by a sed command in 'Makefile'.
+%% @end doc: hd feb 11
 %%
 default_timeout() ->
 	emysql_app:default_timeout().
+
+%% @spec add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) -> Result
+%%		PoolId = atom()
+%%		Size = integer()
+%%		User = string()
+%%		Password = string()
+%%		Host = string()
+%%		Port = integer()
+%%		Database = string()
+%%		Encoding = string()
+%%		Result = {reply, {error, pool_already_exists}, state()} | {reply, ok, state() }
+%%
+%% @doc Synchronous call to the connection manager to add a pool.
+%%
+%% === Implementation ===
+%%
+%% Creates a pool record, opens n=Size connections and calls 
+%% emysql_conn_mgr:add_pool() to make the pool known to the pool management.
+%% emysql_conn_mgr:add_pool() is translated into a blocking gen-server call.
+%% @end doc: hd feb 11
 
 add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	Pool = #pool{
@@ -194,14 +220,66 @@ add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
 	Pool1 = emysql_conn:open_connections(Pool),
 	emysql_conn_mgr:add_pool(Pool1).
 
+%% @spec remove_pool(PoolId) -> ok
+%%		PoolId = atom()
+%%
+%% @doc Synchronous call to the connection manager to remove a pool.
+%%
+%% === Implementation ===
+%%
+%% Relies on emysql_conn:close_connection(Conn) for the proper closing of connections. Feeds
+%% any connection in the pool to it, also the locked ones.
+%% @end doc: hd feb 11
+
 remove_pool(PoolId) ->
 	Pool = emysql_conn_mgr:remove_pool(PoolId),
 	[emysql_conn:close_connection(Conn) || Conn <- lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))],
 	ok.
 
+%% @spec increment_pool_size(PoolId, By) -> Result
+%%		PoolId = atom()
+%%		By = integer()
+%%		Result = {reply, ok, State1} | {reply, {error, pool_not_found}, State}
+%%
+%% @doc Synchronous call to the connection manager to enlarge a pool.
+%%
+%% This opens n=By new connections and adds them to the pool of id PoolId.
+%%
+%% === Implementation ===
+%%
+%% Opens connections and then adds them to the pool by a call to
+%% emysql_conn_mgr:add_connections().
+%% 
+%% That this function exposes the State and possibly pool_not_found
+%% seems to be inconsistent with decrement_pool_size(), which invariably
+%% returns 'ok'.
+%% @end doc: hd feb 11
+
 increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 	Conns = emysql_conn:open_n_connections(PoolId, Num),
 	emysql_conn_mgr:add_connections(PoolId, Conns).
+
+%% @spec decrement_pool_size(PoolId, By) -> ok
+%%		PoolId = atom()
+%%		By = integer()
+%%
+%% @doc Synchronous call to the connection manager to shrink a pool.
+%%
+%% This reduces the connections by up to n=By, but it only drops and closes available
+%% connections that are not in use at the moment that this function is called. Connections
+%% that are waiting for a server response are never dropped. In heavy duty, this function 
+%% may thus do nothing.
+%%
+%% If 'By' is higher than the amount of connections or the amount of available connections,
+%% exactly all available connections are dropped and closed. 
+%%
+%%
+%% === Implementation ===
+%%
+%% First gets a list of target connections from emysql_conn_mgr:remove_connections(), then
+%% relies on emysql_conn:close_connection(Conn) for the proper closing of connections. 
+%% @end doc: hd feb 11
+%% 
 
 decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 	Conns = emysql_conn_mgr:remove_connections(PoolId, Num),
@@ -289,6 +367,7 @@ decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 %% @see emysql_statements:add/2
 %% @see emysql_statements:handle/3
 %% @see emysql_conn:execute/3
+%% @end doc: hd feb 11
 
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
 	emysql_statements:add(StmtName, Statement).
@@ -309,6 +388,7 @@ prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) 
 %% @see execute/4.
 %% @see execute/5.
 %% @see prepare/2.
+%% @end doc: hd feb 11
 %%
 execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
@@ -337,6 +417,7 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 %% @see execute/4.
 %% @see execute/5.
 %% @see prepare/2.
+%% @end doc: hd feb 11
 %%
 execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	execute(PoolId, Query, Args, default_timeout());
@@ -379,6 +460,7 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %% @see execute/3.
 %% @see execute/5.
 %% @see prepare/2.
+%% @end doc: hd feb 11
 %%
 execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
@@ -423,6 +505,7 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName)
 %% @see execute/3. 
 %% @see execute/4. 
 %% @see prepare/2.
+%% @end doc: hd feb 11
 %%
 execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
@@ -468,6 +551,8 @@ execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_a
 %% @see prepare/2.
 %% 
 %% @private 
+%% @end doc: hd feb 11
+%%
 monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
 	%% spawn a new process to do work, then monitor that process until
 	%% it either dies, returns data or times out.

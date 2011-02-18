@@ -46,8 +46,8 @@
  
   <h4><a name="Implementation">Implementation</a></h4>
  
-  <p>Under this headline, <b>Implementation</b>, you will find details about the  
-inner workings of Emysql. If you are new to Emysql, you can safely ignore  
+  <p>Under <b>Implementation</b>, you can find details about the  
+inner workings of Emysql. If you are new to Emysql, you may safely ignore  
 them.</p>
  
   start(), stop(), modules() and default_timeout() are one-line 'fascades':
@@ -71,16 +71,16 @@ asynchronously handle the execution.</p>
   The pool-related functions execute brief operations using the primitive
   functions exported by <code>emysql_conn_mgr</code> and <code>emysql_conn_mgr</code>.
 <h2><a name="index">Function Index</a></h2>
-<table width="100%" class=index border="0" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_pool-8">add_pool/8</a></td><td></td></tr>
-<tr><td valign="top"><a href="#decrement_pool_size-2">decrement_pool_size/2</a></td><td></td></tr>
+<table width="100%" class=index border="0" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_pool-8">add_pool/8</a></td><td>Synchronous call to the connection manager to add a pool.</td></tr>
+<tr><td valign="top"><a href="#decrement_pool_size-2">decrement_pool_size/2</a></td><td>Synchronous call to the connection manager to shrink a pool.</td></tr>
 <tr><td valign="top"><a href="#default_timeout-0">default_timeout/0</a></td><td>Returns the default timeout in milliseconds.</td></tr>
 <tr><td valign="top"><a href="#execute-2">execute/2</a></td><td>Execute a query, prepared statement or a stored procedure.</td></tr>
 <tr><td valign="top"><a href="#execute-3">execute/3</a></td><td>Execute a query, prepared statement or a stored procedure.</td></tr>
 <tr><td valign="top"><a href="#execute-4">execute/4</a></td><td>Execute a query, prepared statement or a stored procedure.</td></tr>
 <tr><td valign="top"><a href="#execute-5">execute/5</a></td><td>Execute a query, prepared statement or a stored procedure - but return immediately, returning the atom 'unavailable', when no connection in the pool is readily available without wait.</td></tr>
-<tr><td valign="top"><a href="#increment_pool_size-2">increment_pool_size/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#increment_pool_size-2">increment_pool_size/2</a></td><td>Synchronous call to the connection manager to enlarge a pool.</td></tr>
 <tr><td valign="top"><a href="#prepare-2">prepare/2</a></td><td>Prepare a statement.</td></tr>
-<tr><td valign="top"><a href="#remove_pool-1">remove_pool/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#remove_pool-1">remove_pool/1</a></td><td>Synchronous call to the connection manager to remove a pool.</td></tr>
 <tr><td valign="top"><a href="#start-0">start/0</a></td><td>Start the Emysql application.</td></tr>
 <tr><td valign="top"><a href="#stop-0">stop/0</a></td><td>Stop the Emysql application.</td></tr>
 </table>
@@ -89,13 +89,46 @@ asynchronously handle the execution.</p>
 
 <h3 class="function"><a name="add_pool-8">add_pool/8</a></h3>
 <div class="spec">
-<p><tt>add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) -&gt; any()</tt></p>
-</div>
+<p><tt>add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) -&gt; Result</tt>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
+<li><tt>Size = integer()</tt></li>
+<li><tt>User = string()</tt></li>
+<li><tt>Password = string()</tt></li>
+<li><tt>Host = string()</tt></li>
+<li><tt>Port = integer()</tt></li>
+<li><tt>Database = string()</tt></li>
+<li><tt>Encoding = string()</tt></li>
+<li><tt>Result = {reply, {error, pool_already_exists}, <a href="#type-state">state()</a>} | {reply, ok, <a href="#type-state">state()</a>}</tt></li>
+</ul></p>
+</div><p><p>Synchronous call to the connection manager to add a pool.</p>
+ 
+  <h4><a name="Implementation">Implementation</a></h4>
+ 
+  Creates a pool record, opens n=Size connections and calls
+  emysql_conn_mgr:add_pool() to make the pool known to the pool management.
+  emysql_conn_mgr:add_pool() is translated into a blocking gen-server call.</p>
 
 <h3 class="function"><a name="decrement_pool_size-2">decrement_pool_size/2</a></h3>
 <div class="spec">
-<p><tt>decrement_pool_size(PoolId, Num) -&gt; any()</tt></p>
-</div>
+<p><tt>decrement_pool_size(PoolId, Num::By) -&gt; ok</tt>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
+<li><tt>By = integer()</tt></li>
+</ul></p>
+</div><p><p>Synchronous call to the connection manager to shrink a pool.</p>
+ 
+  <p>This reduces the connections by up to n=By, but it only drops and closes available  
+connections that are not in use at the moment that this function is called. Connections  
+that are waiting for a server response are never dropped. In heavy duty, this function  
+may thus do nothing.</p>
+ 
+  <p>If 'By' is higher than the amount of connections or the amount of available connections,  
+exactly all available connections are dropped and closed.</p>
+ 
+ 
+  <h4><a name="Implementation">Implementation</a></h4>
+ 
+  First gets a list of target connections from emysql_conn_mgr:remove_connections(), then
+  relies on emysql_conn:close_connection(Conn) for the proper closing of connections.</p>
 
 <h3 class="function"><a name="default_timeout-0">default_timeout/0</a></h3>
 <div class="spec">
@@ -108,8 +141,7 @@ or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).</p>
   <h4><a name="Implementation">Implementation</a></h4>
  
   src/emysql.app.src is a template for the emysql app file from which
-  ebin/emysql.app is created during building, by a sed command in 'Makefile'.
- </p>
+  ebin/emysql.app is created during building, by a sed command in 'Makefile'.</p>
 
 <h3 class="function"><a name="execute-2">execute/2</a></h3>
 <div class="spec">
@@ -210,8 +242,23 @@ Timeout is the query timeout in milliseconds.</p>
 
 <h3 class="function"><a name="increment_pool_size-2">increment_pool_size/2</a></h3>
 <div class="spec">
-<p><tt>increment_pool_size(PoolId, Num) -&gt; any()</tt></p>
-</div>
+<p><tt>increment_pool_size(PoolId, Num::By) -&gt; Result</tt>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
+<li><tt>By = integer()</tt></li>
+<li><tt>Result = {reply, ok, State1} | {reply, {error, pool_not_found}, State}</tt></li>
+</ul></p>
+</div><p><p>Synchronous call to the connection manager to enlarge a pool.</p>
+ 
+  <p>This opens n=By new connections and adds them to the pool of id PoolId.</p>
+ 
+  <h4><a name="Implementation">Implementation</a></h4>
+ 
+  <p>Opens connections and then adds them to the pool by a call to  
+emysql_conn_mgr:add_connections().</p>
+ 
+  That this function exposes the State and possibly pool_not_found
+  seems to be inconsistent with decrement_pool_size(), which invariably
+  returns 'ok'.</p>
 
 <h3 class="function"><a name="prepare-2">prepare/2</a></h3>
 <div class="spec">
@@ -289,8 +336,15 @@ Emysql.</p>
 
 <h3 class="function"><a name="remove_pool-1">remove_pool/1</a></h3>
 <div class="spec">
-<p><tt>remove_pool(PoolId) -&gt; any()</tt></p>
-</div>
+<p><tt>remove_pool(PoolId) -&gt; ok</tt>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
+</ul></p>
+</div><p><p>Synchronous call to the connection manager to remove a pool.</p>
+ 
+  <h4><a name="Implementation">Implementation</a></h4>
+ 
+  Relies on emysql_conn:close_connection(Conn) for the proper closing of connections. Feeds
+  any connection in the pool to it, also the locked ones.</p>
 
 <h3 class="function"><a name="start-0">start/0</a></h3>
 <div class="spec">
@@ -314,8 +368,7 @@ defined by the mod key in the .app file.</p>
 application:start(Application, temporary). If a temporary application  
 terminates, this is reported but no other applications are terminated.</p>
  
-  See <a href="http://www.erlang.org/doc/design_principles/applications.html" target="_top"><tt>http://www.erlang.org/doc/design_principles/applications.html</tt></a>
- </p>
+  See <a href="http://www.erlang.org/doc/design_principles/applications.html" target="_top"><tt>http://www.erlang.org/doc/design_principles/applications.html</tt></a></p>
 
 <h3 class="function"><a name="stop-0">stop/0</a></h3>
 <div class="spec">
@@ -329,11 +382,10 @@ It is always possible to stop an application explicitly by calling
 application:stop/1. Regardless of the mode, no other applications will be  
 affected.</p>
  
-  See <a href="http://www.erlang.org/doc/design_principles/applications.html" target="_top"><tt>http://www.erlang.org/doc/design_principles/applications.html</tt></a>
- </p>
+  See <a href="http://www.erlang.org/doc/design_principles/applications.html" target="_top"><tt>http://www.erlang.org/doc/design_principles/applications.html</tt></a></p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Feb 10 2011, 07:52:16.</i></p>
+<p><i>Generated by EDoc, Feb 18 2011, 20:25:06.</i></p>
 </body>
 </html>
