@@ -1,6 +1,7 @@
 %% Copyright (c) 2009
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
+%% Henning Diedrich <hd2010@eonblast.com>
 %%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
@@ -45,35 +46,35 @@ recv_greeting(Sock) ->
 	GreetingPacket = emysql_tcp:recv_packet(Sock),
 	case GreetingPacket#packet.data of
 		<<255, _/binary>> ->
-			io:format("error: ", []), 
+			% io:format("error: ", []), 
 			#error_packet{
 				code = Code,
 				msg = Msg
 			} = emysql_tcp:response(Sock, GreetingPacket),
-			io:format("exit: ~p~n-------------~p~n", [Code, Msg]), 
+			% io:format("exit: ~p~n-------------~p~n", [Code, Msg]), 
 			exit({Code, Msg});
 		<<ProtocolVersion:8/integer, Rest1/binary>> ->
-			io:format("prl v: ~p~n-------------~p~n", [ProtocolVersion, Rest1]), 
+			% io:format("prl v: ~p~n-------------~p~n", [ProtocolVersion, Rest1]), 
 			{ServerVersion, Rest2} = emysql_util:asciz(Rest1),
-			io:format("srv v: ~p~n-------------~p~n", [ServerVersion, Rest2]), 
+			% io:format("srv v: ~p~n-------------~p~n", [ServerVersion, Rest2]), 
 			<<ThreadID:32/little, Rest3/binary>> = Rest2,
-			io:format("tread id: ~p~n-------------~p~n", [ThreadID, Rest3]), 
+			% io:format("tread id: ~p~n-------------~p~n", [ThreadID, Rest3]), 
 			{Salt, Rest4} = emysql_util:asciz(Rest3),
-			io:format("salt: ~p~n-------------~p~n", [Salt, Rest4]), 
+			% io:format("salt: ~p~n-------------~p~n", [Salt, Rest4]), 
 			<<ServerCaps:16/little, Rest5/binary>> = Rest4,
-			io:format("caps: ~p~n-------------~p~n", [ServerCaps, Rest5]), 
+			% io:format("caps: ~p~n-------------~p~n", [ServerCaps, Rest5]), 
 			<<ServerLanguage:8/little, 
 				ServerStatus:16/little, 
 				ServerCapsHigh:16/little, 
 				ScrambleLength:8/little, 
 				_:10/binary-unit:8,
 				Rest6/binary>> = Rest5,
-			io:format("lang: ~p, status: ~p, caps hi: ~p, salt len: ~p~n-------------~p ~n", [ServerLanguage, ServerStatus, ServerCapsHigh, ScrambleLength, Rest6]), 
+			% io:format("lang: ~p, status: ~p, caps hi: ~p, salt len: ~p~n-------------~p ~n", [ServerLanguage, ServerStatus, ServerCapsHigh, ScrambleLength, Rest6]), 
 			Salt2Length = case ScrambleLength of 0 -> 13; _-> ScrambleLength - 8 end,
 			<<Salt2Bin:Salt2Length/binary-unit:8, Plugin/binary>> = Rest6,
 			{Salt2, <<>>} = emysql_util:asciz(Salt2Bin),
-			io:format("salt 2: ~p~n", [Salt2]), 
-			io:format("plugin: ~p~n", [Plugin]), 
+			% io:format("salt 2: ~p~n", [Salt2]), 
+			% io:format("plugin: ~p~n", [Plugin]), 
 			#greeting{
 				protocol_version = ProtocolVersion,
 				server_version = ServerVersion,
@@ -81,6 +82,7 @@ recv_greeting(Sock) ->
 				salt1 = Salt,
 				salt2 = Salt2,
 				caps = ServerCaps,
+				caps_high = ServerCapsHigh,
 				language = ServerLanguage,
 				status = ServerStatus,
 				seq_num = GreetingPacket#packet.seq_num,

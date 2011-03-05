@@ -149,7 +149,9 @@ Be sure to have ./ebin in your Erlang path. The hello-world source as shown abov
 	$ erlc hello.erl
 	$ erl -pa ./ebin -s hello run -s init stop -noshell
 
-That's it. 
+That's it. If you need to blindly repeat that more often some time, you can also use
+
+	$ make hello
 
 There are more sample programs:
 

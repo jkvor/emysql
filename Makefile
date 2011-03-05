@@ -33,6 +33,10 @@ pages:
 markdown:
 	lua etc/markdown.lua README.md
 
+hello:
+	erlc hello.erl
+	erl -pa ./ebin -s hello run -s init stop -noshell
+
 clean:
 	(cd src;$(MAKE) clean)
 	(cd t;$(MAKE) clean)
