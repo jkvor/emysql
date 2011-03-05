@@ -26,7 +26,7 @@
 %% OTHER DEALINGS IN THE SOFTWARE.
 
 -module(emysql_tcp).
--export([send_and_recv_packet/3, recv_packet/1]).
+-export([send_and_recv_packet/3, recv_packet/1, response/2]).
 
 -include("emysql.hrl").
 

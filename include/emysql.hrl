@@ -28,7 +28,7 @@
 
 -record(pool, {pool_id, size, user, password, host, port, database, encoding, available=queue:new(), locked=gb_trees:empty()}).
 -record(connection, {id, pool_id, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at}).
--record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, language, status, seq_num}).
+-record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, language, status, seq_num, plugin}).
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).
 -record(ok_packet, {seq_num, affected_rows, insert_id, status, warning_count, msg}).
@@ -136,3 +136,7 @@
 -define(RESP_OK, 0).
 -define(RESP_EOF, 254).
 -define(RESP_ERROR, 255).
+
+%% AUTH PLUGIN
+-define(MYSQL_NATIVE_PASSWORD, "mysql_native_password").
+-define(MYSQL_OLD_PASSWORD, "mysql_old_password").
