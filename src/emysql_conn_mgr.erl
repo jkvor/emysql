@@ -59,16 +59,16 @@ add_pool(Pool) ->
 remove_pool(PoolId) ->
 	do_gen_call({remove_pool, PoolId}).
 
-add_connections(PoolId, Conns) when is_atom(PoolId), is_list(Conns) ->
+add_connections(PoolId, Conns) when is_list(Conns) ->
 	do_gen_call({add_connections, PoolId, Conns}).
 
-remove_connections(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+remove_connections(PoolId, Num) when is_integer(Num) ->
 	do_gen_call({remove_connections, PoolId, Num}).
 
-lock_connection(PoolId) when is_atom(PoolId) ->
+lock_connection(PoolId)->
 	do_gen_call({lock_connection, PoolId}).
 
-wait_for_connection(PoolId) when is_atom(PoolId) ->
+wait_for_connection(PoolId)->
 	%% try to lock a connection. if no connections are available then
 	%% wait to be notified of the next available connection
 	case lock_connection(PoolId) of
