@@ -566,6 +566,10 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 	Mref = erlang:monitor(process, Pid),
 	Pid ! start,
 	receive
+		{'DOWN', Mref, process, Pid, {_, closed}} ->
+			NewConnection = emysql_conn:renew_connection(emysql_conn_mgr:pools(), Connection),
+			[_ | Args] = A,
+		  monitor_work(NewConnection, Timeout ,{M, F, [NewConnection | Args]});
 		{'DOWN', Mref, process, Pid, Reason} ->
 			%% if the process dies, reset the connection
 			%% and re-throw the error on the current pid

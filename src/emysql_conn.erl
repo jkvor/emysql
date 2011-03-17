@@ -29,7 +29,7 @@
 -export([set_database/2, set_encoding/2,
 		execute/3, prepare/3, unprepare/2,
 		open_connections/1, open_connection/1,
-		reset_connection/2, close_connection/1,
+		reset_connection/2, renew_connection/2, close_connection/1,
 		open_n_connections/2, hstate/1
 ]).
 
@@ -157,6 +157,18 @@ reset_connection(Pools, Conn) ->
 		{Pool, _} ->
 			NewConn = open_connection(Pool),
 			emysql_conn_mgr:replace_connection(Conn, NewConn);
+		undefined ->
+			exit(pool_not_found)
+	end.
+
+renew_connection(Pools, Conn) ->
+	spawn(fun() -> close_connection(Conn) end),
+	%% OPEN NEW SOCKET
+	case emysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
+		{Pool, _} ->
+			NewConn = open_connection(Pool),
+			emysql_conn_mgr:replace_connection_locked(Conn, NewConn),
+			NewConn;
 		undefined ->
 			exit(pool_not_found)
 	end.
