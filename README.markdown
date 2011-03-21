@@ -1,3 +1,6 @@
+# This fork is no longer maintained. Active development has moved to:
+<https://github.com/Eonblast/Emysql>
+
 ## Usage
 
 ### Start the application
