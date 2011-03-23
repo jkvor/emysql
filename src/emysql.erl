@@ -80,7 +80,7 @@
 %% The quintessential execute however is this, in execute/2:
 %% ```
 %% 	execute(PoolId, Query, Args, Timeout) 
-%%		when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+%%		when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 %%		
 %%			Connection = 
 %%				emysql_conn_mgr:wait_for_connection(PoolId),
@@ -255,7 +255,7 @@ remove_pool(PoolId) ->
 %% returns 'ok'.
 %% @end doc: hd feb 11
 
-increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+increment_pool_size(PoolId, Num) when is_integer(Num) ->
 	Conns = emysql_conn:open_n_connections(PoolId, Num),
 	emysql_conn_mgr:add_connections(PoolId, Conns).
 
@@ -281,7 +281,7 @@ increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 %% @end doc: hd feb 11
 %% 
 
-decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+decrement_pool_size(PoolId, Num) when is_integer(Num) ->
 	Conns = emysql_conn_mgr:remove_connections(PoolId, Num),
 	[emysql_conn:close_connection(Conn) || Conn <- Conns],
 	ok.
@@ -390,10 +390,10 @@ prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) 
 %% @see prepare/2.
 %% @end doc: hd feb 11
 %%
-execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
+execute(PoolId, Query) when (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
 
-execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
+execute(PoolId, StmtName) when is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 
 %% @spec execute(PoolId, Query|StmtName, Args|Timeout) -> Result | [Result]
@@ -419,16 +419,16 @@ execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
 %% @see prepare/2.
 %% @end doc: hd feb 11
 %%
-execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
+execute(PoolId, Query, Args) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	execute(PoolId, Query, Args, default_timeout());
 
-execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
+execute(PoolId, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 	execute(PoolId, StmtName, Args, default_timeout());
 
-execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
+execute(PoolId, Query, Timeout) when (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	execute(PoolId, Query, [], Timeout);
 
-execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_integer(Timeout) ->
+execute(PoolId, StmtName, Timeout) when is_atom(StmtName), is_integer(Timeout) ->
 	execute(PoolId, StmtName, [], Timeout).
 
 %% @spec execute(PoolId, Query|StmtName, Args, Timeout) -> Result | [Result]
@@ -462,11 +462,11 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %% @see prepare/2.
 %% @end doc: hd feb 11
 %%
-execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, Query, Args, Timeout) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
 
-execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, StmtName, Args, Timeout) when is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).
 
@@ -507,7 +507,7 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName)
 %% @see prepare/2.
 %% @end doc: hd feb 11
 %%
-execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, Query, Args, Timeout, nonblocking) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
 		Connection when is_record(Connection, connection) ->
 			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
@@ -515,7 +515,7 @@ execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso 
 			Other
 	end;
 
-execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
 		Connection when is_record(Connection, connection) ->
 			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]});
