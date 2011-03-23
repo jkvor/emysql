@@ -47,10 +47,10 @@ recv_greeting(Sock) ->
 	case GreetingPacket#packet.data of
 		<<255, _/binary>> ->
 			% io:format("error: ", []), 
-			#error_packet{
+			{#error_packet{
 				code = Code,
 				msg = Msg
-			} = emysql_tcp:response(Sock, GreetingPacket),
+			},_} = emysql_tcp:response(Sock, GreetingPacket),
 			% io:format("exit: ~p~n-------------~p~n", [Code, Msg]), 
 			exit({Code, Msg});
 		<<ProtocolVersion:8/integer, Rest1/binary>> ->
