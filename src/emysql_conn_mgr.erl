@@ -227,12 +227,12 @@ handle_call({replace_connection_locked, OldConn, NewConn}, _From, State) ->
 	%% without having to lock another connection.
 	case find_pool(OldConn#connection.pool_id, State#state.pools, []) of
 		{Pool, OtherPools} ->
-		  Locked = gb_trees:enter(
-		    NewConn#connection.id, NewConn ,gb_trees:delete_any(
-		      OldConn#connection.id, Pool#pool.locked
-		    )
-		  ),
-		  Pool1 = Pool#pool{locked = Locked},
+			Locked = gb_trees:enter(
+				NewConn#connection.id, NewConn ,gb_trees:delete_any(
+					OldConn#connection.id, Pool#pool.locked
+				)
+			),
+			Pool1 = Pool#pool{locked = Locked},
 			{reply, ok, State#state{pools=[Pool1|OtherPools]}};
 		undefined ->
 			{reply, {error, pool_not_found}, State}
