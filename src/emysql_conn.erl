@@ -1,6 +1,7 @@
-%% Copyright (c) 2009
+%% Copyright (c) 2009-2011
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
+%% Henning Diedrich <hd2010@eonblast.com>
 %%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
@@ -27,7 +28,7 @@
 		execute/3, prepare/3, unprepare/2,
 		open_connections/1, open_connection/1,
 		reset_connection/2, renew_connection/2, close_connection/1,
-		open_n_connections/2
+		open_n_connections/2, hstate/1
 ]).
 
 -include("emysql.hrl").
@@ -205,3 +206,10 @@ prepare_statement(Connection, StmtName) ->
 					end
 			end
 	end.
+
+% human readable string rep of the server state flag
+%% @private
+hstate(State) ->
+	   case (State band ?SERVER_STATUS_AUTOCOMMIT) of 0 -> ""; _-> "AUTOCOMMIT " end
+	++ case (State band ?SERVER_MORE_RESULTS_EXIST) of 0 -> ""; _-> "MORE_RESULTS_EXIST " end
+	++ case (State band ?SERVER_QUERY_NO_INDEX_USED) of 0 -> ""; _-> "NO_INDEX_USED " end.
