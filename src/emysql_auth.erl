@@ -44,10 +44,10 @@ recv_greeting(Sock) ->
 	GreetingPacket = emysql_tcp:recv_packet(Sock),
 	case GreetingPacket#packet.data of
 		<<255, _/binary>> ->
-			#error_packet{
+			{#error_packet{
 				code = Code,
 				msg = Msg
-			} = emysql_tcp:package_server_response(Sock, GreetingPacket),
+			},_} = emysql_tcp:response(Sock, GreetingPacket),
 			exit({Code, Msg});
 		<<ProtocolVersion:8/integer, Rest1/binary>> ->
 			{ServerVersion, Rest2} = emysql_util:asciz(Rest1),

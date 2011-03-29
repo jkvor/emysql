@@ -1,6 +1,7 @@
-%% Copyright (c) 2009
+%% Copyright (c) 2009-2011
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
+%% Henning Diedrich <hd2010@eonblast.com>
 %%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
@@ -23,7 +24,7 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql_tcp).
--export([send_and_recv_packet/3, recv_packet/1, package_server_response/2]).
+-export([send_and_recv_packet/3, recv_packet/1, response/2]).
 
 -include("emysql.hrl").
 
@@ -36,40 +37,68 @@ send_and_recv_packet(Sock, Packet, SeqNum) ->
 		{error, Reason} ->
 			exit({failed_to_send_packet_to_server, Reason})
 	end,
-	package_server_response(Sock, recv_packet(Sock)).
+	case response_list(Sock, ?SERVER_MORE_RESULTS_EXIST) of
+		% This is a bit murky. It's compatible with former Emysql versions
+		% but sometimes returns a list, e.g. for stored procedures,
+		% since an extra OK package is sent at the end of their results.
+		[Record | []] -> Record;
+		List -> List
+	end.
+
+response_list(_, 0) -> [];
+
+response_list(Sock, ?SERVER_MORE_RESULTS_EXIST) ->
+
+	{Response, ServerStatus} = response(Sock, recv_packet(Sock)),
+	[ Response | response_list(Sock, ServerStatus band ?SERVER_MORE_RESULTS_EXIST)].
 
 recv_packet(Sock) ->
 	{PacketLength, SeqNum} = recv_packet_header(Sock),
 	Data = recv_packet_body(Sock, PacketLength),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
 
-package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}) ->
+response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}=_Packet) ->
 	{AffectedRows, Rest1} = emysql_util:length_coded_binary(Rest),
 	{InsertId, Rest2} = emysql_util:length_coded_binary(Rest1),
 	<<ServerStatus:16/little, WarningCount:16/little, Msg/binary>> = Rest2,
-	#ok_packet{
+	{ #ok_packet{
 		seq_num = SeqNum,
 		affected_rows = AffectedRows,
 		insert_id = InsertId,
 		status = ServerStatus,
 		warning_count = WarningCount,
-		msg = binary_to_list(Msg)
-	};
+		msg = binary_to_list(Msg) },
+	ServerStatus };
 
-package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<254:8>>}) ->
-	#eof_packet{
-		seq_num = SeqNum
-	};
+response(_Sock, #packet{seq_num = SeqNum, data = <<?RESP_EOF:8>>}=_Packet) ->
+	{ #eof_packet{
+		seq_num = SeqNum },
+	?SERVER_NO_STATUS };
 
-package_server_response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, Rest/binary>>}) ->
-	<<Code:16/little, Msg/binary>> = Rest,
-	#error_packet{
+response(_Sock, #packet{seq_num = SeqNum, data = <<?RESP_EOF:8, WarningCount:16/little, ServerStatus:16/little>>}=_Packet) -> % (*)!
+	{ #eof_packet{
 		seq_num = SeqNum,
-		code = Code,
-		msg = binary_to_list(Msg)
-	};
+		status = ServerStatus,
+		warning_count = WarningCount },
+	ServerStatus };
 
-package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
+response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, ErrNo:16/little, "#", SQLState:5/binary-unit:8, Msg/binary>>}=_Packet) ->
+	{ #error_packet{
+		seq_num = SeqNum,
+		code = ErrNo,
+		status = SQLState,
+		msg = binary_to_list(Msg) },
+	?SERVER_NO_STATUS };
+
+response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, ErrNo:16/little, Msg/binary>>}=_Packet) ->
+	{ #error_packet{
+		seq_num = SeqNum,
+		code = ErrNo,
+		status = 0,
+		msg = binary_to_list(Msg) },
+	?SERVER_NO_STATUS };
+
+response(Sock, #packet{seq_num = SeqNum, data = Data}=_Packet) ->
 	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
 	{Extra, _} = emysql_util:length_coded_binary(Rest1),
 	{SeqNum1, FieldList} = recv_field_list(Sock, SeqNum+1),
@@ -79,13 +108,13 @@ package_server_response(Sock, #packet{seq_num=SeqNum, data=Data}) ->
 		true ->
 			ok
 	end,
-	{SeqNum2, Rows} = recv_row_data(Sock, FieldList, SeqNum1+1),
-	#result_packet{
+	{SeqNum2, Rows, ServerStatus} = recv_row_data(Sock, FieldList, SeqNum1+1),
+	{ #result_packet{
 		seq_num = SeqNum2,
 		field_list = FieldList,
 		rows = Rows,
-		extra = Extra
-	}.
+		extra = Extra },
+	ServerStatus }.
 
 recv_packet_header(Sock) ->
 	case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
@@ -133,7 +162,9 @@ recv_field_list(Sock, SeqNum) ->
 
 recv_field_list(Sock, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
-		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} ->
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, _ServerStatus:16/little>>} -> % (*)!
+			{SeqNum1, ?ETS_SELECT(Tid)};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
 			{SeqNum1, ?ETS_SELECT(Tid)};
 		#packet{seq_num = SeqNum1, data = Data} ->
 			{Catalog, Rest2} = emysql_util:length_coded_string(Data),
@@ -172,8 +203,10 @@ recv_row_data(Sock, FieldList, SeqNum) ->
 
 recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
 	case recv_packet(Sock) of
-		#packet{seq_num = SeqNum1, data = <<254, _/binary>>} ->
-			{SeqNum1, ?ETS_SELECT(Tid)};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, ServerStatus:16/little>>} ->
+			{SeqNum1, ?ETS_SELECT(Tid), ServerStatus};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
+			{SeqNum1, ?ETS_SELECT(Tid), ?SERVER_NO_STATUS};
 		#packet{seq_num = SeqNum1, data = RowData} ->
 			Row = decode_row_data(RowData, FieldList, []),
 			ets:insert(Tid, {Key, Row}),
@@ -269,8 +302,140 @@ type_cast_row_data(Data, #field{type=Type})
 		<<0>> -> 0
 	end;
 
+% TODO:
 % ?FIELD_TYPE_NEWDATE
 % ?FIELD_TYPE_ENUM
 % ?FIELD_TYPE_SET
 % ?FIELD_TYPE_GEOMETRY
+
 type_cast_row_data(Data, _) -> Data.
+
+% TODO: [http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol#COM_QUERY]
+% field_count:          The value is always 0xfe (decimal ?RESP_EOF).
+%                       However ... recall (from the
+%                       section "Elements", above) that the value ?RESP_EOF can begin
+%                       a Length-Encoded-Binary value which contains an 8-byte
+%                       integer. So, to ensure that a packet is really an EOF
+%                       Packet: (a) check that first byte in packet = 0xfe, (b)
+%                       check that size of packet smaller than 9.
+
+
+% -------------------------------------------------------------------------------
+% Note: (*) The order of status and warnings count reversed for eof vs. ok packet.
+% -------------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------1-
+% OK packet format
+% -------------------------------------------------------------------------------
+%
+%  VERSION 4.0
+%  Bytes                       Name
+%  -----                       ----
+%  1   (Length Coded Binary)   field_count, always = 0
+%  1-9 (Length Coded Binary)   affected_rows
+%  1-9 (Length Coded Binary)   insert_id
+%  2                           server_status
+%  n   (until end of packet)   message
+%
+%  VERSION 4.1
+%  Bytes                       Name
+%  -----                       ----
+%  1   (Length Coded Binary)   field_count, always = 0
+%  1-9 (Length Coded Binary)   affected_rows
+%  1-9 (Length Coded Binary)   insert_id
+%  2                           server_status
+%  2                           warning_count
+%  n   (until end of packet)   message
+%
+%  field_count:     always = 0
+%
+%  affected_rows:   = number of rows affected by INSERT/UPDATE/DELETE
+%
+%  insert_id:       If the statement generated any AUTO_INCREMENT number,
+%                   it is returned here. Otherwise this field contains 0.
+%                   Note: when using for example a multiple row INSERT the
+%                   insert_id will be from the first row inserted, not from
+%                   last.
+%
+%  server_status:   = The client can use this to check if the
+%                   command was inside a transaction.
+%
+%  warning_count:   number of warnings
+%
+%  message:         For example, after a multi-line INSERT, message might be
+%                   "Records: 3 Duplicates: 0 Warnings: 0"
+%
+% Source: http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol
+
+% -----------------------------------------------------------------------------2-
+% EOF packet format
+% -------------------------------------------------------------------------------
+%
+%  VERSION 4.0
+%  Bytes                 Name
+%  -----                 ----
+%  1                     field_count, always = 0xfe
+%
+%  VERSION 4.1
+%  Bytes                 Name
+%  -----                 ----
+%  1                     field_count, always = 0xfe
+%  2                     warning_count
+%  2                     Status Flags
+%
+%  field_count:          The value is always 0xfe (decimal 254).
+%                        However ... recall (from the
+%                        section "Elements", above) that the value 254 can begin
+%                        a Length-Encoded-Binary value which contains an 8-byte
+%                        integer. So, to ensure that a packet is really an EOF
+%                        Packet: (a) check that first byte in packet = 0xfe, (b)
+%                        check that size of packet smaller than 9.
+%
+%  warning_count:        Number of warnings. Sent after all data has been sent
+%                        to the client.
+%
+%  server_status:        Contains flags like SERVER_MORE_RESULTS_EXISTS
+%
+% Source: http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol
+
+% -----------------------------------------------------------------------------3-
+% Error packet format
+% -------------------------------------------------------------------------------
+%
+%  VERSION 4.0
+%  Bytes                       Name
+%  -----                       ----
+%  1                           field_count, always = 0xff
+%  2                           errno (little endian)
+%  n                           message
+%
+%  VERSION 4.1
+%  Bytes                       Name
+%  -----                       ----
+%  1                           field_count, always = 0xff
+%  2                           errno
+%  1                           (sqlstate marker), always '#'
+%  5                           sqlstate (5 characters)
+%  n                           message
+%
+%  field_count:       Always 0xff (255 decimal).
+%
+%  errno:             The possible values are listed in the manual, and in
+%                     the MySQL source code file /include/mysqld_error.h.
+%
+%  sqlstate marker:   This is always '#'. It is necessary for distinguishing
+%                     version-4.1 messages.
+%
+%  sqlstate:          The server translates errno values to sqlstate values
+%                     with a function named mysql_errno_to_sqlstate(). The
+%                     possible values are listed in the manual, and in the
+%                     MySQL source code file /include/sql_state.h.
+%
+%  message:           The error message is a string which ends at the end of
+%                     the packet, that is, its length can be determined from
+%                     the packet header. The MySQL client (in the my_net_read()
+%                     function) always adds '\0' to a packet, so the message
+%                     may appear to be a Null-Terminated String.
+%                     Expect the message to be between 0 and 512 bytes long.
+%
+% Source: http://forge.mysql.com/wiki/MySQL_Internals_ClientServer_Protocol
