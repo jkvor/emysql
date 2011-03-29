@@ -1,6 +1,7 @@
-%% Copyright (c) 2009
+%% Copyright (c) 2009-2011
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
+%% Patrick Atambo <partoa@gmail.com>
 %%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
@@ -62,11 +63,11 @@ remove_pool(PoolId) ->
 	[emysql_conn:close_connection(Conn) || Conn <- lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))],
 	ok.
 
-increment_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+increment_pool_size(PoolId, Num) when is_integer(Num) ->
 	Conns = emysql_conn:open_n_connections(PoolId, Num),
 	emysql_conn_mgr:add_connections(PoolId, Conns).
 
-decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
+decrement_pool_size(PoolId, Num) when is_integer(Num) ->
 	Conns = emysql_conn_mgr:remove_connections(PoolId, Num),
 	[emysql_conn:close_connection(Conn) || Conn <- Conns],
 	ok.
@@ -77,22 +78,22 @@ decrement_pool_size(PoolId, Num) when is_atom(PoolId), is_integer(Num) ->
 prepare(StmtName, Statement) when is_atom(StmtName) andalso (is_list(Statement) orelse is_binary(Statement)) ->
 	emysql_statements:add(StmtName, Statement).
 
-execute(PoolId, Query) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) ->
+execute(PoolId, Query) when (is_list(Query) orelse is_binary(Query)) ->
 	execute(PoolId, Query, []);
 
-execute(PoolId, StmtName) when is_atom(PoolId), is_atom(StmtName) ->
+execute(PoolId, StmtName) when is_atom(StmtName) ->
 	execute(PoolId, StmtName, []).
 
-execute(PoolId, Query, Args) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
+execute(PoolId, Query, Args) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	execute(PoolId, Query, Args, default_timeout());
 
-execute(PoolId, StmtName, Args) when is_atom(PoolId), is_atom(StmtName), is_list(Args) ->
+execute(PoolId, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 	execute(PoolId, StmtName, Args, default_timeout());
 
-execute(PoolId, Query, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
+execute(PoolId, Query, Timeout) when (is_list(Query) orelse is_binary(Query)) andalso is_integer(Timeout) ->
 	execute(PoolId, Query, [], Timeout);
 
-execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_integer(Timeout) ->
+execute(PoolId, StmtName, Timeout) when is_atom(StmtName), is_integer(Timeout) ->
 	execute(PoolId, StmtName, [], Timeout).
 
 %% @spec execute(PoolId, Query|StmtName, Args, Timeout) -> Result
@@ -107,11 +108,11 @@ execute(PoolId, StmtName, Timeout) when is_atom(PoolId), is_atom(StmtName), is_i
 %%
 %% Timeout is the query timeout in milliseconds
 %%
-execute(PoolId, Query, Args, Timeout) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, Query, Args, Timeout) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
 
-execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, StmtName, Args, Timeout) when is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	Connection = emysql_conn_mgr:wait_for_connection(PoolId),
 	monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]}).
 
@@ -121,7 +122,7 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(PoolId), is_atom(StmtName)
 %% until a connection is available. If no connections are available
 %% then the result of these functions will be the atom unavailable.
 %%
-execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, Query, Args, Timeout, nonblocking) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
 		Connection when is_record(Connection, connection) ->
 			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
@@ -129,7 +130,7 @@ execute(PoolId, Query, Args, Timeout, nonblocking) when is_atom(PoolId) andalso 
 			Other
 	end;
 
-execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(PoolId), is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
+execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
 		Connection when is_record(Connection, connection) ->
 			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]});
