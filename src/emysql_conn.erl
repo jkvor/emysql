@@ -114,19 +114,19 @@ open_connections(Pool) ->
 	end.
 
 open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
-	io:format("open connection for pool ~p host ~p port ~p user ~p base ~p~n", [PoolId, Host, Port, User, Database]),
-	io:format("open connection: ... connect ... ~n"),
-	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}], 200) of
+	io:format("~p open connection for pool ~p host ~p port ~p user ~p base ~p~n", [self(), PoolId, Host, Port, User, Database]),
+	io:format("~p open connection: ... connect ... ~n", [self()]),
+	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
 		{ok, Sock} ->
-			io:format("open connection: ... got socket~n"),
+			io:format("~p open connection: ... got socket~n", [self()]),
 			Mgr = whereis(emysql_conn_mgr),
 			Mgr /= undefined orelse
 				exit({failed_to_find_conn_mgr,
 					"Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."}),
 			gen_tcp:controlling_process(Sock, Mgr),
-			io:format("open connection: ... greeting~n"),
+			io:format("~p open connection: ... greeting~n", [self()]),
 			Greeting = emysql_auth:do_handshake(Sock, User, Password),
-			io:format("open connection: ... make new connection~n"),
+			io:format("~p open connection: ... make new connection~n", [self()]),
 			Connection = #connection{
 				id = erlang:port_to_list(Sock),
 				pool_id = PoolId,
@@ -136,30 +136,30 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 				caps = Greeting#greeting.caps,
 				language = Greeting#greeting.language
 			},
-			io:format("open connection: ... set db ...~n"),
+			io:format("~p open connection: ... set db ...~n", [self()]),
 			case emysql_conn:set_database(Connection, Database) of
 				OK1 when is_record(OK1, ok_packet) ->
-					io:format("open connection: ... db set ok~n"),
+					io:format("~p open connection: ... db set ok~n", [self()]),
 					ok;
 				Err1 when is_record(Err1, error_packet) ->
-					io:format("open connection: ... db set error~n"),
+					io:format("~p open connection: ... db set error~n", [self()]),
 					exit({failed_to_set_database, Err1#error_packet.msg})
 			end,
-			io:format("open connection: ... set encoding ...~n"),
+			io:format("~p open connection: ... set encoding ...~n", [self()]),
 			case emysql_conn:set_encoding(Connection, Encoding) of
 				OK2 when is_record(OK2, ok_packet) ->
 					ok;
 				Err2 when is_record(Err2, error_packet) ->
 					exit({failed_to_set_encoding, Err2#error_packet.msg})
 			end,
-			io:format("open connection: ... ok, return connection~n"),
+			io:format("~p open connection: ... ok, return connection~n", [self()]),
 			Connection;
 		{error, Reason} ->
-			io:format("open connection: ... ERROR ~p~n", [Reason]),
-			io:format("open connection: ... exit with failed_to_connect_to_database~n"),
+			io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
+			io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
 			exit({failed_to_connect_to_database, Reason});
 		What ->
-			io:format("open connection: ... UNKNOWN ERROR ~p~n", What),
+			io:format("~p open connection: ... UNKNOWN ERROR ~p~n", [self(), What]),
 			exit({unknown_fail, What})
 	end.
 

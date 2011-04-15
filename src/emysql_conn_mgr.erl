@@ -315,6 +315,9 @@ find_pool(PoolId, [Pool|Tail], OtherPools) ->
 find_next_connection_in_pool(Pools, PoolId) ->
 	case find_pool(PoolId, Pools, []) of
 		{Pool, OtherPools} ->
+		    % check no of connection in Pool
+		    io:format("~p Pool ~p Connections available: ~p~n", [self(), PoolId, queue:len(Pool#pool.available)]),
+		    io:format("~p Pool ~p Connections locked: ~p~n", [self(), PoolId, gb_trees:size(Pool#pool.locked)]),
 			case queue:out(Pool#pool.available) of
 				{{value, Conn}, OtherConns} ->
 					[Pool, OtherPools, Conn, OtherConns];
