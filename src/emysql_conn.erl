@@ -95,6 +95,7 @@ unprepare(Connection, Name) ->
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 
 open_n_connections(PoolId, N) ->
+	io:format("open ~p connections for pool ~p~n", [N, PoolId]),
 	case emysql_conn_mgr:find_pool(PoolId, emysql_conn_mgr:pools(), []) of
 		{Pool, _} ->
 			[open_connection(Pool) || _ <- lists:seq(1, N)];
@@ -103,6 +104,7 @@ open_n_connections(PoolId, N) ->
 	end.
 
 open_connections(Pool) ->
+	io:format("open connections (loop func)~n"),
 	case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
 		true ->
 			Conn = emysql_conn:open_connection(Pool),
@@ -112,14 +114,19 @@ open_connections(Pool) ->
 	end.
 
 open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
-	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
+	io:format("open connection for pool ~p host ~p port ~p user ~p base ~p~n", [PoolId, Host, Port, User, Database]),
+	io:format("open connection: ... connect ... ~n"),
+	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}], 200) of
 		{ok, Sock} ->
+			io:format("open connection: ... got socket~n"),
 			Mgr = whereis(emysql_conn_mgr),
 			Mgr /= undefined orelse
 				exit({failed_to_find_conn_mgr,
 					"Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."}),
 			gen_tcp:controlling_process(Sock, Mgr),
+			io:format("open connection: ... greeting~n"),
 			Greeting = emysql_auth:do_handshake(Sock, User, Password),
+			io:format("open connection: ... make new connection~n"),
 			Connection = #connection{
 				id = erlang:port_to_list(Sock),
 				pool_id = PoolId,
@@ -129,21 +136,31 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 				caps = Greeting#greeting.caps,
 				language = Greeting#greeting.language
 			},
+			io:format("open connection: ... set db ...~n"),
 			case emysql_conn:set_database(Connection, Database) of
 				OK1 when is_record(OK1, ok_packet) ->
+					io:format("open connection: ... db set ok~n"),
 					ok;
 				Err1 when is_record(Err1, error_packet) ->
+					io:format("open connection: ... db set error~n"),
 					exit({failed_to_set_database, Err1#error_packet.msg})
 			end,
+			io:format("open connection: ... set encoding ...~n"),
 			case emysql_conn:set_encoding(Connection, Encoding) of
 				OK2 when is_record(OK2, ok_packet) ->
 					ok;
 				Err2 when is_record(Err2, error_packet) ->
 					exit({failed_to_set_encoding, Err2#error_packet.msg})
 			end,
+			io:format("open connection: ... ok, return connection~n"),
 			Connection;
 		{error, Reason} ->
-			exit({failed_to_connect_to_database, Reason})
+			io:format("open connection: ... ERROR ~p~n", [Reason]),
+			io:format("open connection: ... exit with failed_to_connect_to_database~n"),
+			exit({failed_to_connect_to_database, Reason});
+		What ->
+			io:format("open connection: ... UNKNOWN ERROR ~p~n", What),
+			exit({unknown_fail, What})
 	end.
 
 reset_connection(Pools, Conn) ->
@@ -151,6 +168,7 @@ reset_connection(Pools, Conn) ->
 	%% the socket must be closed and the connection reset
 	%% in the conn_mgr state. Also a new connection needs
 	%% to be opened to replace the old one.
+	io:format("resetting connection~n"),
 	spawn(fun() -> close_connection(Conn) end),
 	%% OPEN NEW SOCKET
 	case emysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
@@ -162,12 +180,17 @@ reset_connection(Pools, Conn) ->
 	end.
 
 renew_connection(Pools, Conn) ->
+	io:format("renewing connection~n"),
+	io:format("spawn process to close connection~n"),
 	spawn(fun() -> close_connection(Conn) end),
 	%% OPEN NEW SOCKET
 	case emysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
 		{Pool, _} ->
+			io:format("... open new connection to renew~n"),
 			NewConn = open_connection(Pool),
+			io:format("... got it, replace old locked~n"),
 			emysql_conn_mgr:replace_connection_locked(Conn, NewConn),
+			io:format("... done, return new connection~n"),
 			NewConn;
 		undefined ->
 			exit(pool_not_found)

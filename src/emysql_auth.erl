@@ -30,20 +30,27 @@
 -include("emysql.hrl").
 
 do_handshake(Sock, User, Password) ->
+	io:format("~p handshake: recv_greeting~n", [self()]),
 	Greeting = recv_greeting(Sock),
+	io:format("~p handshake: auth~n", [self()]),
 	case auth(Sock, Greeting#greeting.seq_num+1, User, Password, 
 		Greeting#greeting.salt1, Greeting#greeting.salt2, Greeting#greeting.plugin) of
 		OK when is_record(OK, ok_packet) ->
+			io:format("~p handshake: ok~n", [self()]),
 			ok;
 		Err when is_record(Err, error_packet) ->
+			io:format("~p handshake: FAIL ~p -> EXIT ~n~n", [self(), Err]),
 			exit({failed_to_authenticate, Err});
 		Other ->
+			io:format("~p handshake: UNEXPECTED ~p -> EXIT ~n~n", [self(), Other]),
 			exit({unexpected_packet, Other})
 	end,
 	Greeting.
 
 recv_greeting(Sock) ->
+	io:format("~p recv_greeting~n", [self()]),
 	GreetingPacket = emysql_tcp:recv_packet(Sock),
+	io:format("~p recv_greeting ... received ...~n", [self()]),
 	case GreetingPacket#packet.data of
 		<<255, _/binary>> ->
 			% io:format("error: ", []), 
@@ -87,7 +94,10 @@ recv_greeting(Sock) ->
 				status = ServerStatus,
 				seq_num = GreetingPacket#packet.seq_num,
 				plugin = Plugin 
-			}
+			};
+		What ->
+			io:format("~p recv_greeting FAILED: ~p~n", [self(), What]),
+			exit({greeting_failed, What})
 	end.
 
 parse_server_version(Version) ->

@@ -567,24 +567,28 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 	Pid ! start,
 	receive
 		{'DOWN', Mref, process, Pid, {_, closed}} ->
+			io:format("monitor_work: ~p DOWN/closed -> renew~n", [Pid]),
 			NewConnection = emysql_conn:renew_connection(emysql_conn_mgr:pools(), Connection),
 			[_ | Args] = A,
 		  monitor_work(NewConnection, Timeout ,{M, F, [NewConnection | Args]});
 		{'DOWN', Mref, process, Pid, Reason} ->
 			%% if the process dies, reset the connection
 			%% and re-throw the error on the current pid
+			io:format("monitor_work: ~p DOWN ~p -> exit~n", [Pid, Reason]),
 			emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
 			exit(Reason);
 		{Pid, Result} ->
 			%% if the process returns data, unlock the
 			%% connection and collect the normal 'DOWN'
 			%% message send from the child process
+			io:format("monitor_work: ~p got result -> demonitor, unlock connection, return result~n", [Pid]),
 			erlang:demonitor(Mref, [flush]),
 			emysql_conn_mgr:unlock_connection(Connection),
 			Result
 	after Timeout ->
 		%% if we timeout waiting for the process to return,
 		%% then reset the connection and throw a timeout error
+			io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
 		erlang:demonitor(Mref),
 		exit(Pid, normal),
 		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),

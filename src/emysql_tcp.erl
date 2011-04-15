@@ -35,17 +35,26 @@
 
 send_and_recv_packet(Sock, Packet, SeqNum) ->
 	%-% io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
+	io:format("~p send_and_recv_packet: send~n", [self()]),
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
-		ok -> ok;
+		ok -> 
+			io:format("~p send_and_recv_packet: send ok~n", [self()]),
+			ok;
 		{error, Reason} ->
+			io:format("~p send_and_recv_packet: ERROR ~p -> EXIT~n", [self(), Reason]),
 			exit({failed_to_send_packet_to_server, Reason})
 	end,
+	io:format("~p send_and_recv_packet: resonse_list~n", [self()]),
 	case response_list(Sock, ?SERVER_MORE_RESULTS_EXIST) of
 		% This is a bit murky. It's compatible with former Emysql versions
 		% but sometimes returns a list, e.g. for stored procedures,
 		% since an extra OK package is sent at the end of their results.
-		[Record | []] -> Record;
-		List -> List
+		[Record | []] -> 
+			io:format("~p send_and_recv_packet: record~n", [self()]),
+			Record;
+		List -> 
+			io:format("~p send_and_recv_packet: list~n", [self()]),
+			List
 	end.
 
 response_list(_, 0) -> [];
@@ -56,7 +65,10 @@ response_list(Sock, ?SERVER_MORE_RESULTS_EXIST) ->
 	[ Response | response_list(Sock, ServerStatus band ?SERVER_MORE_RESULTS_EXIST)].
 
 recv_packet(Sock) ->
+	io:format("~p recv_packet~n", [self()]),
+	io:format("~p recv_packet: recv_packet_header~n", [self()]),
 	{PacketLength, SeqNum} = recv_packet_header(Sock),
+	io:format("~p recv_packet: recv_packet_body~n", [self()]),
 	Data = recv_packet_body(Sock, PacketLength),
 	%-% io:format("~nrecv_packet: len: ~p, data: ~p~n", [PacketLength, Data]),
 	#packet{size=PacketLength, seq_num=SeqNum, data=Data}.
@@ -137,12 +149,17 @@ response(Sock, #packet{seq_num = SeqNum, data = Data}=_Packet) ->
 	  ServerStatus }.
 	
 recv_packet_header(Sock) ->
+	io:format("~p recv_packet_header~n", [self()]),
+	io:format("~p recv_packet_header: recv~n", [self()]),
 	case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
 		{ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
+			io:format("~p recv_packet_header: ok~n", [self()]),
 			{PacketLength, SeqNum};
 		{ok, Bin} when is_binary(Bin) ->
+			io:format("~p recv_packet_header: ERROR: bad_packet_header_data~n", [self()]),
 			exit({bad_packet_header_data, Bin});
 		{error, Reason} ->
+			io:format("~p recv_packet_header: ERROR: ~p~n", [self(), Reason]),
 			exit({failed_to_recv_packet_header, Reason})
 	end.
 
