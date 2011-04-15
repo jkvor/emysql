@@ -95,7 +95,7 @@ unprepare(Connection, Name) ->
 	emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0).
 
 open_n_connections(PoolId, N) ->
-	io:format("open ~p connections for pool ~p~n", [N, PoolId]),
+	%-% io:format("open ~p connections for pool ~p~n", [N, PoolId]),
 	case emysql_conn_mgr:find_pool(PoolId, emysql_conn_mgr:pools(), []) of
 		{Pool, _} ->
 			[open_connection(Pool) || _ <- lists:seq(1, N)];
@@ -104,7 +104,7 @@ open_n_connections(PoolId, N) ->
 	end.
 
 open_connections(Pool) ->
-	io:format("open connections (loop func)~n"),
+	%-% io:format("open connections (loop func)~n"),
 	case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
 		true ->
 			Conn = emysql_conn:open_connection(Pool),
@@ -114,19 +114,19 @@ open_connections(Pool) ->
 	end.
 
 open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
-	io:format("~p open connection for pool ~p host ~p port ~p user ~p base ~p~n", [self(), PoolId, Host, Port, User, Database]),
-	io:format("~p open connection: ... connect ... ~n", [self()]),
+	%-% io:format("~p open connection for pool ~p host ~p port ~p user ~p base ~p~n", [self(), PoolId, Host, Port, User, Database]),
+	%-% io:format("~p open connection: ... connect ... ~n", [self()]),
 	case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
 		{ok, Sock} ->
-			io:format("~p open connection: ... got socket~n", [self()]),
+			%-% io:format("~p open connection: ... got socket~n", [self()]),
 			Mgr = whereis(emysql_conn_mgr),
 			Mgr /= undefined orelse
 				exit({failed_to_find_conn_mgr,
 					"Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."}),
 			gen_tcp:controlling_process(Sock, Mgr),
-			io:format("~p open connection: ... greeting~n", [self()]),
+			%-% io:format("~p open connection: ... greeting~n", [self()]),
 			Greeting = emysql_auth:do_handshake(Sock, User, Password),
-			io:format("~p open connection: ... make new connection~n", [self()]),
+			%-% io:format("~p open connection: ... make new connection~n", [self()]),
 			Connection = #connection{
 				id = erlang:port_to_list(Sock),
 				pool_id = PoolId,
@@ -136,30 +136,30 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 				caps = Greeting#greeting.caps,
 				language = Greeting#greeting.language
 			},
-			io:format("~p open connection: ... set db ...~n", [self()]),
+			%-% io:format("~p open connection: ... set db ...~n", [self()]),
 			case emysql_conn:set_database(Connection, Database) of
 				OK1 when is_record(OK1, ok_packet) ->
-					io:format("~p open connection: ... db set ok~n", [self()]),
+					%-% io:format("~p open connection: ... db set ok~n", [self()]),
 					ok;
 				Err1 when is_record(Err1, error_packet) ->
-					io:format("~p open connection: ... db set error~n", [self()]),
+					%-% io:format("~p open connection: ... db set error~n", [self()]),
 					exit({failed_to_set_database, Err1#error_packet.msg})
 			end,
-			io:format("~p open connection: ... set encoding ...~n", [self()]),
+			%-% io:format("~p open connection: ... set encoding ...~n", [self()]),
 			case emysql_conn:set_encoding(Connection, Encoding) of
 				OK2 when is_record(OK2, ok_packet) ->
 					ok;
 				Err2 when is_record(Err2, error_packet) ->
 					exit({failed_to_set_encoding, Err2#error_packet.msg})
 			end,
-			io:format("~p open connection: ... ok, return connection~n", [self()]),
+			%-% io:format("~p open connection: ... ok, return connection~n", [self()]),
 			Connection;
 		{error, Reason} ->
-			io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
-			io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
+			%-% io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
+			%-% io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
 			exit({failed_to_connect_to_database, Reason});
 		What ->
-			io:format("~p open connection: ... UNKNOWN ERROR ~p~n", [self(), What]),
+			%-% io:format("~p open connection: ... UNKNOWN ERROR ~p~n", [self(), What]),
 			exit({unknown_fail, What})
 	end.
 
@@ -171,26 +171,26 @@ reset_connection(Pools, Conn, StayLocked) ->
 	%% we queue the old as available for the next try
 	%% by the next caller process coming along. So the
 	%% pool can't run dry, even though it can freeze.
-	io:format("resetting connection~n"),
-	io:format("spawn process to close connection~n"),
+	%-% io:format("resetting connection~n"),
+	%-% io:format("spawn process to close connection~n"),
 	spawn(fun() -> close_connection(Conn) end),
 	%% OPEN NEW SOCKET
 	case emysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
 		{Pool, _} ->
-			io:format("... open new connection to renew~n"),
+			%-% io:format("... open new connection to renew~n"),
 			case catch open_connection(Pool) of
 				NewConn when is_record(NewConn, connection) ->
-					io:format("... got it, replace old (~p)~n", [StayLocked]),
+					%-% io:format("... got it, replace old (~p)~n", [StayLocked]),
 					case StayLocked of
 						pass -> emysql_conn_mgr:replace_connection_as_available(Conn, NewConn);
 						keep -> emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn)
 					end,
-					io:format("... done, return new connection~n"),
+					%-% io:format("... done, return new connection~n"),
 					NewConn;
 				Error ->
 					DeadConn = Conn#connection{alive=false},
 					emysql_conn_mgr:replace_connection_as_available(Conn, DeadConn),
-					io:format("... failed to re-open. Shelving dead connection as available.~n"),
+					%-% io:format("... failed to re-open. Shelving dead connection as available.~n"),
 					{error, {cannot_reopen_in_reset, Error}}
 			end;
 		undefined ->

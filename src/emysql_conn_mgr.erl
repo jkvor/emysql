@@ -73,21 +73,21 @@ lock_connection(PoolId)->
 wait_for_connection(PoolId)->
 	%% try to lock a connection. if no connections are available then
 	%% wait to be notified of the next available connection
-    io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
+    %-% io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
 	case lock_connection(PoolId) of
 		unavailable ->
-            io:format("~p is queued~n", [self()]),
+            %-% io:format("~p is queued~n", [self()]),
 			gen_server:call(?MODULE, start_wait, infinity),
 			receive
 				{connection, Connection} -> 
-                    io:format("~p gets a connection after waiting in queue~n", [self()]),
+                    %-% io:format("~p gets a connection after waiting in queue~n", [self()]),
     				Connection
 			after lock_timeout() ->
-                io:format("~p gets no connection and times out -> EXIT~n~n", [self()]),
+                %-% io:format("~p gets no connection and times out -> EXIT~n~n", [self()]),
 				exit(connection_lock_timeout)
 			end;
 		Connection ->
-            io:format("~p gets connection~n", [self()]),
+            %-% io:format("~p gets connection~n", [self()]),
 			Connection
 	end.
 
@@ -196,16 +196,16 @@ handle_call(start_wait, {From, _Mref}, State) ->
 
 handle_call({lock_connection, PoolId}, _From, State) ->
 	%% find the next available connection in the pool identified by PoolId
-    io:format("gen srv: lock connection for pool ~p~n", [PoolId]),
+    %-% io:format("gen srv: lock connection for pool ~p~n", [PoolId]),
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
 		[Pool, OtherPools, Conn, OtherConns] ->
-            io:format("gen srv: lock connection ... found a good next connection~n", []),
+            %-% io:format("gen srv: lock connection ... found a good next connection~n", []),
 			NewConn = Conn#connection{locked_at=lists:nth(2, tuple_to_list(now()))},
 			Locked = gb_trees:enter(NewConn#connection.id, NewConn, Pool#pool.locked),
 			State1 = State#state{pools = [Pool#pool{available=OtherConns, locked=Locked}|OtherPools]},
 			{reply, NewConn, State1};
 		Other ->
-            io:format("gen srv: lock connection ... some other result: ~p~n", [Other]),
+            %-% io:format("gen srv: lock connection ... some other result: ~p~n", [Other]),
 			{reply, Other, State}
 	end;
 
@@ -316,8 +316,8 @@ find_next_connection_in_pool(Pools, PoolId) ->
 	case find_pool(PoolId, Pools, []) of
 		{Pool, OtherPools} ->
 		    % check no of connection in Pool
-		    io:format("~p Pool ~p Connections available: ~p~n", [self(), PoolId, queue:len(Pool#pool.available)]),
-		    io:format("~p Pool ~p Connections locked: ~p~n", [self(), PoolId, gb_trees:size(Pool#pool.locked)]),
+		    %-% io:format("~p Pool ~p Connections available: ~p~n", [self(), PoolId, queue:len(Pool#pool.available)]),
+		    %-% io:format("~p Pool ~p Connections locked: ~p~n", [self(), PoolId, gb_trees:size(Pool#pool.locked)]),
 			case queue:out(Pool#pool.available) of
 				{{value, Conn}, OtherConns} ->
 					[Pool, OtherPools, Conn, OtherConns];
