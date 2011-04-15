@@ -27,7 +27,7 @@
 
 
 -record(pool, {pool_id, size, user, password, host, port, database, encoding, available=queue:new(), locked=gb_trees:empty()}).
--record(connection, {id, pool_id, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at}).
+-record(connection, {id, pool_id, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at, alive=true}).
 -record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, caps_high, language, status, seq_num, plugin}).
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).

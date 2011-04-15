@@ -568,29 +568,41 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 	receive
 		{'DOWN', Mref, process, Pid, {_, closed}} ->
 			io:format("monitor_work: ~p DOWN/closed -> renew~n", [Pid]),
-			NewConnection = emysql_conn:renew_connection(emysql_conn_mgr:pools(), Connection),
-			[_ | Args] = A,
-		  monitor_work(NewConnection, Timeout ,{M, F, [NewConnection | Args]});
+			case emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, keep) of
+				NewConnection when is_record(NewConnection, connection) ->
+					% re-loop, with new connection.
+					[_OldConn | RestArgs] = A,
+					NewA = [NewConnection | RestArgs],
+					monitor_work(NewConnection, Timeout, {M, F, NewA});
+				{error, FailedReset} -> 
+					exit({connection_down, {and_conn_reset_failed, FailedReset}})
+			end;			
 		{'DOWN', Mref, process, Pid, Reason} ->
 			%% if the process dies, reset the connection
-			%% and re-throw the error on the current pid
+			%% and re-throw the error on the current pid.
+			%% catch if re-open fails and also signal it.
 			io:format("monitor_work: ~p DOWN ~p -> exit~n", [Pid, Reason]),
-			emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
-			exit(Reason);
+			case emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass) of
+				{error,FailedReset} -> 
+					exit({Reason, {and_conn_reset_failed, FailedReset}});
+				_ -> exit({Reason, {}})
+			end;
 		{Pid, Result} ->
 			%% if the process returns data, unlock the
 			%% connection and collect the normal 'DOWN'
 			%% message send from the child process
 			io:format("monitor_work: ~p got result -> demonitor, unlock connection, return result~n", [Pid]),
 			erlang:demonitor(Mref, [flush]),
-			emysql_conn_mgr:unlock_connection(Connection),
+			emysql_conn_mgr:pass_connection(Connection),
 			Result
-	after Timeout ->
-		%% if we timeout waiting for the process to return,
-		%% then reset the connection and throw a timeout error
+		after Timeout ->
+			%% if we timeout waiting for the process to return,
+			%% then reset the connection and throw a timeout error
 			io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
-		erlang:demonitor(Mref),
-		exit(Pid, normal),
-		emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
-		exit(mysql_timeout)
+			erlang:demonitor(Mref),
+			case emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass) of
+				{error, FailedReset} -> 
+					exit({mysql_timeout, Timeout, {and_conn_reset_failed, FailedReset}});
+				_ -> exit({mysql_timeout, Timeout, {}})
+			end
 	end.

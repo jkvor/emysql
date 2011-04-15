@@ -31,7 +31,8 @@
 -export([pools/0, waiting/0, add_pool/1, remove_pool/1,
 		add_connections/2, remove_connections/2,
 		lock_connection/1, wait_for_connection/1,
-		unlock_connection/1, replace_connection/2, replace_connection_locked/2,
+		pass_connection/1, 
+		replace_connection_as_available/2, replace_connection_as_locked/2,
 		find_pool/3]).
 
 -include("emysql.hrl").
@@ -90,14 +91,14 @@ wait_for_connection(PoolId)->
 			Connection
 	end.
 
-unlock_connection(Connection) ->
-	do_gen_call({unlock_connection, Connection}).
+pass_connection(Connection) ->
+	do_gen_call({pass_connection, Connection}).
 
-replace_connection(OldConn, NewConn) ->
-	do_gen_call({replace_connection, OldConn, NewConn}).
+replace_connection_as_available(OldConn, NewConn) ->
+	do_gen_call({replace_connection_as_available, OldConn, NewConn}).
 
-replace_connection_locked(OldConn, NewConn) ->
-	do_gen_call({replace_connection_locked, OldConn, NewConn}).
+replace_connection_as_locked(OldConn, NewConn) ->
+	do_gen_call({replace_connection_as_locked, OldConn, NewConn}).
 
 %% the stateful loop functions of the gen_server never
 %% want to call exit/1 because it would crash the gen_server.
@@ -208,17 +209,19 @@ handle_call({lock_connection, PoolId}, _From, State) ->
 			{reply, Other, State}
 	end;
 
-handle_call({unlock_connection, Connection}, _From, State) ->
-	{Result, State1} = pass_connection_to_waiting_pid(State, Connection, State#state.waiting),
+handle_call({pass_connection, Connection}, _From, State) ->
+	{Result, State1} = pass_on_or_queue_as_available(State, Connection, State#state.waiting),
 	{reply, Result, State1};
 
-handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
+handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) ->
 	%% if an error occurs while doing work over a connection then
 	%% the connection must be closed and a new one created in its
 	%% place. The calling process is responsible for creating the
 	%% new connection, closing the old one and replacing it in state.
 	%% This function expects a new, available connection to be
 	%% passed in to serve as the replacement for the old one.
+	%% But i.e. if the sql server is down, it can be fed a dead
+	%% old connection as new connection, to preserve the pool size.
 	case find_pool(OldConn#connection.pool_id, State#state.pools, []) of
 		{Pool, OtherPools} ->
 			Pool1 = Pool#pool{
@@ -230,18 +233,15 @@ handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
 			{reply, {error, pool_not_found}, State}
 	end;
 
-handle_call({replace_connection_locked, OldConn, NewConn}, _From, State) ->
+handle_call({replace_connection_as_locked, OldConn, NewConn}, _From, State) ->
 	%% replace an existing, locked condition with the newly supplied one
 	%% and keep it in the locked list so that the caller can continue to use it
 	%% without having to lock another connection.
 	case find_pool(OldConn#connection.pool_id, State#state.pools, []) of
 		{Pool, OtherPools} ->
-		  Locked = gb_trees:enter(
-		    NewConn#connection.id, NewConn ,gb_trees:delete_any(
-		      OldConn#connection.id, Pool#pool.locked
-		    )
-		  ),
-		  Pool1 = Pool#pool{locked = Locked},
+            LockedStripped = gb_trees:delete_any(OldConn#connection.id, Pool#pool.locked),
+            LockedAdded = gb_trees:enter(NewConn#connection.id, NewConn, LockedStripped),
+		    Pool1 = Pool#pool{locked = LockedAdded},
 			{reply, ok, State#state{pools=[Pool1|OtherPools]}};
 		undefined ->
 			{reply, {error, pool_not_found}, State}
@@ -328,7 +328,8 @@ find_next_connection_in_pool(Pools, PoolId) ->
 			{error, pool_not_found}
 	end.
 
-pass_connection_to_waiting_pid(State, Connection, Waiting) ->
+%% This function does not wait, but may loop over the queue.
+pass_on_or_queue_as_available(State, Connection, Waiting) ->
 	%% check if any processes are waiting for a connection
 	case queue:is_empty(Waiting) of
 		true ->
@@ -338,12 +339,14 @@ pass_connection_to_waiting_pid(State, Connection, Waiting) ->
 					%% find connection in locked tree
 					case gb_trees:lookup(Connection#connection.id, Pool#pool.locked) of
 						{value, Conn} ->
+					    %%%
 							%% add it to the available queue and remove from locked tree
 							Pool1 = Pool#pool{
 								available = queue:in(Conn#connection{locked_at=undefined}, Pool#pool.available),
 								locked = gb_trees:delete_any(Connection#connection.id, Pool#pool.locked)
 							},
 							{ok, State#state{pools = [Pool1|OtherPools]}};
+						%%%
 						none ->
 							{{error, connection_not_found}, State}
 					end;
@@ -361,7 +364,8 @@ pass_connection_to_waiting_pid(State, Connection, Waiting) ->
 					erlang:send(Pid, {connection, Connection}),
 					{ok, State#state{waiting = Waiting1}};
 				_ ->
-					pass_connection_to_waiting_pid(State, Connection, Waiting1)
+				    % loop, to traverse queue to find a sane candidate, until empty.
+					pass_on_or_queue_as_available(State, Connection, Waiting1)
 			end
 	end.
 

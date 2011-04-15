@@ -29,7 +29,7 @@
 -export([set_database/2, set_encoding/2,
 		execute/3, prepare/3, unprepare/2,
 		open_connections/1, open_connection/1,
-		reset_connection/2, renew_connection/2, close_connection/1,
+		reset_connection/3, close_connection/1,
 		open_n_connections/2, hstate/1
 ]).
 
@@ -163,35 +163,36 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 			exit({unknown_fail, What})
 	end.
 
-reset_connection(Pools, Conn) ->
+reset_connection(Pools, Conn, StayLocked) ->
 	%% if a process dies or times out while doing work
 	%% the socket must be closed and the connection reset
 	%% in the conn_mgr state. Also a new connection needs
-	%% to be opened to replace the old one.
+	%% to be opened to replace the old one. If that fails,
+	%% we queue the old as available for the next try
+	%% by the next caller process coming along. So the
+	%% pool can't run dry, even though it can freeze.
 	io:format("resetting connection~n"),
-	spawn(fun() -> close_connection(Conn) end),
-	%% OPEN NEW SOCKET
-	case emysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
-		{Pool, _} ->
-			NewConn = open_connection(Pool),
-			emysql_conn_mgr:replace_connection(Conn, NewConn);
-		undefined ->
-			exit(pool_not_found)
-	end.
-
-renew_connection(Pools, Conn) ->
-	io:format("renewing connection~n"),
 	io:format("spawn process to close connection~n"),
 	spawn(fun() -> close_connection(Conn) end),
 	%% OPEN NEW SOCKET
 	case emysql_conn_mgr:find_pool(Conn#connection.pool_id, Pools, []) of
 		{Pool, _} ->
 			io:format("... open new connection to renew~n"),
-			NewConn = open_connection(Pool),
-			io:format("... got it, replace old locked~n"),
-			emysql_conn_mgr:replace_connection_locked(Conn, NewConn),
-			io:format("... done, return new connection~n"),
-			NewConn;
+			case catch open_connection(Pool) of
+				NewConn when is_record(NewConn, connection) ->
+					io:format("... got it, replace old (~p)~n", [StayLocked]),
+					case StayLocked of
+						pass -> emysql_conn_mgr:replace_connection_as_available(Conn, NewConn);
+						keep -> emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn)
+					end,
+					io:format("... done, return new connection~n"),
+					NewConn;
+				Error ->
+					DeadConn = Conn#connection{alive=false},
+					emysql_conn_mgr:replace_connection_as_available(Conn, DeadConn),
+					io:format("... failed to re-open. Shelving dead connection as available.~n"),
+					{error, {cannot_reopen_in_reset, Error}}
+			end;
 		undefined ->
 			exit(pool_not_found)
 	end.

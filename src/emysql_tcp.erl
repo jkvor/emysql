@@ -156,10 +156,10 @@ recv_packet_header(Sock) ->
 			io:format("~p recv_packet_header: ok~n", [self()]),
 			{PacketLength, SeqNum};
 		{ok, Bin} when is_binary(Bin) ->
-			io:format("~p recv_packet_header: ERROR: bad_packet_header_data~n", [self()]),
+			io:format("~p recv_packet_header: ERROR: exit w/bad_packet_header_data~n", [self()]),
 			exit({bad_packet_header_data, Bin});
 		{error, Reason} ->
-			io:format("~p recv_packet_header: ERROR: ~p~n", [self(), Reason]),
+			io:format("~p recv_packet_header: ERROR: exit w/~p~n", [self(), Reason]),
 			exit({failed_to_recv_packet_header, Reason})
 	end.
 
