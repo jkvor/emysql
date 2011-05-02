@@ -1,6 +1,8 @@
-% erlc hello.erl && erl -pa ./ebin -s hello run -s init stop -noshell
+% Test setup for issue 7. Use it to kill and restart the mysql server underneath
+% and see what happens. See https://github.com/Eonblast/Emysql/issues/7 
+% Use: erlc test7.erl && erl -pa ./ebin -s test7 run -s init stop -noshell
 
--module(hello).
+-module(test7).
 -export([run/0,do/0]).
 
 run() ->

@@ -1,12 +1,12 @@
 ## Emysql
 
-# TEST RELEASE ADDRESSING ISSUE #7
-
 Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, strong [connection pooling][Adding_a_Pool], [prepared statements][Executing_Prepared_Statements] & [stored procedures][Executing_Stored_Procedures]. Optimized for a central node architecture and OLTP.
 
 While you can use mysql via ODBC, using a driver, like Emysql, should perform better. For [samples][Samples] and [docs][] see below. Read the brief on [choosing][Choosing] a package and about the [history][History] of the various MySQL drivers.
 
 [Emysql][1] is a cleaner rewrite of [erlang-mysql-driver][2], see [History][]. This fork is a direct continuation of the original [emysql][1] with [fixes][], [updates][], more [documentation][docs] and [samples][Samples]. 
+
+**This is the master branch. Should you run into problems, please report them and try if they go away by checking out the 'stable' branch. Thank you.**
 
 <hr/>
 
@@ -301,7 +301,7 @@ A [parallel][20] fork from Yariv's branch, not entangled with Dave's tree, is [t
 
 **Emysql** was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by [Jacob Vorreuter][jv] at Electronic Arts and deployed at Shawn Fanning's Rupture.com, a social network site for gamers. Initially, [Nick Gerakines][ng], Jacob's boss at EA, rewrote large parts of erlang-mysql-server to [clean it up][21]. But some fundamental problems remained and when half a year in, they still could not overcome performance and stability issues, Nick gave Jacob the green light to rewrite it from the ground up because they felt that, in Jacob's words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, [Bill Warnecke][bw] helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality into direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straightforward architecture focused on providing a high performance node. Not only can Emysql open multiple connections, but multiple pools of multiple connections each to multiple database servers, which makes for a strong central OLTP node. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: "The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling." Rupture was killed in the consolidations of 2009. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.
 
-**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb] and [Chris Rempel][cr] have contributed updates to this branch. Support for stored procedures has been added, but the fork is otherwise still very close to the original, which currently lies dormant.
+**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa] and [Joel Meyer][jm] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. But the fork is otherwise still very close to the original, which currently lies dormant.
 
 Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about any errors you may be spot. Thanks.
 
@@ -360,6 +360,8 @@ Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much
 [hd]: hd2010@eonblast.com               "Henning Diedrich"  
 [vb]: https://github.com/bva            "Vitaliy Batichko"  
 [cr]: https://github.com/csrl           "Chris Rempel"  
+[pa]: partoa@gmail.com                  "Patrick Atambo"
+[jm]: joel.meyer@openx.org              "Joel Meyer"
 
 [emysql]:   https://github.com/Eonblast/Emysql  
            "Eonblast Emysql Repository"  
