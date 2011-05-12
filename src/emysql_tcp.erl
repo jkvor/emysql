@@ -214,8 +214,16 @@ type_cast_row_data(Data, #field{type=Type, decimals=_Decimals})
 		Type == ?FIELD_TYPE_FLOAT;
 		Type == ?FIELD_TYPE_DOUBLE ->
 	{ok, [Num], _Leftovers} = case io_lib:fread("~f", binary_to_list(Data)) of
-		{error, _} -> io_lib:fread("~d", binary_to_list(Data));
-		Res -> Res
+		{error, _} ->
+		  case io_lib:fread("~d", binary_to_list(Data)) of
+		    {ok, [_], []} = Res ->
+		      Res;
+		    {ok, [X], E} ->
+		      io_lib:fread("~f", lists:flatten(io_lib:format("~w~s~s" ,[X,".0",E])))
+		  end
+		;
+		Res ->
+		  Res
 	end,
 	Num;
 	%try_formats(["~f", "~d"], binary_to_list(Data));
