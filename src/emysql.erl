@@ -358,7 +358,7 @@ decrement_pool_size(PoolId, Num) when is_integer(Num) ->
 %% 			ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I <- lists:seq(1, length(Args))], ", ")),
 %% 			StmtNameBin = atom_to_binary(StmtName, utf8),
 %% 			Packet = <<?COM_QUERY, "EXECUTE ", StmtNameBin/binary, " USING ", ParamNamesBin/binary>>,
-%% 			emysql_tcp:send_and_recv_packet(Connection#connection.socket, Packet, 0);
+%% 			emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
 %% 		Error ->
 %% 			Error
 %% 	end.
@@ -509,7 +509,7 @@ execute(PoolId, StmtName, Args, Timeout) when is_atom(StmtName), is_list(Args) a
 %%
 execute(PoolId, Query, Args, Timeout, nonblocking) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
-		Connection when is_record(Connection, connection) ->
+		Connection when is_record(Connection, emysql_connection) ->
 			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});
 		Other ->
 			Other
@@ -517,7 +517,7 @@ execute(PoolId, Query, Args, Timeout, nonblocking) when (is_list(Query) orelse i
 
 execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
 	case emysql_conn_mgr:lock_connection(PoolId) of
-		Connection when is_record(Connection, connection) ->
+		Connection when is_record(Connection, emysql_connection) ->
 			monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, StmtName, Args]});
 		Other ->
 			Other
@@ -553,7 +553,7 @@ execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(StmtName), is
 %% @private 
 %% @end doc: hd feb 11
 %%
-monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection) ->
+monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, emysql_connection) ->
 	%% spawn a new process to do work, then monitor that process until
 	%% it either dies, returns data or times out.
 	Parent = self(),
@@ -569,7 +569,7 @@ monitor_work(Connection, Timeout, {M,F,A}) when is_record(Connection, connection
 		{'DOWN', Mref, process, Pid, {_, closed}} ->
 			%-% io:format("monitor_work: ~p DOWN/closed -> renew~n", [Pid]),
 			case emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, keep) of
-				NewConnection when is_record(NewConnection, connection) ->
+				NewConnection when is_record(NewConnection, emysql_connection) ->
 					% re-loop, with new connection.
 					[_OldConn | RestArgs] = A,
 					NewA = [NewConnection | RestArgs],

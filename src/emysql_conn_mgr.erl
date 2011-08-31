@@ -200,8 +200,8 @@ handle_call({lock_connection, PoolId}, _From, State) ->
 	case find_next_connection_in_pool(State#state.pools, PoolId) of
 		[Pool, OtherPools, Conn, OtherConns] ->
             %-% io:format("gen srv: lock connection ... found a good next connection~n", []),
-			NewConn = Conn#connection{locked_at=lists:nth(2, tuple_to_list(now()))},
-			Locked = gb_trees:enter(NewConn#connection.id, NewConn, Pool#pool.locked),
+			NewConn = Conn#emysql_connection{locked_at=lists:nth(2, tuple_to_list(now()))},
+			Locked = gb_trees:enter(NewConn#emysql_connection.id, NewConn, Pool#pool.locked),
 			State1 = State#state{pools = [Pool#pool{available=OtherConns, locked=Locked}|OtherPools]},
 			{reply, NewConn, State1};
 		Other ->
@@ -222,11 +222,11 @@ handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) -
 	%% passed in to serve as the replacement for the old one.
 	%% But i.e. if the sql server is down, it can be fed a dead
 	%% old connection as new connection, to preserve the pool size.
-	case find_pool(OldConn#connection.pool_id, State#state.pools, []) of
+	case find_pool(OldConn#emysql_connection.pool_id, State#state.pools, []) of
 		{Pool, OtherPools} ->
 			Pool1 = Pool#pool{
 				available = queue:in(NewConn, Pool#pool.available),
-				locked = gb_trees:delete_any(OldConn#connection.id, Pool#pool.locked)
+				locked = gb_trees:delete_any(OldConn#emysql_connection.id, Pool#pool.locked)
 			},
 			{reply, ok, State#state{pools=[Pool1|OtherPools]}};
 		undefined ->
@@ -237,10 +237,10 @@ handle_call({replace_connection_as_locked, OldConn, NewConn}, _From, State) ->
 	%% replace an existing, locked condition with the newly supplied one
 	%% and keep it in the locked list so that the caller can continue to use it
 	%% without having to lock another connection.
-	case find_pool(OldConn#connection.pool_id, State#state.pools, []) of
+	case find_pool(OldConn#emysql_connection.pool_id, State#state.pools, []) of
 		{Pool, OtherPools} ->
-            LockedStripped = gb_trees:delete_any(OldConn#connection.id, Pool#pool.locked),
-            LockedAdded = gb_trees:enter(NewConn#connection.id, NewConn, LockedStripped),
+            LockedStripped = gb_trees:delete_any(OldConn#emysql_connection.id, Pool#pool.locked),
+            LockedAdded = gb_trees:enter(NewConn#emysql_connection.id, NewConn, LockedStripped),
 		    Pool1 = Pool#pool{locked = LockedAdded},
 			{reply, ok, State#state{pools=[Pool1|OtherPools]}};
 		undefined ->
@@ -334,16 +334,16 @@ pass_on_or_queue_as_available(State, Connection, Waiting) ->
 	case queue:is_empty(Waiting) of
 		true ->
 			%% if no processes are waiting then unlock the connection
-			case find_pool(Connection#connection.pool_id, State#state.pools, []) of
+			case find_pool(Connection#emysql_connection.pool_id, State#state.pools, []) of
 				{Pool, OtherPools} ->
 					%% find connection in locked tree
-					case gb_trees:lookup(Connection#connection.id, Pool#pool.locked) of
+					case gb_trees:lookup(Connection#emysql_connection.id, Pool#pool.locked) of
 						{value, Conn} ->
 					    %%%
 							%% add it to the available queue and remove from locked tree
 							Pool1 = Pool#pool{
-								available = queue:in(Conn#connection{locked_at=undefined}, Pool#pool.available),
-								locked = gb_trees:delete_any(Connection#connection.id, Pool#pool.locked)
+								available = queue:in(Conn#emysql_connection{locked_at=undefined}, Pool#pool.available),
+								locked = gb_trees:delete_any(Connection#emysql_connection.id, Pool#pool.locked)
 							},
 							{ok, State#state{pools = [Pool1|OtherPools]}};
 						%%%
