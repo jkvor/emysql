@@ -286,17 +286,17 @@ For other record types, see include/emysql.hrl.
 	    end || Foo <- Recs].
 
 
-## Tests
+## Unit Tests
+
+**Please add a Common Test suite if you are proposing a pull request!**
 
 Some Common Tests (Unit Tests) have been added in the `test` folder. They are not in shape yet to help finding more interesting problems. But they might help you find trip ups in your system set up. 
-
-**Please add a suite if you are proposing a pull request!**
 
 Run the tests using make:
 
 	make test
 	
-You need the test database set up and a mysql server running as described above:
+You need the test database set up and a mysql server running, the same as described above for the samples:
 
 	$ mysql [-u<user> -p]
 	mysql> create database hello_database;
@@ -308,7 +308,7 @@ The tests currently check access to the database (environment suite) and the sam
 
 You see the test results when opening test/index.html with a browser. It should look like this:
 
-<div style="border: 2px solid black; margin: 10px;">
+<div style="border: 2px solid black; margin: 10px; font-size: 0.6em;">
 <CENTER>
 <H1>Test Results</H1>
 </CENTER>
@@ -316,7 +316,7 @@ You see the test results when opening test/index.html with a browser. It should 
 <CENTER>
 <A HREF="all_runs.html">All test runs in "test"</A>
 <br /><br />
-<TABLE border="3" cellpadding="5" BGCOLOR="#E4F0FE">
+<TABLE border="3" cellpadding="5" BGCOLOR="#E4F0FE" style="font-size: 0.7em;">
 <th>Test Name</th>
 <th>Label</th>
 <th>Test Run Started</th>
