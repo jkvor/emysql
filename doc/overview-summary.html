@@ -21,6 +21,8 @@
 
 <p><a href="#1">Emysql</a> is a cleaner rewrite of <a href="#2">erlang-mysql-driver</a>, see <a href="#History">History</a>. This fork is a direct continuation of the original <a href="#1">emysql</a> with <a href="#fixes">fixes</a>, <a href="#updates">updates</a>, more <a href="#docs">documentation</a> and <a href="#Samples">samples</a>. </p>
 
+<p><b>This is the master branch. Should you run into problems, please report them and try if they go away by checking out the 'stable' branch. Thank you.</b></p>
+
 <hr>
 
  <p><b>Which fork/package should I use?</b> Likely this one, but see <a href="#Choosing">Choosing</a>.<br>
@@ -161,7 +163,9 @@ For use in the above sample (and all of those below, too), create a local mysql 
 <pre> $ erlc hello.erl
  $ erl -pa ./ebin -s hello run -s init stop -noshell</pre>
 
-<p>That's it. </p>
+<p>That's it. If you need to blindly repeat that more often some time, you can also use</p>
+
+<pre> $ make hello</pre>
 
 <p>There are more sample programs:</p>
 
@@ -293,6 +297,99 @@ or (after building emysql.app and the database, as explained above), start a_hel
      end || Foo &lt;- Recs].</pre>
 
 
+<h3><a name="Tests">Tests</a></h3>
+
+<p>Some Common Tests (Unit Tests) have been added in the <code>test</code> folder. They are not in shape yet to help finding more interesting problems. But they might help you find trip ups in your system set up. </p>
+
+<p><b>Please add a suite if you are proposing a pull request!</b></p>
+
+<p>Run the tests using make:</p>
+
+<pre> make test</pre><p>
+You need the test database set up and a mysql server running as described above:</p>
+
+<pre> $ mysql [-u&lt;user&gt; -p]
+ mysql&gt; create database hello_database;
+ mysql&gt; use hello_database;
+ mysql&gt; create table hello_table (hello_text char(20));
+ mysql&gt; grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';</pre>
+
+<p>The tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite).</p>
+
+<p>You see the test results when opening test/index.html with a browser. It should look like this:</p>
+
+<div style="border: 2px solid black; margin: 10px;">
+<CENTER>
+<H1>Test Results</H1>
+</CENTER>
+<BR></BR>
+<CENTER>
+<A HREF="all_runs.html">All test runs in "test"</A>
+<br><br>
+<TABLE border="3" cellpadding="5" BGCOLOR="#E4F0FE">
+<th>Test Name</th>
+<th>Label</th>
+<th>Test Run Started</th>
+<th><font color="#E4F0FE">_</font>Ok<font color="#E4F0FE">_</font></th>
+<th>Failed</th>
+<th>Skipped<br>(User/Auto)</th>
+
+<th>Missing<br>Suites</th>
+<th>Node</th>
+<th>CT Log</th>
+<th>Old Runs</th>
+
+<TR valign="top">
+<TD><FONT SIZE="-1"><A HREF="">me.Emysql.basics_SUITE</A></FONT></TD>
+<TD ALIGN="center"><FONT SIZE="-1"><B>-</B></FONT></TD>
+<TD><FONT SIZE="-1">Tue Dec 13 2011 04:17:29</FONT></TD>
+
+<TD ALIGN="right">7</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right">0 (0/0)</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right"><FONT SIZE="-1">ct@machine</FONT></TD>
+<TD><FONT SIZE="-1"><A HREF="">CT Log</A></FONT></TD>
+<TD><FONT SIZE="-1">none</FONT></TD>
+</TR>
+<TR valign="top">
+<TD><FONT SIZE="-1"><A HREF="">me.Emysql.environment_SUITE</A></FONT></TD>
+
+<TD ALIGN="center"><FONT SIZE="-1"><B>-</B></FONT></TD>
+<TD><FONT SIZE="-1">Tue Dec 13 2011 04:17:29</FONT></TD>
+<TD ALIGN="right">6</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right">0 (0/0)</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right"><FONT SIZE="-1">ct@machine</FONT></TD>
+<TD><FONT SIZE="-1"><A HREF="">CT Log</A></FONT></TD>
+<TD><FONT SIZE="-1">none</FONT></TD>
+
+</TR>
+<TR valign="top">
+<TD><B>Total</B></TD><TD> </TD>
+<TD> </TD>
+<TD ALIGN="right"><B>13</B></TD>
+<TD ALIGN="right"><B>0</B></TD>
+<TD ALIGN="right">0 (0/0)</TD>
+<TD ALIGN="right"><B>0</B></TD>
+<TD> </TD>
+<TD> </TD>
+</TR>
+</TABLE>
+
+</CENTER>
+<P></P><CENTER>
+<BR></BR><BR></BR>
+<HR></HR>
+<P></P><FONT SIZE="-1">
+Copyright © 2011 <A HREF="">Open Telecom Platform</A><BR></BR>
+Updated: Tue Dec 13 2011 04:17:36<BR></BR>
+</FONT>
+</CENTER>
+</div>
+
+
 <h3><a name="History">History</a></h3>
 
 <p>Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the sources to find out about their relationships with each other - and which one to pick. Here is a brief history.</p>
@@ -308,7 +405,7 @@ or (after building emysql.app and the database, as explained above), start a_hel
 
 <p><b>Emysql</b> was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by <a href="#jv">Jacob Vorreuter</a> at Electronic Arts and deployed at Shawn Fanning's Rupture.com, a social network site for gamers. Initially, <a href="#ng">Nick Gerakines</a>, Jacob's boss at EA, rewrote large parts of erlang-mysql-server to <a href="#21">clean it up</a>. But some fundamental problems remained and when half a year in, they still could not overcome performance and stability issues, Nick gave Jacob the green light to rewrite it from the ground up because they felt that, in Jacob's words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, <a href="#bw">Bill Warnecke</a> helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality into direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straightforward architecture focused on providing a high performance node. Not only can Emysql open multiple connections, but multiple pools of multiple connections each to multiple database servers, which makes for a strong central OLTP node. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: "The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling." Rupture was killed in the consolidations of 2009. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.</p>
 
-<p><b>Eonblast Emysql</b> is a continuation fork of <a href="#1">Jacob's work</a>, including all his commits and adding <a href="#docs">docs</a>, <a href="#samples">samples</a>, <a href="#fixes">fixes</a> and <a href="#24">extensions</a>. <a href="#hd">Henning Diedrich</a>, <a href="#vb">Vitaliy Batichko</a> and <a href="#cr">Chris Rempel</a> have contributed updates to this branch. Support for stored procedures has been added, but the fork is otherwise still very close to the original, which currently lies dormant.</p>
+<p><b>Eonblast Emysql</b> is a continuation fork of <a href="#1">Jacob's work</a>, including all his commits and adding <a href="#docs">docs</a>, <a href="#samples">samples</a>, <a href="#fixes">fixes</a> and <a href="#24">extensions</a>. <a href="#hd">Henning Diedrich</a>, <a href="#vb">Vitaliy Batichko</a>, <a href="#cr">Chris Rempel</a>, <a href="#pa">Patrick Atambo</a> and <a href="#jm">Joel Meyer</a> have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. But the fork is otherwise still very close to the original, which currently lies dormant.</p>
 
 <p>Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are <a href="#hd">mine</a>. Please let me know about any errors you may be spot. Thanks.</p>
 
@@ -351,7 +448,9 @@ or (after building emysql.app and the database, as explained above), start a_hel
 <li class="ref email"> Bill Warnecke:<a name="bw" id="bw" href="mailto:bill@rupture.com">bill@rupture.com</a></li>
 <li class="ref email"> Henning Diedrich:<a name="hd" id="hd" href="mailto:hd2010@eonblast.com">hd2010@eonblast.com</a></li>
 <li class="ref url"> Vitaliy Batichko:<a name="vb" id="vb" href="https://github.com/bva" target="_parent">https://github.com/bva</a></li>
-<li class="ref url"> Chris Rempel:<a name="cr" id="cr" href="https://github.com/csrl" target="_parent">https://github.com/csrl</a></li></p>
+<li class="ref url"> Chris Rempel:<a name="cr" id="cr" href="https://github.com/csrl" target="_parent">https://github.com/csrl</a></li>
+<li class="ref email"> Patrick Atambo:<a name="pa" id="pa" href="mailto:partoa@gmail.com">partoa@gmail.com</a></li>
+<li class="ref email"> Joel Meyer:<a name="jm" id="jm" href="mailto:joel.meyer@openx.org">joel.meyer@openx.org</a></li></p>
 
 <p><li class="ref url"> Eonblast Emysql Repository:<a name="emysql" id="emysql" href="https://github.com/Eonblast/Emysql" target="_parent">https://github.com/Eonblast/Emysql</a></li>
 <li class="ref url"> Emysql fixes:<a name="fixes" id="fixes" href="https://github.com/Eonblast/Emysql/issues/closed" target="_parent">https://github.com/Eonblast/Emysql/issues/closed</a></li>
@@ -427,6 +526,6 @@ function url(tag) { var o=document.getElementById(tag); return o ? o.href : '#'+
 
 <hr>
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Feb 18 2011, 20:25:06.</i></p>
+<p><i>Generated by EDoc, Dec 13 2011, 05:02:30.</i></p>
 </body>
 </html>

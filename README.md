@@ -286,6 +286,100 @@ For other record types, see include/emysql.hrl.
 	    end || Foo <- Recs].
 
 
+## Tests
+
+Some Common Tests (Unit Tests) have been added in the `test` folder. They are not in shape yet to help finding more interesting problems. But they might help you find trip ups in your system set up. 
+
+**Please add a suite if you are proposing a pull request!**
+
+Run the tests using make:
+
+	make test
+	
+You need the test database set up and a mysql server running as described above:
+
+	$ mysql [-u<user> -p]
+	mysql> create database hello_database;
+	mysql> use hello_database;
+	mysql> create table hello_table (hello_text char(20));
+	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
+
+The tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite).
+
+You see the test results when opening test/index.html with a browser. It should look like this:
+
+<div style="border: 2px solid black; margin: 10px;">
+<CENTER>
+<H1>Test Results</H1>
+</CENTER>
+<BR />
+<CENTER>
+<A HREF="all_runs.html">All test runs in "test"</A>
+<br /><br />
+<TABLE border="3" cellpadding="5" BGCOLOR="#E4F0FE">
+<th>Test Name</th>
+<th>Label</th>
+<th>Test Run Started</th>
+<th><font color="#E4F0FE">_</font>Ok<font color="#E4F0FE">_</font></th>
+<th>Failed</th>
+<th>Skipped<br />(User/Auto)</th>
+
+<th>Missing<br />Suites</th>
+<th>Node</th>
+<th>CT Log</th>
+<th>Old Runs</th>
+
+<TR valign="top">
+<TD><FONT SIZE="-1"><A HREF="">me.Emysql.basics_SUITE</A></FONT></TD>
+<TD ALIGN="center"><FONT SIZE="-1"><B>-</B></FONT></TD>
+<TD><FONT SIZE="-1">Tue Dec 13 2011 04:17:29</FONT></TD>
+
+<TD ALIGN="right">7</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right">0 (0/0)</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right"><FONT SIZE="-1">ct@machine</FONT></TD>
+<TD><FONT SIZE="-1"><A HREF="">CT Log</A></FONT></TD>
+<TD><FONT SIZE="-1">none</FONT></TD>
+</TR>
+<TR valign="top">
+<TD><FONT SIZE="-1"><A HREF="">me.Emysql.environment_SUITE</A></FONT></TD>
+
+<TD ALIGN="center"><FONT SIZE="-1"><B>-</B></FONT></TD>
+<TD><FONT SIZE="-1">Tue Dec 13 2011 04:17:29</FONT></TD>
+<TD ALIGN="right">6</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right">0 (0/0)</TD>
+<TD ALIGN="right">0</TD>
+<TD ALIGN="right"><FONT SIZE="-1">ct@machine</FONT></TD>
+<TD><FONT SIZE="-1"><A HREF="">CT Log</A></FONT></TD>
+<TD><FONT SIZE="-1">none</FONT></TD>
+
+</TR>
+<TR valign="top">
+<TD><B>Total</B></TD><TD> </TD>
+<TD> </TD>
+<TD ALIGN="right"><B>13</B></TD>
+<TD ALIGN="right"><B>0</B></TD>
+<TD ALIGN="right">0 (0/0)</TD>
+<TD ALIGN="right"><B>0</B></TD>
+<TD> </TD>
+<TD> </TD>
+</TR>
+</TABLE>
+
+</CENTER>
+<P /><CENTER>
+<BR /><BR />
+<HR />
+<P /><FONT SIZE="-1">
+Copyright (C) 2011 <A HREF="">Open Telecom Platform</A><BR />
+Updated: Tue Dec 13 2011 04:17:36<BR/>
+</FONT>
+</CENTER>
+</div>
+
+
 ## History                                               <a name="History"></a>
 
 Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the sources to find out about their relationships with each other - and which one to pick. Here is a brief history.

@@ -2,9 +2,11 @@ LIBDIR=$(shell erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -nos
 VERSION=0.2
 PKGNAME=emysql
 APP_NAME=emysql
+CRYPTO_PATH=/opt/local/var/macports/software/erlang/R14A_0/opt/local/lib/erlang/lib/crypto-2.0/ebin/
 
 MODULES=$(shell ls -1 src/*.erl | awk -F[/.] '{ print $$2 }' | sed '$$q;s/$$/,/g')
 MAKETIME=$(shell date)
+
 all: app
 	(cd src;$(MAKE))
 
@@ -45,6 +47,14 @@ clean:
 	rm -f src/erl_crash.dump
 	rm -f erl_crash.dump
 	rm -f doc/*.html
+	rm -rf test/ct_run*
+	rm -f test/variables-ct*
+	rm -f test/*.beam
+	rm -f test/*.html
+	rm -rf ct_run*
+	rm -f variables-ct*
+	rm -f *.beam
+	rm -f *.html
 
 package: clean
 	@mkdir $(PKGNAME)-$(VERSION)/ && cp -rf ebin include Makefile README src support t $(PKGNAME)-$(VERSION)
@@ -55,5 +65,8 @@ install:
 	@for i in ebin/*.beam ebin/*.app include/*.hrl src/*.erl; do install -m 644 -D $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
 
 test: all
+	(cd test; ct_run -suite environment_SUITE basics_SUITE -pa ../ebin $(CRYPTO_PATH))
+
+prove: all
 	(cd t;$(MAKE))
 	prove t/*.t

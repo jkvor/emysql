@@ -1,7 +1,17 @@
 @doc
 == Changes ==
 
-=== 0.2 Stored Procedures and Docs ===
+=== current 'master' branch ===
+
+<li> proposed solution for issue #7</li>
+
+=== current 'stable' branch ===
+
+<li> connection re-opening after mysql server temporarily unreachable</li>
+<li> restriction on PoolIDs to be atoms removed</li>
+<li> providing for rebar</li>
+
+=== 0.2 Stored Procedures and Docs  ===
 
 <li> Correct handling of stored procedures result packages</li>
 <li> Module emysql_tcp extended to handle the flag SERVER_MORE_RESULTS_EXIST correctly</li>
