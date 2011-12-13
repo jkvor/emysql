@@ -49,10 +49,10 @@ send_and_recv_packet(Sock, Packet, SeqNum) ->
 		% This is a bit murky. It's compatible with former Emysql versions
 		% but sometimes returns a list, e.g. for stored procedures,
 		% since an extra OK package is sent at the end of their results.
-		[Record | []] -> 
+		[Record | []] ->
 			%-% io:format("~p send_and_recv_packet: record~n", [self()]),
 			Record;
-		List -> 
+		List ->
 			%-% io:format("~p send_and_recv_packet: list~n", [self()]),
 			List
 	end.
@@ -118,17 +118,17 @@ response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, ErrNo:16/little, "#", 
 		msg = binary_to_list(Msg) },
 	 ?SERVER_NO_STATUS };
 
-% ERROR response: MySQL format <= 4.0. See -3- 
+% ERROR response: MySQL format <= 4.0. See -3-
 response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, ErrNo:16/little, Msg/binary>>}=_Packet) ->
 	%-% io:format("~nresponse (Response is ERROR): SeqNum: ~p, Packet: ~p~n", [SeqNum, _Packet]),
 	{ #error_packet{
 		seq_num = SeqNum,
 		code = ErrNo,
 		status = 0,
-		msg = binary_to_list(Msg) }, 
+		msg = binary_to_list(Msg) },
 	 ?SERVER_NO_STATUS };
 
-% DATA response. 
+% DATA response.
 response(Sock, #packet{seq_num = SeqNum, data = Data}=_Packet) ->
 	%-% io:format("~nresponse (DATA): ~p~n", [_Packet]),
 	{FieldCount, Rest1} = emysql_util:length_coded_binary(Data),
@@ -147,7 +147,7 @@ response(Sock, #packet{seq_num = SeqNum, data = Data}=_Packet) ->
 		rows = Rows,
 		extra = Extra },
 	  ServerStatus }.
-	
+
 recv_packet_header(Sock) ->
 	%-% io:format("~p recv_packet_header~n", [self()]),
 	%-% io:format("~p recv_packet_header: recv~n", [self()]),
@@ -410,7 +410,7 @@ type_cast_row_data(Data, _) -> Data.
 %  1-9 (Length Coded Binary)   insert_id
 %  2                           server_status
 %  n   (until end of packet)   message
-%  
+%
 %  VERSION 4.1
 %  Bytes                       Name
 %  -----                       ----
@@ -420,22 +420,22 @@ type_cast_row_data(Data, _) -> Data.
 %  2                           server_status
 %  2                           warning_count
 %  n   (until end of packet)   message
-%  
+%
 %  field_count:     always = 0
-%  
+%
 %  affected_rows:   = number of rows affected by INSERT/UPDATE/DELETE
-%  
-%  insert_id:       If the statement generated any AUTO_INCREMENT number, 
+%
+%  insert_id:       If the statement generated any AUTO_INCREMENT number,
 %                   it is returned here. Otherwise this field contains 0.
 %                   Note: when using for example a multiple row INSERT the
 %                   insert_id will be from the first row inserted, not from
 %                   last.
-%  
+%
 %  server_status:   = The client can use this to check if the
 %                   command was inside a transaction.
-%  
+%
 %  warning_count:   number of warnings
-%  
+%
 %  message:         For example, after a multi-line INSERT, message might be
 %                   "Records: 3 Duplicates: 0 Warnings: 0"
 % 

@@ -15,7 +15,7 @@
 %% 
 %% The above  copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%% 
+%%
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 %% OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
@@ -119,16 +119,16 @@
 %  The server was able to fulfill the clients request and opened a
 %  read-only non-scrollable cursor for a query. This flag comes
 %  in reply to COM_STMT_EXECUTE and COM_STMT_FETCH commands.
--define(SERVER_STATUS_CURSOR_EXISTS, 64). 
+-define(SERVER_STATUS_CURSOR_EXISTS, 64).
 
 %  This flag is sent when a read-only cursor is exhausted, in reply to
 %  COM_STMT_FETCH command.
 -define(SERVER_STATUS_LAST_ROW_SENT, 128).
--define(SERVER_STATUS_DB_DROPPED, 256). % A database was dropped 
+-define(SERVER_STATUS_DB_DROPPED, 256). % A database was dropped
 -define(SERVER_STATUS_NO_BACKSLASH_ESCAPES, 512).
 
 %  Sent to the client if after a prepared statement reprepare
-%  we discovered that the new statement returns a different 
+%  we discovered that the new statement returns a different
 %  number of result set columns.
 -define(SERVER_STATUS_METADATA_CHANGED, 1024).
 
