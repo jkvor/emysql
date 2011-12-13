@@ -522,6 +522,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 [History]:  #History
 [Samples]:  #Samples
 [Usage]:    #Usage
+[Tests]:    #Tests
 [Links]:    #Links
 [Todo]:     #Todo
 [License]:  #License
