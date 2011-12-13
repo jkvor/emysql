@@ -28,6 +28,7 @@ While you can use mysql via ODBC, using a driver, like Emysql, should perform be
 * [Choosing][]
 * [Samples][]
 * [Usage][]
+* [Tests][]
 * [History][]
 * [Links][]
 * [Todo][]
@@ -286,7 +287,7 @@ For other record types, see include/emysql.hrl.
 	    end || Foo <- Recs].
 
 
-## Unit Tests
+## Tests                                             <a name="Tests"></a>
 
 **Please add a Common Test suite if you are proposing a pull request!**
 
