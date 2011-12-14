@@ -86,7 +86,8 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 prepare(Connection, Name, Statement) when is_atom(Name) ->
 	prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-	Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,  % todo: utf8?
+	StatementBin = emysql_util:encode(Statement, true),
+	Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM ", StatementBin/binary>>,  % todo: utf8?
 	case emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0) of
 		OK when is_record(OK, ok_packet) ->
 			ok;
