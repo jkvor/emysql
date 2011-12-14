@@ -65,7 +65,7 @@ install:
 	@for i in ebin/*.beam ebin/*.app include/*.hrl src/*.erl; do install -m 644 -D $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
 
 test: all
-	(cd test; ct_run -suite environment_SUITE basics_SUITE -pa ../ebin $(CRYPTO_PATH))
+	(cd test; ct_run -suite environment_SUITE basics_SUITE unicode_SUITE -pa ../ebin $(CRYPTO_PATH))
 
 prove: all
 	(cd t;$(MAKE))

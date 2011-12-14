@@ -123,6 +123,7 @@ asciz_binary(<<C:8, Rest/binary>>, Acc) ->
 
 bxor_binary(B1, B2) ->
 	list_to_binary(dualmap(fun (E1, E2) -> E1 bxor E2 end, binary_to_list(B1), binary_to_list(B2))).
+	% note: only call from auth, password hashing, using int list returned from sha.
 
 dualmap(_F, [], []) ->
 	[];
@@ -163,11 +164,11 @@ encode(Val, false) when Val == undefined; Val == null ->
 encode(Val, true) when Val == undefined; Val == null ->
 	<<"null">>;
 encode(Val, false) when is_binary(Val) ->
-	binary_to_list(quote(Val));
+	anybin_to_list(quote(Val));
 encode(Val, true) when is_binary(Val) ->
 	quote(Val);
 encode(Val, true) ->
-	list_to_binary(encode(Val,false));
+	unicode:characters_to_binary(encode(Val,false));
 encode(Val, false) when is_atom(Val) ->
 	quote(atom_to_list(Val));
 encode(Val, false) when is_list(Val) ->
@@ -200,14 +201,25 @@ two_digits(Num) ->
 		_ -> Str
 	end.
 
-%%  Quote a string or binary value so that it can be included safely in a
-%%  MySQL query.
+%% @doc Quote a string or binary value so that it can be included safely in a
+%% MySQL query. For the quoting, it is converted to a list and back. This
+%% can lead to problems as it is not known in this place, whether the encoding
+%% is latin-1 or utf-8.
+%% @spec quote(x()) -> x()
+%%       x() = list() | binary()
+%% @end
+%% hd/11
 quote(String) when is_list(String) ->
 	[39 | lists:reverse([39 | quote(String, [])])]; %% 39 is $'
 quote(Bin) when is_binary(Bin) ->
 	list_to_binary(quote(binary_to_list(Bin))).
+	% note: this is a bytewise inspection that works for unicode, too.
 
+%% @doc  Make MySQL-safe backslash escapes before 10, 13, \, 26, 34, 39. 
+%% @spec quote(list(), []) -> list() 
 %% @private
+%% @end
+%% hd/11
 quote([], Acc) ->
 	Acc;
 quote([0 | Rest], Acc) ->
@@ -226,3 +238,38 @@ quote([26 | Rest], Acc) ->
 	quote(Rest, [$Z, $\\ | Acc]);
 quote([C | Rest], Acc) ->
 	quote(Rest, [C | Acc]).
+
+% anybin_to_list(Bin) when is_binary(Bin) ->
+%	case unicode:characters_to_list(Bin) of
+%		{incomplete,_,_} -> binary_to_list(Bin);
+%		Uni -> Uni
+%	end.
+
+% anybin_to_list(Bin) when is_binary(Bin) ->
+%	unicode:characters_to_list(Bin).
+%	binary_to_list(Bin).
+
+%% UTF-8 is designed in such a way that ISO-latin-1 characters with 
+%% numbers beyond the 7-bit ASCII range are seldom considered valid
+%% when decoded as UTF-8. Therefore one can usually use heuristics 
+%% to determine if a file is in UTF-8 or if it is encoded in 
+%% ISO-latin-1 (one byte per character) encoding. The unicode module
+%% can be used to determine if data can be interpreted as UTF-8.
+%% Source: http://www.erlang.org/doc/apps/stdlib/unicode_usage.html
+
+anybin_to_list(Bin) when is_binary(Bin) ->
+    case unicode:characters_to_binary(Bin,utf8,utf8) of
+		Bin -> unicode:characters_to_list(Bin);
+		_ -> binary_to_list(Bin)
+    end.
+
+any_to_binary(L) when is_binary(L) ->
+	L;
+any_to_binary(L) when is_list(L) ->
+	case unicode:characters_to_binary(L) of
+		{error,_,_} -> list_to_binary(L);
+	    B -> case unicode:characters_to_list(B,utf8) of
+			L -> B;
+			_ -> list_to_binary(L)
+	    end
+    end.

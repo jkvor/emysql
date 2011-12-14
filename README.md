@@ -291,11 +291,20 @@ For other record types, see include/emysql.hrl.
 
 **Please add a Common Test suite if you are proposing a pull request!**
 
-Some Common Tests (Unit Tests) have been added in the `test` folder. They are not in shape yet to help finding more interesting problems. But they might help you find trip ups in your system set up. 
+Some Common Tests (Unit Tests) have been added in the `test` folder. They have
+no significant coverage yet but can help to test the basics. They might also 
+help you find trip ups in your system set up (environment_ and basics_SUITE). 
+
+Currently the sole focus is on Unicode test cases, in the unicode_SUITE.
+Especially the new silent conversions of list strings to the appropriate
+binary format is a challenge. The tests helped a lot to make sure the
+changes neither break backwards compatibility nor leave a case out.
 
 Run the tests using make:
 
 	make test
+	
+Some tests can take up to half a minute to finish on a slow machine.
 	
 You need the test database set up and a mysql server running, the same as described above for the samples:
 
@@ -305,7 +314,7 @@ You need the test database set up and a mysql server running, the same as descri
 	mysql> create table hello_table (hello_text char(20));
 	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
 
-The tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite).
+The tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite). The rest is for Unicode and  UTF-8 (unicode_SUITE).
 
 You see the test results when opening test/index.html with a browser. It should look like this:
 

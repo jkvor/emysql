@@ -122,7 +122,7 @@ auth(Sock, SeqNum, User, Password, Salt1, Salt2, Plugin) ->
 		?CLIENT_MULTI_STATEMENTS bor ?CLIENT_MULTI_RESULTS bor
 		?PROTOCOL_41 bor ?SECURE_CONNECTION bor DBCaps,
 	Maxsize = ?MAXPACKETBYTES,
-	UserB = list_to_binary(User),
+	UserB = unicode:characters_to_binary(User),
 	PasswordL = size(ScrambleBuff),
 	Packet = <<Caps:32/little, Maxsize:32/little, 8:8, 0:23/integer-unit:8, UserB/binary, 0:8, PasswordL:8, ScrambleBuff/binary, DatabaseB/binary>>,
 	case emysql_tcp:send_and_recv_packet(Sock, Packet, SeqNum) of
@@ -152,3 +152,4 @@ password_old(Password, Salt) ->
 	List = emysql_util:rnd(9, Seed1, Seed2),
 	{L, [Extra]} = lists:split(8, List),
 	list_to_binary(lists:map(fun (E) -> E bxor (Extra - 64) end, L)).
+	% note, this operates on byte integer lists, never strings, much less unicode

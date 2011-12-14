@@ -34,7 +34,7 @@
 -define(ETS_SELECT(TableID), ets:select(TableID,[{{'_','$2'},[],['$2']}])).
 
 send_and_recv_packet(Sock, Packet, SeqNum) ->
-	%-% io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
+	io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
 	%-% io:format("~p send_and_recv_packet: send~n", [self()]),
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
 		ok -> 
@@ -87,7 +87,7 @@ response(_Sock, #packet{seq_num = SeqNum, data = <<0:8, Rest/binary>>}=_Packet) 
 		insert_id = InsertId,
 		status = ServerStatus,
 		warning_count = WarningCount,
-		msg = binary_to_list(Msg) },
+		msg = unicode:characters_to_list(Msg) },
 	  ServerStatus };
 
 % EOF: MySQL format <= 4.0, single byte. See -2-
@@ -115,7 +115,7 @@ response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, ErrNo:16/little, "#", 
 		seq_num = SeqNum,
 		code = ErrNo,
 		status = SQLState,
-		msg = binary_to_list(Msg) },
+		msg = binary_to_list(Msg) }, % todo: test and possibly conversion to UTF-8
 	 ?SERVER_NO_STATUS };
 
 % ERROR response: MySQL format <= 4.0. See -3-
@@ -125,7 +125,7 @@ response(_Sock, #packet{seq_num = SeqNum, data = <<255:8, ErrNo:16/little, Msg/b
 		seq_num = SeqNum,
 		code = ErrNo,
 		status = 0,
-		msg = binary_to_list(Msg) },
+		msg = binary_to_list(Msg) }, % todo: test and possibly conversion to UTF-8
 	 ?SERVER_NO_STATUS };
 
 % DATA response.
@@ -296,7 +296,7 @@ type_cast_row_data(Data, #field{type=Type})
 		Type == ?FIELD_TYPE_LONGLONG;
 		Type == ?FIELD_TYPE_INT24;
 		Type == ?FIELD_TYPE_YEAR ->
-	list_to_integer(binary_to_list(Data));
+	list_to_integer(binary_to_list(Data));  % note: should not need conversion
 
 type_cast_row_data(Data, #field{type=Type, decimals=_Decimals})
 	when Type == ?FIELD_TYPE_DECIMAL;
@@ -304,8 +304,9 @@ type_cast_row_data(Data, #field{type=Type, decimals=_Decimals})
 		Type == ?FIELD_TYPE_FLOAT;
 		Type == ?FIELD_TYPE_DOUBLE ->
 	{ok, [Num], _Leftovers} = case io_lib:fread("~f", binary_to_list(Data)) of
+										   % note: does not need conversion
 		{error, _} ->
-		  case io_lib:fread("~d", binary_to_list(Data)) of
+		  case io_lib:fread("~d", binary_to_list(Data)) of  % note: does not need conversion
 		    {ok, [_], []} = Res ->
 		      Res;
 		    {ok, [X], E} ->
@@ -320,22 +321,22 @@ type_cast_row_data(Data, #field{type=Type, decimals=_Decimals})
 
 type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_DATE ->
-	case io_lib:fread("~d-~d-~d", binary_to_list(Data)) of
+	case io_lib:fread("~d-~d-~d", binary_to_list(Data)) of  % note: does not need conversion
 		{ok, [Year, Month, Day], _} ->
 			{date, {Year, Month, Day}};
 		{error, _} ->
-			binary_to_list(Data);
+			binary_to_list(Data);  % todo: test and possibly conversion to UTF-8
 		_ ->
 			exit({error, bad_date})
 	end;
 
 type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_TIME ->
-	case io_lib:fread("~d:~d:~d", binary_to_list(Data)) of
+	case io_lib:fread("~d:~d:~d", binary_to_list(Data)) of  % note: does not need conversion
 		{ok, [Hour, Minute, Second], _} ->
 			{time, {Hour, Minute, Second}};
 		{error, _} ->
-			binary_to_list(Data);
+			binary_to_list(Data);  % todo: test and possibly conversion to UTF-8
 		_ ->
 			exit({error, bad_time})
 	end;
@@ -343,11 +344,11 @@ type_cast_row_data(Data, #field{type=Type})
 type_cast_row_data(Data, #field{type=Type})
 	when Type == ?FIELD_TYPE_TIMESTAMP;
 		Type == ?FIELD_TYPE_DATETIME ->
-	case io_lib:fread("~d-~d-~d ~d:~d:~d", binary_to_list(Data)) of
+	case io_lib:fread("~d-~d-~d ~d:~d:~d", binary_to_list(Data)) of % note: does not need conversion
 		{ok, [Year, Month, Day, Hour, Minute, Second], _} ->
 			{datetime, {{Year, Month, Day}, {Hour, Minute, Second}}};
 		{error, _} ->
-			binary_to_list(Data);
+			binary_to_list(Data);   % todo: test and possibly conversion to UTF-8
 		_ ->
 			exit({error, datetime})
 	end;
