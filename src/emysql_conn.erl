@@ -58,7 +58,7 @@ execute(Connection, StmtName, []) when is_atom(StmtName) ->
 
 execute(Connection, Query, Args) when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) ->
 	StmtName = "stmt_"++integer_to_list(erlang:phash2(Query)),
-	prepare(Connection, StmtName, Query),
+	ok = prepare(Connection, StmtName, Query),
 	Ret =
 	case set_params(Connection, 1, Args, undefined) of
 		OK when is_record(OK, ok_packet) ->
@@ -86,8 +86,14 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 prepare(Connection, Name, Statement) when is_atom(Name) ->
 	prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-	Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM '", (iolist_to_binary(Statement))/binary, "'">>,  % todo: utf8?
-	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
+	StatementBin = emysql_util:encode(Statement, true),
+	Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM ", StatementBin/binary>>,  % todo: utf8?
+	case emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0) of
+		OK when is_record(OK, ok_packet) ->
+			ok;
+		Err when is_record(Err, error_packet) ->
+			exit({failed_to_prepare_statement, Err#error_packet.msg})
+	end.
 
 unprepare(Connection, Name) when is_atom(Name)->
 	unprepare(Connection, atom_to_list(Name));
@@ -226,12 +232,8 @@ prepare_statement(Connection, StmtName) ->
 				Version ->
 					ok;
 				_ ->
-					case prepare(Connection, StmtName, Statement) of
-						OK when is_record(OK, ok_packet) ->
-							emysql_statements:prepare(Connection#emysql_connection.id, StmtName, Version);
-						Err when is_record(Err, error_packet) ->
-							exit({failed_to_prepare_statement, Err#error_packet.msg})
-					end
+					ok = prepare(Connection, StmtName, Statement),
+					emysql_statements:prepare(Connection#emysql_connection.id, StmtName, Version)
 			end
 	end.
 
