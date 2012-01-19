@@ -34,7 +34,7 @@
 -define(ETS_SELECT(TableID), ets:select(TableID,[{{'_','$2'},[],['$2']}])).
 
 send_and_recv_packet(Sock, Packet, SeqNum) ->
-	io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
+	%-% io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
 	%-% io:format("~p send_and_recv_packet: send~n", [self()]),
 	case gen_tcp:send(Sock, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>) of
 		ok -> 
