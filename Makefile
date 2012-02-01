@@ -67,6 +67,9 @@ install:
 test: all
 	(cd test; ct_run -suite environment_SUITE basics_SUITE unicode_SUITE -pa ../ebin $(CRYPTO_PATH))
 
+test2: all
+	(cd test; ct_run -suite pool_SUITE -pa ../ebin $(CRYPTO_PATH))
+
 prove: all
 	(cd t;$(MAKE))
 	prove t/*.t

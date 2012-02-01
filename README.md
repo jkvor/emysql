@@ -291,22 +291,18 @@ For other record types, see include/emysql.hrl.
 
 **Please add a Common Test suite if you are proposing a pull request!**
 
+### Basic Tests
+
 Some Common Tests (Unit Tests) have been added in the `test` folder. They have
 no significant coverage yet but can help to test the basics. They might also 
-help you find trip ups in your system set up (environment_ and basics_SUITE). 
+help you find trip ups in your system set up (environment and basics suites). 
 
-Currently the sole focus is on Unicode test cases, in the unicode_SUITE.
+Currently the main focus is on Unicode test cases, in the unicode_SUITE.
 Especially the new silent conversions of list strings to the appropriate
 binary format is a challenge. The tests helped a lot to make sure the
 changes neither break backwards compatibility nor leave a case out.
 
-Run the tests using make:
-
-	make test
-	
-Some tests can take up to half a minute to finish on a slow machine.
-	
-You need the test database set up and a mysql server running, the same as described above for the samples:
+For most tests you only need the test database set up and a mysql server running, the same as described above for the samples:
 
 	$ mysql [-u<user> -p]
 	mysql> create database hello_database;
@@ -314,7 +310,13 @@ You need the test database set up and a mysql server running, the same as descri
 	mysql> create table hello_table (hello_text char(20));
 	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
 
-The tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite). The rest is for Unicode and  UTF-8 (unicode_SUITE).
+To run the tests using make:
+
+	make test
+	
+Some tests can take up to half a minute to finish on a slow machine.
+	
+These tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite). The rest is for Unicode and  UTF-8 (unicode_SUITE).
 
 You see the test results when opening test/index.html with a browser. It should look like this:
 
@@ -385,6 +387,26 @@ Updated: Tue Dec 13 2011 04:17:36<BR/>
 </CENTER>
 </div>
 
+### Issue Tests
+
+A new test has been introduced to check on issue #20. For this test you need 
+two databases like this:
+
+	$ mysql [-u<user> -p]
+	mysql> create database test1;
+	mysql> create database test2;
+	mysql> grant all privileges on test1.* to test@localhost identified by 'test';
+	mysql> grant all privileges on test2.* to test@localhost identified by 'test';
+	mysql> use test1;
+	mysql> CREATE TABLE `test` ( `a` int(11) NOT NULL );
+	mysql> use test2;
+	mysql> CREATE TABLE `test` ( `b` int(11) NOT NULL );
+
+To run the test, use make:
+
+	make test2
+	
+Check the test results by opening test/index.html with a browser. 
 
 ## History                                               <a name="History"></a>
 
