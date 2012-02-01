@@ -108,7 +108,7 @@ open_n_connections(PoolId, N) ->
 			lists:foldl(fun(_ ,Connections) ->
 				%% Catch {'EXIT',_} errors so newly opened connections are not orphaned.
 				case catch open_connection(Pool) of
-					#connection{} = Connection ->
+					#emysql_connection{} = Connection ->
 						[Connection | Connections];
 					_ ->
 						Connections
