@@ -1,27 +1,30 @@
-%% Copyright (c) 2009
+%% Copyright (c) 2009-2012
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
-%%
-%% Permission is hereby granted, free of charge, to any person
-%% obtaining a copy of this software and associated documentation
-%% files (the "Software"), to deal in the Software without
-%% restriction, including without limitation the rights to use,
-%% copy, modify, merge, publish, distribute, sublicense, and/or sell
-%% copies of the Software, and to permit persons to whom the
-%% Software is furnished to do so, subject to the following
+%% Henning Diedrich <hd2010@eonblast.com>
+%% Eonblast Corporation <http://www.eonblast.com>
+%% 
+%% Permission is  hereby  granted,  free of charge,  to any person
+%% obtaining  a copy of this software and associated documentation
+%% files (the "Software"),to deal in the Software without restric-
+%% tion,  including  without  limitation the rights to use,  copy, 
+%% modify, merge,  publish,  distribute,  sublicense,  and/or sell
+%% copies  of the  Software,  and to  permit  persons to  whom the
+%% Software  is  furnished  to do  so,  subject  to the  following 
 %% conditions:
-%%
-%% The above copyright notice and this permission notice shall be
+%% 
+%% The above  copyright notice and this permission notice shall be
 %% included in all copies or substantial portions of the Software.
-%%
+%% 
 %% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 %% EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-%% OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-%% NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-%% HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-%% WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-%% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+%% OF  MERCHANTABILITY,  FITNESS  FOR  A  PARTICULAR  PURPOSE  AND
+%% NONINFRINGEMENT. IN  NO  EVENT  SHALL  THE AUTHORS OR COPYRIGHT
+%% HOLDERS  BE  LIABLE FOR  ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+%% WHETHER IN AN ACTION OF CONTRACT,  TORT  OR OTHERWISE,  ARISING
+%% FROM,  OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
+
 -module(emysql_conn_mgr).
 -behaviour(gen_server).
 
@@ -73,18 +76,18 @@ wait_for_connection(PoolId)->
     %-% io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
 	case lock_connection(PoolId) of
 		unavailable ->
-            io:format("~p is queued~n", [self()]), %V%
+            %-% io:format("~p is queued~n", [self()]),
 			gen_server:call(?MODULE, {start_wait, PoolId}, infinity),
 			receive
 				{connection, Connection} -> 
-                    io:format("~p gets a connection after waiting in queue~n", [self()]), %V%
+                    %-% io:format("~p gets a connection after waiting in queue~n", [self()]),
     				Connection
 			after lock_timeout() ->
-                io:format("~p gets no connection and times out -> EXIT~n~n", [self()]), %V%
+                %-% io:format("~p gets no connection and times out -> EXIT~n~n", [self()]),
 				exit(connection_lock_timeout)
 			end;
 		Connection ->
-            io:format("~p gets connection~n", [self()]), %V%
+            %-% io:format("~p gets connection~n", [self()]),
 			Connection
 	end.
 

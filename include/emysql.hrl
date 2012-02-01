@@ -1,4 +1,4 @@
-%% Copyright (c) 2009-2011
+%% Copyright (c) 2009-2012
 %% Bill Warnecke <bill@rupture.com>,
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>,
 %% Henning Diedrich <hd2010@eonblast.com>,

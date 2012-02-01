@@ -183,7 +183,7 @@ or (after building emysql.app and the database, as explained above), start a_hel
 	$ erlc a_hello.erl
 	$ erl -pa ../ebin -s a_hello run -s init stop -noshell
 
-## Usage 
+## Usage                                                    <a name="Usage"></a>
 
 General Notes on using Emysql, including the actual specs:
 
@@ -194,7 +194,7 @@ The Emysql driver is an Erlang gen-server, and, application.
 	crypto:start(),
 	application:start(emysql).
 
-#### Adding a Pool                                       <a name="Adding_a_Pool"></a>
+#### Adding a Pool                                  <a name="Adding_a_Pool"></a>
 
 	% emysql:add_pool(PoolName, PoolSize, Username, Password, Host, Port, Database, Encoding) ->
 	%	 ok | {error, pool_already_exists}  
@@ -320,13 +320,14 @@ You see the test results when opening test/index.html with a browser. It should 
 
 <div style="border: 2px solid black; margin: 10px; font-size: 0.6em;">
 <CENTER>
-<H1>Test Results</H1>
+<H3>Test Results</H3>
 </CENTER>
 <BR />
 <CENTER>
-<A HREF="all_runs.html">All test runs in "test"</A>
+<A HREF="#">All test runs in "test"</A>
 <br /><br />
 <TABLE border="3" cellpadding="5" BGCOLOR="#E4F0FE" style="font-size: 0.7em;">
+<tr>
 <th>Test Name</th>
 <th>Label</th>
 <th>Test Run Started</th>
@@ -336,11 +337,10 @@ You see the test results when opening test/index.html with a browser. It should 
 
 <th>Missing<br />Suites</th>
 <th>Node</th>
-<th>CT Log</th>
-<th>Old Runs</th>
+</tr>
 
 <TR valign="top">
-<TD><FONT SIZE="-1"><A HREF="">me.Emysql.basics_SUITE</A></FONT></TD>
+<TD><FONT SIZE="-1"><A HREF="">me.Emysql. basics_SUITE</A></FONT></TD>
 <TD ALIGN="center"><FONT SIZE="-1"><B>-</B></FONT></TD>
 <TD><FONT SIZE="-1">Tue Dec 13 2011 04:17:29</FONT></TD>
 
@@ -349,11 +349,10 @@ You see the test results when opening test/index.html with a browser. It should 
 <TD ALIGN="right">0 (0/0)</TD>
 <TD ALIGN="right">0</TD>
 <TD ALIGN="right"><FONT SIZE="-1">ct@machine</FONT></TD>
-<TD><FONT SIZE="-1"><A HREF="">CT Log</A></FONT></TD>
-<TD><FONT SIZE="-1">none</FONT></TD>
+
 </TR>
 <TR valign="top">
-<TD><FONT SIZE="-1"><A HREF="">me.Emysql.environment_SUITE</A></FONT></TD>
+<TD><FONT SIZE="-1"><A HREF="">me.Emysql. environment_SUITE</A></FONT></TD>
 
 <TD ALIGN="center"><FONT SIZE="-1"><B>-</B></FONT></TD>
 <TD><FONT SIZE="-1">Tue Dec 13 2011 04:17:29</FONT></TD>
@@ -362,8 +361,6 @@ You see the test results when opening test/index.html with a browser. It should 
 <TD ALIGN="right">0 (0/0)</TD>
 <TD ALIGN="right">0</TD>
 <TD ALIGN="right"><FONT SIZE="-1">ct@machine</FONT></TD>
-<TD><FONT SIZE="-1"><A HREF="">CT Log</A></FONT></TD>
-<TD><FONT SIZE="-1">none</FONT></TD>
 
 </TR>
 <TR valign="top">
@@ -373,8 +370,7 @@ You see the test results when opening test/index.html with a browser. It should 
 <TD ALIGN="right"><B>0</B></TD>
 <TD ALIGN="right">0 (0/0)</TD>
 <TD ALIGN="right"><B>0</B></TD>
-<TD> </TD>
-<TD> </TD>
+<TD ></TD>
 </TR>
 </TABLE>
 
@@ -405,7 +401,7 @@ A [parallel][20] fork from Yariv's branch, not entangled with Dave's tree, is [t
 
 **Emysql** was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by [Jacob Vorreuter][jv] at Electronic Arts and deployed at Shawn Fanning's Rupture.com, a social network site for gamers. Initially, [Nick Gerakines][ng], Jacob's boss at EA, rewrote large parts of erlang-mysql-server to [clean it up][21]. But some fundamental problems remained and when half a year in, they still could not overcome performance and stability issues, Nick gave Jacob the green light to rewrite it from the ground up because they felt that, in Jacob's words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, [Bill Warnecke][bw] helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality into direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straightforward architecture focused on providing a high performance node. Not only can Emysql open multiple connections, but multiple pools of multiple connections each to multiple database servers, which makes for a strong central OLTP node. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: "The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling." Rupture was killed in the consolidations of 2009. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.
 
-**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa], [Joel Meyer][jm], [Erik Seres][es], [Alexey Lebedeff][al], [Logan Owen][lo], [Seven Du][sd] and [Brendon Hogger][bh] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. But the fork is otherwise still very close to the original, which currently lies dormant.
+**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa], [Joel Meyer][jm], [Erik Seres][es], [Alexey Lebedeff][al], [Logan Owen][lo], [Seven Du][sd], [Brendon Hogger][bh] and [Bart van Deenen][bd] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. But the fork is otherwise still very close to the original, which currently lies dormant.
 
 Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about any errors you may be spot. Thanks.
 
@@ -471,6 +467,7 @@ Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much
 [lo]: https://github.com/lsowen         "Logan Owen"
 [sd]: https://github.com/seven1240      "Seven Du"
 [bh]: brendonh@gmail.com                "Brendon Hogger"
+[bd]: https://github.com/bvdeenen       "Bart van Deenen"
 
 [emysql]:   https://github.com/Eonblast/Emysql  
            "Eonblast Emysql Repository"  
@@ -509,7 +506,7 @@ Copyright (c) 2009-2011
 Bill Warnecke <bill@rupture.com>,
 Jacob Vorreuter <jacob.vorreuter@gmail.com>,
 Henning Diedrich <hd2010@eonblast.com>,
-Eonblast Corporation [http://www.eonblast.com].
+Eonblast Corporation <http://www.eonblast.com>.
 
 Permission is  hereby  granted,  free of charge,  to any person
 obtaining  a copy of this software and associated documentation
