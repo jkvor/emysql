@@ -28,16 +28,16 @@
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, handle_info/2]).
 -export([terminate/2, code_change/3]).
 
--export([pools/0, waiting/0, add_pool/1, remove_pool/1,
+-export([pools/0, add_pool/1, remove_pool/1,
 		add_connections/2, remove_connections/2,
 		lock_connection/1, wait_for_connection/1,
 		pass_connection/1, 
 		replace_connection_as_available/2, replace_connection_as_locked/2,
-		find_pool/3]).
+		find_pool/2]).
 
 -include("emysql.hrl").
 
--record(state, {pools, waiting=queue:new()}).
+-record(state, {pools}).
 
 %%====================================================================
 %% API
@@ -51,9 +51,6 @@ start_link() ->
 
 pools() ->
 	gen_server:call(?MODULE, pools, infinity).
-
-waiting() ->
-	gen_server:call(?MODULE, waiting, infinity).
 
 add_pool(Pool) ->
 	do_gen_call({add_pool, Pool}).
@@ -76,18 +73,18 @@ wait_for_connection(PoolId)->
     %-% io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
 	case lock_connection(PoolId) of
 		unavailable ->
-            %-% io:format("~p is queued~n", [self()]),
-			gen_server:call(?MODULE, start_wait, infinity),
+            io:format("~p is queued~n", [self()]), %V%
+			gen_server:call(?MODULE, {start_wait, PoolId}, infinity),
 			receive
 				{connection, Connection} -> 
-                    %-% io:format("~p gets a connection after waiting in queue~n", [self()]),
+                    io:format("~p gets a connection after waiting in queue~n", [self()]), %V%
     				Connection
 			after lock_timeout() ->
-                %-% io:format("~p gets no connection and times out -> EXIT~n~n", [self()]),
+                io:format("~p gets no connection and times out -> EXIT~n~n", [self()]), %V%
 				exit(connection_lock_timeout)
 			end;
 		Connection ->
-            %-% io:format("~p gets connection~n", [self()]),
+            io:format("~p gets connection~n", [self()]), %V%
 			Connection
 	end.
 
@@ -140,11 +137,8 @@ init([]) ->
 handle_call(pools, _From, State) ->
 	{reply, State#state.pools, State};
 
-handle_call(waiting, _From, State) ->
-	{reply, State#state.waiting, State};
-
 handle_call({add_pool, Pool}, _From, State) ->
-	case find_pool(Pool#pool.pool_id, State#state.pools, []) of
+	case find_pool(Pool#pool.pool_id, State#state.pools) of
 		{_, _} ->
 			{reply, {error, pool_already_exists}, State};
 		undefined ->
@@ -152,7 +146,7 @@ handle_call({add_pool, Pool}, _From, State) ->
 	end;
 
 handle_call({remove_pool, PoolId}, _From, State) ->
-	case find_pool(PoolId, State#state.pools, []) of
+	case find_pool(PoolId, State#state.pools) of
 		{Pool, OtherPools} ->
 			{reply, Pool, State#state{pools=OtherPools}};
 		undefined ->
@@ -160,7 +154,7 @@ handle_call({remove_pool, PoolId}, _From, State) ->
 	end;
 
 handle_call({add_connections, PoolId, Conns}, _From, State) ->
-	case find_pool(PoolId, State#state.pools, []) of
+	case find_pool(PoolId, State#state.pools) of
 		{Pool, OtherPools} ->
 			OtherConns = Pool#pool.available,
 			State1 = State#state{
@@ -172,7 +166,7 @@ handle_call({add_connections, PoolId, Conns}, _From, State) ->
 	end;
 
 handle_call({remove_connections, PoolId, Num}, _From, State) ->
-	case find_pool(PoolId, State#state.pools, []) of
+	case find_pool(PoolId, State#state.pools) of
 		{Pool, OtherPools} ->
 			case Num > queue:len(Pool#pool.available) of
 				true ->
@@ -187,12 +181,15 @@ handle_call({remove_connections, PoolId, Num}, _From, State) ->
 			{reply, {error, pool_not_found}, State}
 	end;
 
-handle_call(start_wait, {From, _Mref}, State) ->
-	%% place to calling pid at the end of the waiting queue
-	State1 = State#state{
-		waiting = queue:in(From, State#state.waiting)
-	},
-	{reply, ok, State1};
+handle_call({start_wait, PoolId}, {From, _Mref}, State) ->
+	%% place to calling pid at the end of the waiting queue of its pool
+	case find_pool(PoolId, State#state.pools) of
+		{Pool, OtherPools} ->
+			PoolNow = Pool#pool{ waiting = queue:in(From, Pool#pool.waiting) },
+			{reply, ok, State#state{pools=[PoolNow|OtherPools]}};
+		undefined ->
+			{reply, {error, pool_not_found}, State}
+	end;
 
 handle_call({lock_connection, PoolId}, _From, State) ->
 	%% find the next available connection in the pool identified by PoolId
@@ -210,7 +207,7 @@ handle_call({lock_connection, PoolId}, _From, State) ->
 	end;
 
 handle_call({pass_connection, Connection}, _From, State) ->
-	{Result, State1} = pass_on_or_queue_as_available(State, Connection, State#state.waiting),
+	{Result, State1} = pass_on_or_queue_as_available(State, Connection),
 	{reply, Result, State1};
 
 handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) ->
@@ -222,7 +219,7 @@ handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) -
 	%% passed in to serve as the replacement for the old one.
 	%% But i.e. if the sql server is down, it can be fed a dead
 	%% old connection as new connection, to preserve the pool size.
-	case find_pool(OldConn#emysql_connection.pool_id, State#state.pools, []) of
+	case find_pool(OldConn#emysql_connection.pool_id, State#state.pools) of
 		{Pool, OtherPools} ->
 			Pool1 = Pool#pool{
 				available = queue:in(NewConn, Pool#pool.available),
@@ -237,7 +234,7 @@ handle_call({replace_connection_as_locked, OldConn, NewConn}, _From, State) ->
 	%% replace an existing, locked condition with the newly supplied one
 	%% and keep it in the locked list so that the caller can continue to use it
 	%% without having to lock another connection.
-	case find_pool(OldConn#emysql_connection.pool_id, State#state.pools, []) of
+	case find_pool(OldConn#emysql_connection.pool_id, State#state.pools) of
 		{Pool, OtherPools} ->
             LockedStripped = gb_trees:delete_any(OldConn#emysql_connection.id, Pool#pool.locked),
             LockedAdded = gb_trees:enter(NewConn#emysql_connection.id, NewConn, LockedStripped),
@@ -304,6 +301,9 @@ initialize_pools() ->
 		} || {PoolId, Props} <- emysql_app:pools()
 	].
 
+find_pool(PoolId, Pools) ->
+    find_pool(PoolId, Pools, []).
+
 find_pool(_, [], _) -> undefined;
 
 find_pool(PoolId, [#pool{pool_id = PoolId} = Pool|Tail], OtherPools) ->
@@ -313,7 +313,7 @@ find_pool(PoolId, [Pool|Tail], OtherPools) ->
 	find_pool(PoolId, Tail, [Pool|OtherPools]).
 
 find_next_connection_in_pool(Pools, PoolId) ->
-	case find_pool(PoolId, Pools, []) of
+	case find_pool(PoolId, Pools) of
 		{Pool, OtherPools} ->
 		    % check no of connection in Pool
 		    %-% io:format("~p Pool ~p Connections available: ~p~n", [self(), PoolId, queue:len(Pool#pool.available)]),
@@ -329,45 +329,60 @@ find_next_connection_in_pool(Pools, PoolId) ->
 	end.
 
 %% This function does not wait, but may loop over the queue.
-pass_on_or_queue_as_available(State, Connection, Waiting) ->
-	%% check if any processes are waiting for a connection
-	case queue:is_empty(Waiting) of
-		true ->
-			%% if no processes are waiting then unlock the connection
-			case find_pool(Connection#emysql_connection.pool_id, State#state.pools, []) of
-				{Pool, OtherPools} ->
-					%% find connection in locked tree
-					case gb_trees:lookup(Connection#emysql_connection.id, Pool#pool.locked) of
-						{value, Conn} ->
-					    %%%
-							%% add it to the available queue and remove from locked tree
-							Pool1 = Pool#pool{
-								available = queue:in(Conn#emysql_connection{locked_at=undefined}, Pool#pool.available),
-								locked = gb_trees:delete_any(Connection#emysql_connection.id, Pool#pool.locked)
-							},
-							{ok, State#state{pools = [Pool1|OtherPools]}};
-						%%%
-						none ->
-							{{error, connection_not_found}, State}
-					end;
-				undefined ->
-					{{error, pool_not_found}, State}
-			end;
-		false ->
-			%% if the waiting queue is not empty then remove the head of
-			%% the queue and check if that process is still waiting
-			%% for a connection. If so, send the connection. Regardless,
-			%% update the queue in state once the head has been removed.
-			{{value, Pid}, Waiting1} = queue:out(Waiting),
-			case erlang:process_info(Pid, current_function) of
-				{current_function,{emysql_conn_mgr,wait_for_connection,1}} ->
-					erlang:send(Pid, {connection, Connection}),
-					{ok, State#state{waiting = Waiting1}};
-				_ ->
-				    % loop, to traverse queue to find a sane candidate, until empty.
-					pass_on_or_queue_as_available(State, Connection, Waiting1)
-			end
-	end.
+pass_on_or_queue_as_available(State, Connection) ->
+
+    % get the pool that this connection belongs to
+	case find_pool(Connection#emysql_connection.pool_id, State#state.pools) of
+
+		{Pool, OtherPools} ->
+
+        	%% check if any processes are waiting for a connection
+		    Waiting = Pool#pool.waiting,
+        	case queue:is_empty(Waiting) of
+
+        		%% if no processes are waiting then unlock the connection
+	        	true ->
+
+		        	%% find connection in locked tree
+			        case gb_trees:lookup(Connection#emysql_connection.id, Pool#pool.locked) of
+
+				        {value, Conn} ->
+
+    	    				%% add the connection to the 'available' queue and remove from 'locked' tree
+	    	    			Pool1 = Pool#pool{
+		    	    			available = queue:in(Conn#emysql_connection{locked_at=undefined}, Pool#pool.available),
+			    	    		locked = gb_trees:delete_any(Connection#emysql_connection.id, Pool#pool.locked)
+				    	    },
+    				    	{ok, State#state{pools = [Pool1|OtherPools]}};
+
+	    	    		none ->
+		    	    		{{error, connection_not_found}, State}
+    		    	end;
+
+        		%% if the waiting queue is not empty then remove the head of
+	        	%% the queue and check if that process is still waiting
+		        %% for a connection. If so, send the connection. Regardless,
+    		    %% update the pool & queue in state once the head has been removed.
+    	    	false ->
+
+	    	    	{{value, Pid}, OtherWaiting} = queue:out(Waiting),
+   	    			PoolNow = Pool#pool{ waiting = OtherWaiting },
+			    	StateNow = State#state{ pools = [PoolNow|OtherPools] },
+
+		    	    case erlang:process_info(Pid, current_function) of
+			    	    {current_function,{emysql_conn_mgr,wait_for_connection,1}} ->
+				    	    erlang:send(Pid, {connection, Connection}),
+        			    	{ok, StateNow};
+    	    			_ ->
+	    	    		    % loop, to traverse queue to find a healthy candidate, until empty.
+	    	        		pass_on_or_queue_as_available(StateNow, Connection)
+   			        end
+            end;
+
+        %% pool not found    
+   	    undefined ->
+	        {{error, pool_not_found}, State}
+    end.
 
 lock_timeout() ->
 	emysql_app:lock_timeout().
