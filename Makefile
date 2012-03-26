@@ -64,10 +64,15 @@ package: clean
 install:
 	@for i in ebin/*.beam ebin/*.app include/*.hrl src/*.erl; do install -m 644 -D $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
 
-test: all
-	(cd test; ct_run -suite environment_SUITE basics_SUITE unicode_SUITE -pa ../ebin $(CRYPTO_PATH))
+all-test: test encoding-test test20
 
-test2: all
+encoding-test: all
+	(cd test; ct_run -suite latin_SUITE utf8_SUITE utf8_to_latindb_SUITE latin_to_utf8db_SUITE -pa ../ebin $(CRYPTO_PATH))
+
+test: all
+	(cd test; ct_run -suite environment_SUITE basics_SUITE -pa ../ebin $(CRYPTO_PATH))
+
+test20: all
 	(cd test; ct_run -suite pool_SUITE -pa ../ebin $(CRYPTO_PATH))
 
 prove: all

@@ -154,41 +154,101 @@ rnd(N, List, Seed1, Seed2) ->
 	rnd(N - 1, [Val | List], NSeed1, NSeed2).
 
 %% @doc Encode a value so that it can be included safely in a MySQL query.
-%%
-%% @spec encode(Val::term()) ->
-%%   string() | binary() | {error, Error}
+%% @spec encode(term()) -> binary() | {error, Error}
 encode(Val) ->
-	encode(Val, false).
-encode(Val, false) when Val == undefined; Val == null ->
+	encode(Val, binary).
+
+%% @doc Encode a value so that it can be included safely in a MySQL query.
+%% @spec encode(term(), list | binary) -> string() | binary() | {error, Error}
+encode(Val, ReturnType) when is_atom(Val) ->
+	encode(atom_to_list(Val), ReturnType, latin1); % todo: latin1?
+
+encode(Val, ReturnType) ->
+	encode(Val, ReturnType, latin1).
+
+encode(null, list, _) -> 
 	"null";
-encode(Val, true) when Val == undefined; Val == null ->
+
+encode(undefined, list, _) -> 
+	"null";
+
+encode(null, binary, _)  ->
 	<<"null">>;
-encode(Val, false) when is_binary(Val) ->
-	anybin_to_list(quote(Val));
-encode(Val, true) when is_binary(Val) ->
+
+encode(undefined, binary, _)  ->
+	<<"null">>;
+
+encode(Val, list, latin1) when is_binary(Val) ->
+	quote(binary_to_list(Val));
+
+encode(Val, list, Encoding) when is_binary(Val) ->
+	quote(unicode:characters_to_list(Val, Encoding));
+
+
+encode(Val, binary, latin1) when is_list(Val) -> 
+	list_to_binary(quote(Val));
+
+encode(Val, binary, Encoding) when is_list(Val) ->
+	unicode:characters_to_binary(quote(Val), Encoding, Encoding);
+
+
+encode(Val, binary, latin1) when is_binary(Val) ->
+	io:format("encode latin-1 in : ~s = ~w ~n", [Val, Val]),
+	X = list_to_binary(quote(binary_to_list(Val))),
+	io:format("encode latin-1 out: ~s = ~w ~n", [X, X]),
+	X;
+	
+encode(Val, binary, Encoding) when is_binary(Val) ->
+	case unicode:characters_to_list(Val,Encoding) of
+		{error,E1,E2} -> exit({invalid_utf8_binary, E1, E2});
+		{incomplete,E1,E2} -> exit({invalid_utf8_binary, E1, E2});
+	    List ->
+			unicode:characters_to_binary(quote(List),Encoding,Encoding)    	
+    end;
+
+encode(Val, list, _) when is_list(Val) ->
+	io:format("encode list in : ~s = ~w ~n", [Val, Val]),
+	io:format("encode list out: ~s = ~w ~n", [quote(Val), quote(Val)]),
 	quote(Val);
-encode(Val, true) ->
-	unicode:characters_to_binary(encode(Val,false));
-encode(Val, false) when is_atom(Val) ->
-	quote(atom_to_list(Val));
-encode(Val, false) when is_list(Val) ->
-	quote(Val);
-encode(Val, false) when is_integer(Val) ->
+
+encode(Val, list, _) when is_integer(Val) ->
 	integer_to_list(Val);
-encode(Val, false) when is_float(Val) ->
+
+encode(Val, binary, _) when is_integer(Val) ->
+	list_to_binary(integer_to_list(Val));
+
+encode(Val, list, _) when is_float(Val) ->
 	[Res] = io_lib:format("~w", [Val]),
 	Res;
-encode({datetime, Val}, AsBinary) ->
-	encode(Val, AsBinary);
-encode({{Year, Month, Day}, {Hour, Minute, Second}}, false) ->
+
+encode(Val, binary, _) when is_float(Val) ->
+	[Res] = io_lib:format("~w", [Val]),
+	Res;
+
+encode({datetime, Val}, ReturnType, Encoding) ->
+	encode(Val, ReturnType, Encoding);
+
+encode({date, Val}, ReturnType, Encoding) ->
+	encode(Val, ReturnType, Encoding);
+
+encode({time, Val}, ReturnType, Encoding) ->
+	encode(Val, ReturnType, Encoding);
+
+encode({{Year, Month, Day}, {Hour, Minute, Second}}, list, _) ->
 	Res = two_digits([Year, Month, Day, Hour, Minute, Second]),
 	lists:flatten(Res);
-encode({TimeType, Val}, AsBinary) when TimeType == 'date'; TimeType == 'time' ->
-	encode(Val, AsBinary);
-encode({Time1, Time2, Time3}, false) ->
+
+encode({{_Year, _Month, _Day}, {_Hour, _Minute, _Second}}=Val, binary, E) ->
+	list_to_binary(encode(Val, list, E));
+
+encode({Time1, Time2, Time3}, list, _) ->
 	Res = two_digits([Time1, Time2, Time3]),
 	lists:flatten(Res);
-encode(Val, _AsBinary) ->
+
+encode({_Time1, _Time2, _Time3}=Val, binary, E) ->
+	list_to_binary(encode(Val, list, E));
+
+encode(Val, _, _) ->
 	{error, {unrecognized_value, Val}}.
 
 %% @private
@@ -202,52 +262,66 @@ two_digits(Num) ->
 	end.
 
 %% @doc Quote a string or binary value so that it can be included safely in a
-%% MySQL query. For the quoting, it is converted to a list and back. This
-%% can lead to problems as it is not known in this place, whether the encoding
-%% is latin-1 or utf-8.
+%% MySQL query. For the quoting, a binary is converted to a list and back. 
+%% For this, it's necessary to know the encoding of the binary.
 %% @spec quote(x()) -> x()
 %%       x() = list() | binary()
 %% @end
-%% hd/11
+%% hd/11,12
 quote(String) when is_list(String) ->
-	[39 | lists:reverse([39 | quote(String, [])])]; %% 39 is $'
-quote(Bin) when is_binary(Bin) ->
-	list_to_binary(quote(binary_to_list(Bin))).
-	% note: this is a bytewise inspection that works for unicode, too.
+	[39 | lists:reverse([39 | quote_loop(String)])]. %% 39 is $'
+
+quote(String, _) when is_list(String) ->
+	quote(String);
+	
+quote(Any, Pool) when is_record(Any,pool) ->
+	quote(Any, Pool#pool.encoding);
+	
+quote(Bin, latin1) when is_binary(Bin) ->
+	list_to_binary(quote(binary_to_list(Bin)));
+
+quote(Bin, Encoding) when is_binary(Bin) ->
+	case unicode:characters_to_list(Bin,Encoding) of
+		{error,E1,E2} -> exit({invalid_utf8_binary, E1, E2});
+	    List ->
+			unicode:characters_to_binary(quote(List),Encoding,Encoding)    	
+    end.
+	% note:quote is a codepoint-wise inspection (each is a number) that also works for Unicode.
 
 %% @doc  Make MySQL-safe backslash escapes before 10, 13, \, 26, 34, 39. 
-%% @spec quote(list(), []) -> list() 
+%% @spec quote_loop(list()) -> list() 
 %% @private
 %% @end
-%% hd/11
-quote([], Acc) ->
+%% hd/11,12
+quote_loop(List) ->
+	quote_loop(List, []).
+	
+quote_loop([], Acc) ->
 	Acc;
-quote([0 | Rest], Acc) ->
-	quote(Rest, [$0, $\\ | Acc]);
-quote([10 | Rest], Acc) ->
-	quote(Rest, [$n, $\\ | Acc]);
-quote([13 | Rest], Acc) ->
-	quote(Rest, [$r, $\\ | Acc]);
-quote([$\\ | Rest], Acc) ->
-	quote(Rest, [$\\ , $\\ | Acc]);
-quote([39 | Rest], Acc) -> %% 39 is $'
-	quote(Rest, [39, $\\ | Acc]); %% 39 is $'
-quote([34 | Rest], Acc) -> %% 34 is $"
-	quote(Rest, [34, $\\ | Acc]); %% 34 is $"
-quote([26 | Rest], Acc) ->
-	quote(Rest, [$Z, $\\ | Acc]);
-quote([C | Rest], Acc) ->
-	quote(Rest, [C | Acc]).
 
-% anybin_to_list(Bin) when is_binary(Bin) ->
-%	case unicode:characters_to_list(Bin) of
-%		{incomplete,_,_} -> binary_to_list(Bin);
-%		Uni -> Uni
-%	end.
+quote_loop([0 | Rest], Acc) ->
+	quote_loop(Rest, [$0, $\\ | Acc]);
 
-% anybin_to_list(Bin) when is_binary(Bin) ->
-%	unicode:characters_to_list(Bin).
-%	binary_to_list(Bin).
+quote_loop([10 | Rest], Acc) ->
+	quote_loop(Rest, [$n, $\\ | Acc]);
+
+quote_loop([13 | Rest], Acc) ->
+	quote_loop(Rest, [$r, $\\ | Acc]);
+
+quote_loop([$\\ | Rest], Acc) ->
+	quote_loop(Rest, [$\\ , $\\ | Acc]);
+
+quote_loop([39 | Rest], Acc) -> %% 39 is $'
+	quote_loop(Rest, [39, $\\ | Acc]); %% 39 is $'
+
+quote_loop([34 | Rest], Acc) -> %% 34 is $"
+	quote_loop(Rest, [34, $\\ | Acc]); %% 34 is $"
+
+quote_loop([26 | Rest], Acc) ->
+	quote_loop(Rest, [$Z, $\\ | Acc]);
+
+quote_loop([C | Rest], Acc) ->
+	quote_loop(Rest, [C | Acc]).
 
 %% UTF-8 is designed in such a way that ISO-latin-1 characters with 
 %% numbers beyond the 7-bit ASCII range are seldom considered valid
@@ -273,3 +347,12 @@ any_to_binary(L) when is_list(L) ->
 			_ -> list_to_binary(L)
 	    end
     end.
+
+to_binary(L,_) when is_binary(L) ->
+	L;
+	
+to_binary(L,latin1) when is_list(L) ->
+	list_to_binary(L);
+
+to_binary(L,Encoding) when is_list(L) ->
+	unicode:characters_to_binary(L,Encoding,Encoding).

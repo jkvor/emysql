@@ -1,6 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Module emysql</title>
 <link rel="stylesheet" type="text/css" href="emysql-style.css" title="EDoc">
 </head>
@@ -90,16 +91,7 @@ asynchronously handle the execution.</p>
 <h3 class="function"><a name="add_pool-8">add_pool/8</a></h3>
 <div class="spec">
 <p><tt>add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) -&gt; Result</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>Size = integer()</tt></li>
-<li><tt>User = string()</tt></li>
-<li><tt>Password = string()</tt></li>
-<li><tt>Host = string()</tt></li>
-<li><tt>Port = integer()</tt></li>
-<li><tt>Database = string()</tt></li>
-<li><tt>Encoding = string()</tt></li>
-<li><tt>Result = {reply, {error, pool_already_exists}, <a href="#type-state">state()</a>} | {reply, ok, <a href="#type-state">state()</a>}</tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>Size = integer()</tt></li><li><tt>User = string()</tt></li><li><tt>Password = string()</tt></li><li><tt>Host = string()</tt></li><li><tt>Port = integer()</tt></li><li><tt>Database = string()</tt></li><li><tt>Encoding = string()</tt></li><li><tt>Result = {reply, {error, pool_already_exists}, <a href="#type-state">state()</a>} | {reply, ok, <a href="#type-state">state()</a>}</tt></li></ul></p>
 </div><p><p>Synchronous call to the connection manager to add a pool.</p>
  
   <h4><a name="Implementation">Implementation</a></h4>
@@ -111,9 +103,7 @@ asynchronously handle the execution.</p>
 <h3 class="function"><a name="decrement_pool_size-2">decrement_pool_size/2</a></h3>
 <div class="spec">
 <p><tt>decrement_pool_size(PoolId, Num::By) -&gt; ok</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>By = integer()</tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>By = integer()</tt></li></ul></p>
 </div><p><p>Synchronous call to the connection manager to shrink a pool.</p>
  
   <p>This reduces the connections by up to n=By, but it only drops and closes available  
@@ -133,8 +123,7 @@ exactly all available connections are dropped and closed.</p>
 <h3 class="function"><a name="default_timeout-0">default_timeout/0</a></h3>
 <div class="spec">
 <p><tt>default_timeout() -&gt; Timeout</tt>
-<ul class="definitions"><li><tt>Timeout = integer()</tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>Timeout = integer()</tt></li></ul></p>
 </div><p><p>Returns the default timeout in milliseconds. As set in emysql.app.src,  
 or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).</p>
  
@@ -146,11 +135,7 @@ or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).</p>
 <h3 class="function"><a name="execute-2">execute/2</a></h3>
 <div class="spec">
 <p><tt>execute(PoolId, Query::Query | StmtName) -&gt; Result | [Result]</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>Query = binary() | string()</tt></li>
-<li><tt>StmtName = atom()</tt></li>
-<li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>Query = binary() | string()</tt></li><li><tt>StmtName = atom()</tt></li><li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li></ul></p>
 </div><p><p>Execute a query, prepared statement or a stored procedure.</p>
  
   <p>Same as <code>execute(PoolId, Query, [], default_timeout())</code>.</p>
@@ -162,13 +147,7 @@ or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).</p>
 <h3 class="function"><a name="execute-3">execute/3</a></h3>
 <div class="spec">
 <p><tt>execute(PoolId, Query::Query | StmtName, Args::Args | Timeout) -&gt; Result | [Result]</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>Query = binary() | string()</tt></li>
-<li><tt>StmtName = atom()</tt></li>
-<li><tt>Args = [any()]</tt></li>
-<li><tt>Timeout = integer()</tt></li>
-<li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>Query = binary() | string()</tt></li><li><tt>StmtName = atom()</tt></li><li><tt>Args = [any()]</tt></li><li><tt>Timeout = integer()</tt></li><li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li></ul></p>
 </div><p><p>Execute a query, prepared statement or a stored procedure.</p>
  
   <p>Same as <code>execute(PoolId, Query, Args, default_timeout())</code>
@@ -183,13 +162,7 @@ or if not set, the value ?TIMEOUT as defined in include/emysql.hrl (8000ms).</p>
 <h3 class="function"><a name="execute-4">execute/4</a></h3>
 <div class="spec">
 <p><tt>execute(PoolId, Query::Query | StmtName, Args, Timeout) -&gt; Result | [Result]</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>Query = binary() | string()</tt></li>
-<li><tt>StmtName = atom()</tt></li>
-<li><tt>Args = [any()]</tt></li>
-<li><tt>Timeout = integer()</tt></li>
-<li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>Query = binary() | string()</tt></li><li><tt>StmtName = atom()</tt></li><li><tt>Args = [any()]</tt></li><li><tt>Timeout = integer()</tt></li><li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li></ul></p>
 </div><p><p>Execute a query, prepared statement or a stored procedure.</p>
  
   <p><ll>
@@ -210,13 +183,7 @@ Timeout is the query timeout in milliseconds.</p>
 <h3 class="function"><a name="execute-5">execute/5</a></h3>
 <div class="spec">
 <p><tt>execute(PoolId, Query::Query | StmtName, Args, Timeout, X5::nonblocking) -&gt; Result | [Result]</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>Query = binary() | string()</tt></li>
-<li><tt>StmtName = atom()</tt></li>
-<li><tt>Args = [any()]</tt></li>
-<li><tt>Timeout = integer()</tt></li>
-<li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>Query = binary() | string()</tt></li><li><tt>StmtName = atom()</tt></li><li><tt>Args = [any()]</tt></li><li><tt>Timeout = integer()</tt></li><li><tt>Result = <a href="#type-ok_packet">ok_packet()</a> | <a href="#type-result_packet">result_packet()</a> | <a href="#type-error_packet">error_packet()</a></tt></li></ul></p>
 </div><p><p>Execute a query, prepared statement or a stored procedure - but return immediately, returning the atom 'unavailable', when no connection in the pool is readily available without wait.</p>
  
   <p><ll>
@@ -243,10 +210,7 @@ Timeout is the query timeout in milliseconds.</p>
 <h3 class="function"><a name="increment_pool_size-2">increment_pool_size/2</a></h3>
 <div class="spec">
 <p><tt>increment_pool_size(PoolId, Num::By) -&gt; Result</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-<li><tt>By = integer()</tt></li>
-<li><tt>Result = {reply, ok, State1} | {reply, {error, pool_not_found}, State}</tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li><li><tt>By = integer()</tt></li><li><tt>Result = {reply, ok, State1} | {reply, {error, pool_not_found}, State}</tt></li></ul></p>
 </div><p><p>Synchronous call to the connection manager to enlarge a pool.</p>
  
   <p>This opens n=By new connections and adds them to the pool of id PoolId.</p>
@@ -263,9 +227,7 @@ emysql_conn_mgr:add_connections().</p>
 <h3 class="function"><a name="prepare-2">prepare/2</a></h3>
 <div class="spec">
 <p><tt>prepare(StmtName, Statement) -&gt; ok</tt>
-<ul class="definitions"><li><tt>StmtName = atom()</tt></li>
-<li><tt>Statement = binary() | string()</tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>StmtName = atom()</tt></li><li><tt>Statement = binary() | string()</tt></li></ul></p>
 </div><p><p>Prepare a statement.</p>
  
   <p>The atom given by parameter 'StmtName' is bound to the SQL string
@@ -297,8 +259,8 @@ Emysql.</p>
  
   	Result = emysql:execute(hello_pool, hello_stmt, ["Hello%"]),
  
-  	%-% io:format("~n~s~n", [string:chars($-,72)]),
-  	%-% io:format("~p~n", [Result]),
+  	 io:format("~n~s~n", [string:chars($-,72)]),
+  	 io:format("~p~n", [Result]),
  
       ok.</pre>
   Output:
@@ -337,8 +299,7 @@ Emysql.</p>
 <h3 class="function"><a name="remove_pool-1">remove_pool/1</a></h3>
 <div class="spec">
 <p><tt>remove_pool(PoolId) -&gt; ok</tt>
-<ul class="definitions"><li><tt>PoolId = atom()</tt></li>
-</ul></p>
+<ul class="definitions"><li><tt>PoolId = atom()</tt></li></ul></p>
 </div><p><p>Synchronous call to the connection manager to remove a pool.</p>
  
   <h4><a name="Implementation">Implementation</a></h4>
@@ -348,7 +309,7 @@ Emysql.</p>
 
 <h3 class="function"><a name="start-0">start/0</a></h3>
 <div class="spec">
-<p><tt>start() -&gt; ok</tt></p>
+<p><tt>start() -&gt; ok</tt><br></p>
 </div><p><p>Start the Emysql application.</p>
  
   <p>Simply calls <code>application:start(emysql).</code></p>
@@ -372,7 +333,7 @@ terminates, this is reported but no other applications are terminated.</p>
 
 <h3 class="function"><a name="stop-0">stop/0</a></h3>
 <div class="spec">
-<p><tt>stop() -&gt; ok</tt></p>
+<p><tt>stop() -&gt; ok</tt><br></p>
 </div><p><p>Stop the Emysql application.</p>
  
   <p>Simply calls <code>application:stop(emysql).</code></p>
@@ -386,6 +347,6 @@ affected.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Dec 14 2011, 05:18:56.</i></p>
+<p><i>Generated by EDoc, Mar 26 2012, 02:20:04.</i></p>
 </body>
 </html>

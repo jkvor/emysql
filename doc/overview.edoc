@@ -1,7 +1,7 @@
-@author Bill Warnecke, Jacob Vorreuter, Henning Diedrich
+@author Bill Warnecke, Jacob Vorreuter, Henning Diedrich. Contributions by Vitaliy Batichko, Chris Rempel, Patrick Atambo, Joel Meyer, Erik Seres, Alexey Lebedeff, Logan Owen, Seven Du, Brendon Hogger, Bart van Deenen and TheSquad. Thanks a lot
 
 @title  Emysql - Erlang MySQL driver
 
-@version 0.2
+@version 0.2.13
 
 @docfile "doc/readme.edoc"

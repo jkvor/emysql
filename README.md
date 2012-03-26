@@ -1,12 +1,27 @@
-## Emysql
+## Emysql 0.2.13
 
-Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, strong [connection pooling][Adding_a_Pool], [prepared statements][Executing_Prepared_Statements] & [stored procedures][Executing_Stored_Procedures]. Optimized for a central node architecture and OLTP.
+<hr/>
+**Please note: this commit of Mar '12 has incompatible changes for automatic UTF-8 conversion vs the Dec '11 commits.**
 
-While you can use mysql via ODBC, using a driver, like Emysql, should perform better. For [samples][Samples] and [docs][] see below. Read the brief on [choosing][Choosing] a package and about the [history][History] of the various MySQL drivers.
+There are cases where the automatic conversion of parameters to prepared
+statements has been changed and now behaves different than before. The
+conversion now respects the encoding setting of the connection pool that it
+is for, which you assigned when opening the pool.
+
+There are extensive new tests checking as many sensible cases as possible, among
+them 40+ 'human readable' cases in the files test/utf8_SUITE, test/latin_SUITE,
+test/utf8_to_latindb_SUITE, test/latin_to_utf8db_SUITE. Please refer to these
+first in cases where you have doubt about expected behavior in fringe cases.
+
+<hr/>
+
+This is an Erlang MySQL driver, based on a rewrite at Electronic Arts. [Easy][Samples] to use, strong [connection pooling][Adding_a_Pool], [prepared statements][Executing_Prepared_Statements] & [stored procedures][Executing_Stored_Procedures]. Optimized for a central node architecture and OLTP.
+
+While you can use mysql via ODBC, you should see better performance when using a *driver* like Emysql. For [samples][Samples] and [docs][] see below. Read the brief on [choosing][Choosing] a package and about the [history][History] of the various MySQL drivers.
 
 [Emysql][1] is a cleaner rewrite of [erlang-mysql-driver][2], see [History][]. This fork is a direct continuation of the original [emysql][1] with [fixes][], [updates][], more [documentation][docs] and [samples][Samples]. 
 
-**This is the master branch. Should you run into problems, please report them and try if they go away by checking out the 'stable' branch. Thank you.**
+**This is the master branch. Should you run into problems, please report them by opening an issue at github and try if they go away by checking out the 'stable' branch. Thank you.**
 
 <hr/>
 
@@ -297,12 +312,7 @@ Some Common Tests (Unit Tests) have been added in the `test` folder. They have
 no significant coverage yet but can help to test the basics. They might also 
 help you find trip ups in your system set up (environment and basics suites). 
 
-Currently the main focus is on Unicode test cases, in the unicode_SUITE.
-Especially the new silent conversions of list strings to the appropriate
-binary format is a challenge. The tests helped a lot to make sure the
-changes neither break backwards compatibility nor leave a case out.
-
-For most tests you only need the test database set up and a mysql server running, the same as described above for the samples:
+For the basic tests you only need the test database set up and a mysql server running, the same as described above for the samples:
 
 	$ mysql [-u<user> -p]
 	mysql> create database hello_database;
@@ -310,13 +320,41 @@ For most tests you only need the test database set up and a mysql server running
 	mysql> create table hello_table (hello_text char(20));
 	mysql> grant all privileges on hello_database.* to hello_username@localhost identified by 'hello_password';
 
-To run the tests using make:
+To run the basic tests, at the command line type:
 
 	make test
-	
+
 Some tests can take up to half a minute to finish on a slow machine.
+
+These tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite).
+
+### Encoding Tests
+
+Currently the main focus is on Unicode test cases and encoding conversions,
+in the suites utf8_SUITE, latin_SUITE, utf8_to_latindb_SUITE,
+latin_to_utf8db_SUITE. Especially the silent conversions of list strings
+to the appropriate binary format were a bit of a challenge. 
+
+For the encoding tests, please create these databases:
+
+	  create database hello_utf8_database character set utf8;
+	  use hello_utf8_database;
+	  create table hello_table (hello_text char(20));
+	  grant all privileges on hello_utf8_database.* to hello_username@localhost identified by 'hello_password';
+	  
+	  create database hello_latin1_database character set latin1;
+	  use hello_latin1_database;
+	  create table hello_table (hello_text char(20));
+	  grant all privileges on hello_latin1_database.* to hello_username@localhost identified by 'hello_password';
+
+To run the encoding tests do:
+
+	make encoding-test
 	
-These tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite). The rest is for Unicode and  UTF-8 (unicode_SUITE).
+To run all tests (this includes issue tests, see below):
+
+	make all-test
+	
 
 You see the test results when opening test/index.html with a browser. It should look like this:
 
@@ -389,7 +427,7 @@ Updated: Tue Dec 13 2011 04:17:36<BR/>
 
 ### Issue Tests
 
-A new test has been introduced to check on issue #20. For this test you need 
+There is a test to check on issue #20. For this test you need 
 two databases like this:
 
 	$ mysql [-u<user> -p]
@@ -402,9 +440,9 @@ two databases like this:
 	mysql> use test2;
 	mysql> CREATE TABLE `test` ( `b` int(11) NOT NULL );
 
-To run the test, use make:
+The test suite is test/pool_SUITE.erl. To run the test, use make:
 
-	make test2
+	make test20
 	
 Check the test results by opening test/index.html with a browser. 
 

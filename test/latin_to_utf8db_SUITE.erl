@@ -1,8 +1,8 @@
 %%%-------------------------------------------------------------------
-%%% File     : Emysql/test/unicode_SUITE.erl
-%%% Descr    : Suite #3: Test for unicode value conversions
+%%% File     : Emysql/test/latin_to_utf8db_SUITE.erl
+%%% Descr    : Suite #6: Test for Latin-1 connection to UTF-8 DB.
 %%% Author   : H. Diedrich
-%%% Created  : 12/14/2011 hd
+%%% Created  : 03/26/2012 hd
 %%% Requires : Erlang 14B (prior may not have ct_run)
 %%%-------------------------------------------------------------------
 %%%
@@ -14,7 +14,7 @@
 %%%
 %%%-------------------------------------------------------------------
 
--module(unicode_SUITE).
+-module(latin_to_utf8db_SUITE).
 -compile(export_all).
 -include_lib("common_test/include/ct.hrl").
 
@@ -47,58 +47,51 @@ all() ->
 	 select_by_prepared_statement,
 
 	 % these tests are easiest to read
-	 straighttalk_write_binary_ascii_directly,
-	 straighttalk_write_binary_unicode_directly,
-	 straighttalk_write_binary_all_ascii_as_unicode_directly,
-	 straighttalk_write_binary_unicode_as_ascii_directly,
-	 straighttalk_write_liststring_ascii_directly,
-	 straighttalk_write_liststring_unicode_directly,
-	 straighttalk_write_liststring_all_ascii_as_unicode_directly,
-	 straighttalk_write_liststring_unicode_as_ascii_directly,
-	 straighttalk_write_binary_ascii_via_statement,
-	 straighttalk_write_binary_unicode_via_statement,
-	 straighttalk_write_binary_all_ascii_as_unicode_via_statement,
-	 straighttalk_write_binary_unicode_as_ascii_via_statement,
-	 straighttalk_write_liststring_ascii_via_statement,
-	 straighttalk_write_liststring_unicode_via_statement,
-	 straighttalk_write_liststring_all_ascii_as_unicode_via_statement,
-	 straighttalk_write_liststring_unicode_as_ascii_via_statement,
+     straighttalk_write_binary_latin1_directly,
+     straighttalk_write_binary_latin1_with_special_char_directly,
+     straighttalk_write_binary_unicode_directly,
+     straighttalk_write_liststring_latin1_directly,
+     straighttalk_write_liststring_unicode_directly,
+     straighttalk_write_liststring_latin1_with_special_char_directly,
+     straighttalk_write_binary_latin1_via_statement, 
+     straighttalk_write_binary_latin1_with_special_char_via_statement,
+     straighttalk_write_binary_unicode_via_statement,
+     straighttalk_write_binary_all_latin1_as_unicode_via_statement,
+     straighttalk_write_liststring_latin1_via_statement,
+     straighttalk_write_liststring_unicode_via_statement,
 	 
 	 % these are tests using nested worker functions
 	 test_read_back_directly_function,
 	 test_read_back_by_statement_function,
 	 test_stmt_and_read_back_directly_function,
 	 test_stmt_and_read_back_stmt_function,
-	 test_ascii_binary_direct,
-	 test_ascii_binary_via_parameter,
-	 test_ascii_liststring_via_parameter,
-	 test_ascii_binary,
-	 test_ascii_liststring,
+	 test_latin1_binary_direct,
+	 test_latin1_binary_via_parameter,
+	 test_latin1_liststring_via_parameter,
+	 test_latin1_binary,
+	 test_latin1_liststring,
 	 test_unicode_binary,
 	 test_unicode_liststring,
 	 
-	 test_ascii_quote_as_binary,
-	 test_ascii_quote_as_liststring,
+	 test_latin1_quote_as_binary,
+	 test_latin1_quote_as_liststring,
 	 test_unicode_quote_as_binary,
 	 test_unicode_quote_as_liststring,
-	 test_ascii_quote_and_text_as_binary,
-	 test_ascii_quote_and_text_as_liststring,
+	 test_latin1_quote_and_text_as_binary,
+	 test_latin1_quote_and_text_as_liststring,
 	 test_unicode_quote_and_text_as_binary,
 	 test_unicode_quote_and_text_as_liststring,
-	 test_ascii_quote_and_trailing_text_as_binary,
-	 test_ascii_quote_and_trailing_text_as_liststring,
+	 test_latin1_quote_and_trailing_text_as_binary,
+	 test_latin1_quote_and_trailing_text_as_liststring,
 	 test_unicode_quote_and_trailing_text_as_binary,
 	 test_unicode_quote_and_trailing_text_as_liststring,
 	 
 	 test_worker_quartet_single_functions,
 	 test_worker_quartet,
 	 test_escaping,
-	 test_escaping_with_non_ascii,
-	 test_escaping_with_non_ascii_leading_umlaut
+     test_escaping_with_non_latin1,
+	 test_escaping_with_non_latin1_leading_umlaut
 	 ].
-
-     % plain_parameters,
-     % binary_parameters]
 
 %% Optional suite pre test initialization
 %%--------------------------------------------------------------------
@@ -115,7 +108,7 @@ init_per_suite(Config) ->
     application:start(emysql),
     emysql:add_pool(test_pool, 1,
         "hello_username", "hello_password", "localhost", 3306,
-        "hello_database", utf8),
+        "hello_utf8_database", latin1),
 
 	emysql:prepare(stmt_insert, 
 		<<"INSERT INTO hello_table SET hello_text = ?">>),
@@ -137,14 +130,14 @@ end_per_suite(_Config) ->
 
 %%--------------------------------------------------------------------
 %%
-%% Human Understandable Tests.
+%% Human Understandable ('straighttalk') Tests.
 %%
 %%--------------------------------------------------------------------
 %% These tests are the easiest to read.
 %% They also serve to make sure that at least some tests don't
 %% completely miss the point for cleverness.
 
-straighttalk_write_binary_ascii_directly(_) ->
+straighttalk_write_binary_latin1_directly(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -159,6 +152,26 @@ straighttalk_write_binary_ascii_directly(_) ->
 	[{hello_record, String}] = Recs,
 
 	String = <<"Hello World!">>,
+    % in = out
+
+    ok.
+
+straighttalk_write_binary_latin1_with_special_char_directly(_) ->
+
+    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
+
+	emysql:execute(test_pool,
+		<<"INSERT INTO hello_table SET hello_text = 'Hello Wørld!'">>),
+
+	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
+
+	Recs = emysql_util:as_record(
+		Result, hello_record, record_info(fields, hello_record)),
+
+	[{hello_record, String}] = Recs,
+
+	<<"Hello Wørld!">> = String, 
+    % in = out
 
     ok.
 
@@ -178,51 +191,12 @@ straighttalk_write_binary_unicode_directly(_) ->
 	[{hello_record, String}] = Recs,
 
 	String = <<"Hello Wørld!"/utf8>>,
+    % in = out
 
     ok.
 
 
-straighttalk_write_binary_all_ascii_as_unicode_directly(_) ->
-
-    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
-
-	emysql:execute(test_pool,
-		<<"INSERT INTO hello_table SET hello_text = 'Hello World!'"/utf8>>),
-
-	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
-
-	Recs = emysql_util:as_record(
-		Result, hello_record, record_info(fields, hello_record)),
-
-	[{hello_record, String}] = Recs,
-
-	String = <<"Hello World!"/utf8>>,
-
-    ok.
-
-
-straighttalk_write_binary_unicode_as_ascii_directly(_) ->
-
-    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
-
-	emysql:execute(test_pool,
-		<<"INSERT INTO hello_table SET hello_text = 'Hello Wørld!'">>),
-
-	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
-
-	Recs = emysql_util:as_record(
-		Result, hello_record, record_info(fields, hello_record)),
-
-	[{hello_record, String}] = Recs,
-
-	String = <<"Hello W?rld!">>,
-	% note: that's what MySQL can send back (and store) for non-UTF-8 chars.
-
-    ok.
-
-
-
-straighttalk_write_liststring_ascii_directly(_) ->
+straighttalk_write_liststring_latin1_directly(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -237,7 +211,8 @@ straighttalk_write_liststring_ascii_directly(_) ->
 	[{hello_record, String}] = Recs,
 
 	String = <<"Hello World!">>,
-	% note: returns always binary
+    % in = out
+	% note: returns are always binary
 
     ok.
 
@@ -247,7 +222,7 @@ straighttalk_write_liststring_unicode_directly(_) ->
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
 	emysql:execute(test_pool,
-		unicode:characters_to_list(
+		unicode:characters_to_list( % (*)
 		<<"INSERT INTO hello_table SET hello_text = 'Hello Wørld!'"/utf8>>)),
 
 	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
@@ -257,35 +232,23 @@ straighttalk_write_liststring_unicode_directly(_) ->
 
 	[{hello_record, String}] = Recs,
 
-	 <<"Hello Wørld!"/utf8>> = String,
+	 <<"Hello Wørld!">> = String,
+    % "UTF-8 in /= Latin-1 out" - but really in = out, because:
+    % the result of unicode:characters_to_list (*) is a list of codepoints
+    % that are the same for UTF-8 and Latin-1, see below. The returned list
+    % does not contain integers representing the UTF-8 bit patterns, but the
+    % Unicode codepoints which are a superset of the Latin-1 codepoints.
 	% note: returns are always binary
+	
+	Same = unicode:characters_to_list(
+		<<"INSERT INTO hello_table SET hello_text = 'Hello Wørld!'"/utf8>>),
+	Same = binary_to_list(
+		<<"INSERT INTO hello_table SET hello_text = 'Hello Wørld!'">>),
 
     ok.
 
 
-straighttalk_write_liststring_all_ascii_as_unicode_directly(_) ->
-
-    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
-
-	emysql:execute(test_pool,
-		unicode:characters_to_list(
-		<<"INSERT INTO hello_table SET hello_text = 'Hello World!'"/utf8>>)),
-
-	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
-
-	Recs = emysql_util:as_record(
-		Result, hello_record, record_info(fields, hello_record)),
-
-	[{hello_record, String}] = Recs,
-
-	String = <<"Hello World!"/utf8>>,
-	String = <<"Hello World!">>,
-	% note: returns are always binary
-
-    ok.
-
-
-straighttalk_write_liststring_unicode_as_ascii_directly(_) ->
+straighttalk_write_liststring_latin1_with_special_char_directly(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -300,12 +263,13 @@ straighttalk_write_liststring_unicode_as_ascii_directly(_) ->
 
 	[{hello_record, String}] = Recs,
 
-	<<"Hello Wørld!"/utf8>> = String,
+	<<"Hello Wørld!">> = String,
+    % in = out
 	% note: returns are always binary
 
     ok.
 
-straighttalk_write_binary_ascii_via_statement(_) ->
+straighttalk_write_binary_latin1_via_statement(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -319,9 +283,35 @@ straighttalk_write_binary_ascii_via_statement(_) ->
 	[{hello_record, String}] = Recs,
 
 	String = <<"Hello World!">>,
+    % in = out
 
     ok.
 
+straighttalk_write_binary_latin1_with_special_char_via_statement(_) ->
+
+    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
+
+	emysql:execute(test_pool, stmt_insert, [<<"Hello Wørld!">>]),
+
+	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
+
+	Recs = emysql_util:as_record(
+		Result, hello_record, record_info(fields, hello_record)),
+
+	[{hello_record, String}] = Recs,
+
+	<<"Hello Wørld!">> = String,
+    % in = out
+
+    ok.
+    
+%    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
+%    try
+%    	emysql:execute(test_pool, stmt_insert, [<<"Hello Wørld!">>]),
+%  	    exit(should_have_crashed)
+%    catch
+%       exit:{{invalid_utf8_binary,"Hello W",<<"ørld!">>}, {}} -> ok
+%    end.
 
 straighttalk_write_binary_unicode_via_statement(_) ->
 
@@ -336,12 +326,13 @@ straighttalk_write_binary_unicode_via_statement(_) ->
 
 	[{hello_record, String}] = Recs,
 
-	String = <<"Hello Wørld!"/utf8>>,
+	<<"Hello Wørld!"/utf8>> = String,
+    % in = out
 
     ok.
 
 
-straighttalk_write_binary_all_ascii_as_unicode_via_statement(_) ->
+straighttalk_write_binary_all_latin1_as_unicode_via_statement(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -355,31 +346,12 @@ straighttalk_write_binary_all_ascii_as_unicode_via_statement(_) ->
 	[{hello_record, String}] = Recs,
 
 	String = <<"Hello World!"/utf8>>,
+    % in = out
 
     ok.
 
 
-straighttalk_write_binary_unicode_as_ascii_via_statement(_) ->
-
-    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
-
-	emysql:execute(test_pool, stmt_insert, [<<"Hello Wørld!">>]),
-
-	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
-
-	Recs = emysql_util:as_record(
-		Result, hello_record, record_info(fields, hello_record)),
-
-	[{hello_record, String}] = Recs,
-
-	String = <<"Hello W?rld!">>,
-	% note: that's what MySQL can send back (and store) for non-UTF-8 chars.
-
-    ok.
-
-
-
-straighttalk_write_liststring_ascii_via_statement(_) ->
+straighttalk_write_liststring_latin1_via_statement(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -393,6 +365,7 @@ straighttalk_write_liststring_ascii_via_statement(_) ->
 	[{hello_record, String}] = Recs,
 
 	String = <<"Hello World!">>,
+    % in = out
 	% note: returns always binary
 
     ok.
@@ -402,7 +375,7 @@ straighttalk_write_liststring_unicode_via_statement(_) ->
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
-	emysql:execute(test_pool, stmt_insert, [unicode:characters_to_list(<<"Hello Wørld!"/utf8>>)]),
+	emysql:execute(test_pool, stmt_insert, [unicode:characters_to_list(<<"Hello Wørld!"/utf8>>,utf8)]), % (*)
 
 	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
 
@@ -411,50 +384,24 @@ straighttalk_write_liststring_unicode_via_statement(_) ->
 
 	[{hello_record, String}] = Recs,
 
-	 <<"Hello Wørld!"/utf8>> = String,
+    % N.B.
+	<<"Hello Wørld!">> = list_to_binary(unicode:characters_to_list(<<"Hello Wørld!"/utf8>>)),
+	% the code point of ø is the same for Unicode and Latin-1
+	% even thought the bitpattern of UTF-8 and Latin-1 is not.
+	% But unicode:characters_to_list/1/2 delivers codepoints,
+	% not binary bitpatterns.
+	 
+	 <<"Hello Wørld!">> = String,
+    % "UTF-8 in /= Latin-1 out" - but really in = out, because:
+    % the result of unicode:characters_to_list (*) is a list of codepoints
+    % that are the same for UTF-8 and Latin-1, see below. The returned list
+    % does not contain integers representing the UTF-8 bit patterns, but the
+    % Unicode codepoints which are a superset of the Latin-1 codepoints.
 	% note: returns are always binary
+	% note: returns always binary
 
     ok.
-
-
-straighttalk_write_liststring_all_ascii_as_unicode_via_statement(_) ->
-
-    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
-
-	emysql:execute(test_pool, stmt_insert, [<<"Hello World!"/utf8>>]),
-
-	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
-
-	Recs = emysql_util:as_record(
-		Result, hello_record, record_info(fields, hello_record)),
-
-	[{hello_record, String}] = Recs,
-
-	String = <<"Hello World!"/utf8>>,
-	String = <<"Hello World!">>,
-	% note: returns are always binary
-
-    ok.
-
-
-straighttalk_write_liststring_unicode_as_ascii_via_statement(_) ->
-
-    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
-
-	emysql:execute(test_pool, stmt_insert, ["Hello Wørld!"]),
-		% note: automatically made utf8
-
-	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
-
-	Recs = emysql_util:as_record(
-		Result, hello_record, record_info(fields, hello_record)),
-
-	[{hello_record, String}] = Recs,
-
-	<<"Hello Wørld!"/utf8>> = String,
-	% note: returns are always binary
-
-    ok.
+ 
 
 %%--------------------------------------------------------------------
 %%
@@ -564,7 +511,7 @@ select_by_prepared_statement(_) ->
 	[{hello_record,BinString}] = Recs,
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result String (unicode string): ~ts~n", [BinString]),
+	io:format("Result String (latin-1 string): ~ts~n", [BinString]),
 
 	% the test
 	BinString = <<"Hello World!">>,
@@ -584,7 +531,7 @@ select_by_prepared_statement(_) ->
 %% Note: coming back from the database is always a binary.
 
 read_back_directly(Value) when is_list(Value) ->
-	read_back_directly(unicode:characters_to_binary(Value));
+	read_back_directly(list_to_binary(Value)); % will this break with codepoints > Latin-1?
 	
 read_back_directly(Value) when is_binary(Value) ->
 
@@ -592,7 +539,6 @@ read_back_directly(Value) when is_binary(Value) ->
 	io:format("Read Back executing SELECT directly, expecting: ~p~n", [Value]),
 	% io:format("                           expecting (unicode): ~ts~n", [Value]),
 	io:format("                           expecting (integer): ~w~n", [Value]),
-
 
 	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
 
@@ -605,16 +551,13 @@ read_back_directly(Value) when is_binary(Value) ->
 	% find this output by clicking on the test name, then case name in test/index.html
 	io:format("Recs: ~p~n", [Recs]),
 
-	% the test
-	Recs = [{hello_record, Value}],
-
-	[{hello_record,BinString}] = Recs,
-
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result String (unicode string): ~ts~n", [BinString]),
+	[{hello_record, ResultBin}] = Recs,
+   	io:format("Result String: ~w~n", [ResultBin]),
 
 	% the test
-	BinString = Value,
+ 	ResultBin = Value,
+ 	Value = ResultBin,
 
     ok.
 
@@ -624,13 +567,13 @@ read_back_directly(Value) when is_binary(Value) ->
 %% Note: coming back from the database is always a binary.
 
 read_back_by_statement(Value) when is_list(Value) ->
-	read_back_by_statement(unicode:characters_to_binary(Value));
+	read_back_by_statement(list_to_binary(Value));
 
 read_back_by_statement(Value) when is_binary(Value) ->
 
 	% find this output by clicking on the test name, then case name in test/index.html
 	io:format("Read Back using SELECT through prepared statement, expecting: ~p~n", [Value]),
-	io:format("                                        expecting (unicode): ~ts~n", [Value]),
+	
 	io:format("                                        expecting (integer): ~w~n", [Value]),
 
 	Result = emysql:execute(test_pool, stmt_select),
@@ -647,10 +590,10 @@ read_back_by_statement(Value) when is_binary(Value) ->
 	% the test
 	Recs = [{hello_record, Value}],
 
-	[{hello_record,BinString}] = Recs,
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result String (unicode string): ~ts~n", [BinString]),
+	[{hello_record,BinString}] = Recs,
+	io:format("Result String: ~w~n", [BinString]),
 
 	% the test
 	BinString = Value,
@@ -719,9 +662,9 @@ test_stmt_and_read_back_stmt_function(_) ->
     ok.
 
 
-%% Test Case: ASCII binary as direct insert statement.
+%% Test Case: Latin 1 binary as direct insert statement.
 %%--------------------------------------------------------------------
-test_ascii_binary_direct(_) ->
+test_latin1_binary_direct(_) ->
 
 	Value = <<"Hello World X!">>,
 
@@ -729,7 +672,7 @@ test_ascii_binary_direct(_) ->
 
 	emysql:execute(test_pool,
 		unicode:characters_to_binary(["INSERT INTO hello_table SET hello_text = ",
-			emysql_util:quote(Value)])),
+			emysql_util:quote(Value,latin1)])),
 
 	read_back_directly(Value),
 	read_back_by_statement(Value),
@@ -737,9 +680,9 @@ test_ascii_binary_direct(_) ->
     ok.
 
 
-%% Test Case: ASCII binary as parameter to prepared insert statement.
+%% Test Case: Latin 1 binary as parameter to prepared insert statement.
 %%--------------------------------------------------------------------
-test_ascii_binary_via_parameter(_) ->
+test_latin1_binary_via_parameter(_) ->
 
 	Value = <<"Hello World XX!">>,
 
@@ -753,9 +696,9 @@ test_ascii_binary_via_parameter(_) ->
     ok.
 
 
-%% Test Case: ASCII liststring as parameter to prepared insert statement.
+%% Test Case: Latin 1 liststring as parameter to prepared insert statement.
 %%--------------------------------------------------------------------
-test_ascii_liststring_via_parameter(_) ->
+test_latin1_liststring_via_parameter(_) ->
 
 	Value = "Hello World XXX!",
 	Binary = unicode:characters_to_binary(Value),
@@ -772,37 +715,28 @@ test_ascii_liststring_via_parameter(_) ->
 
 %% Worker: write binary as direct insert statement.
 %%--------------------------------------------------------------------
-worker_direct_insert(Value) when is_binary(Value) ->
-	worker_direct_insert(Value,Value);
+worker_direct_insert(Value, QuoteEncoding, Expect) when is_binary(Value) ->
 
-worker_direct_insert(Value) when is_list(Value) ->
-	Binary = unicode:characters_to_binary(Value),
-	worker_direct_insert(Value, Binary).
-
-
-worker_direct_insert(Value, Expect) when is_binary(Value) ->
-
-	io:format("Worker: write binary as direct insert statement: ~p = ~w.~n", [Value,Value]),
+	io:format("Worker: write binary as direct insert statement: ~p = ~w. (Exp: ~w)~n", [Value,Value,Expect]),
 	io:format("******************************************~n", []),
 
-	io:format("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value),emysql_util:quote(Value)]),
+	io:format("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value,QuoteEncoding),emysql_util:quote(Value,QuoteEncoding)]),
 
 	X = emysql_util:any_to_binary(["INSERT INTO hello_table SET hello_text = ",
-			emysql_util:quote(Value)]),
+			emysql_util:quote(Value,QuoteEncoding)]),
 
 	io:format("=> ~p = ~w.~n", [X,X]),
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
-
 	emysql:execute(test_pool,
 		emysql_util:any_to_binary(["INSERT INTO hello_table SET hello_text = ",
-			emysql_util:quote(Value)])),
+			emysql_util:quote(Value,QuoteEncoding)])),
 
 	read_back_directly(Expect),
 	read_back_by_statement(Expect),
 
-    ok;
+    ok.
 
 %% Worker: write liststring as direct insert statement.
 %%--------------------------------------------------------------------
@@ -813,18 +747,12 @@ worker_direct_insert(Value, Binary) when is_list(Value) ->
 
 	io:format("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value),emysql_util:quote(Value)]),
 
-	X = emysql_util:any_to_binary(["INSERT INTO hello_table SET hello_text = ",
-			emysql_util:quote(Value)]),
-
-	io:format("=> ~p = ~w.~n", [X,X]),
-
 	io:format("Binary: ~p = ~w.~n", [Binary,Binary]),
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
-	emysql:execute(test_pool,
-		unicode:characters_to_binary(["INSERT INTO hello_table SET hello_text = ",
-			emysql_util:quote(Value)])),
+	emysql:execute(test_pool, "INSERT INTO hello_table SET hello_text = " ++ 
+	    emysql_util:quote(Value)),
 
 	read_back_directly(Binary),
 	read_back_by_statement(Binary),
@@ -834,14 +762,7 @@ worker_direct_insert(Value, Binary) when is_list(Value) ->
 
 %% Worker: write binary as parameter to prepared insert statement.
 %%--------------------------------------------------------------------
-worker_insert_via_statement(Value) when is_binary(Value) ->
-	worker_insert_via_statement(Value,Value);
-
-worker_insert_via_statement(Value) when is_list(Value) ->
-	Expect = unicode:characters_to_binary(Value),
-	worker_insert_via_statement(Value,Expect).
-
-worker_insert_via_statement(Value,Expect) when is_binary(Value) ->
+worker_insert_via_statement(Value,_,Expect) when is_binary(Value) ->
 
 	io:format("Worker: write binary as parameter to prepared insert statement.~n", []),
 	io:format("*********************************************************~n", []),
@@ -857,8 +778,8 @@ worker_insert_via_statement(Value,Expect) when is_binary(Value) ->
 	io:format("... read back via statement~n", []),
 
 	read_back_by_statement(Expect),
-%$
-    ok;
+
+    ok.
     
 %% Worker: write liststring as parameter to prepared insert statement.
 %%--------------------------------------------------------------------
@@ -866,7 +787,6 @@ worker_insert_via_statement(Value,Binary) when is_list(Value) ->
 
 	io:format("Worker: write liststring as parameter to prepared insert statement.~n", []),
 	io:format("*************************************************************~n", []),
-
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -883,25 +803,24 @@ worker_insert_via_statement(Value,Binary) when is_list(Value) ->
     ok.
 
 
-%% Worker Test Case: ASCII binary.
+%% Worker Test Case: Latin 1 binary.
 %%--------------------------------------------------------------------
-test_ascii_binary(_) ->
+test_latin1_binary(_) ->
 
 	Value = <<"Ahoy Vereld!">>,
 
-	worker_direct_insert(Value),
-
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,latin1,Value),
+	worker_insert_via_statement(Value,latin1,Value),
 
     ok.
 
-%% Worker Test Case: ASCII binary.
+%% Worker Test Case: Latin 1 binary.
 %%--------------------------------------------------------------------
-test_ascii_liststring(_) ->
+test_latin1_liststring(_) ->
 
 	Value = "Ahoy Vereld!",
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,list_to_binary(Value)),
+	worker_insert_via_statement(Value,list_to_binary(Value)),
     ok.
 
 
@@ -916,126 +835,148 @@ test_ascii_liststring(_) ->
 test_unicode_binary(_) ->
 
 	Value = <<"Ahöy Vereld!!!"/utf8>>,
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,utf8,Value),
+	worker_insert_via_statement(Value,utf8,Value),
     ok.
 
 %% Test Case: Unicode binary.
 %%--------------------------------------------------------------------
 test_unicode_liststring(_) ->
 
-	Value = unicode:characters_to_list(<<"Ahöy Vereld!!!!"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+    Unicode = <<"Ahöy Vereld!!!!"/utf8>>,
+    Latin   = <<"Ahöy Vereld!!!!">>,
+	Value   = unicode:characters_to_list(Unicode),
+
+    % N.B.
+    true = unicode:characters_to_list(<<"Ahöy Vereld!!!!"/utf8>>) 
+                    == binary_to_list(<<"Ahöy Vereld!!!!">>),
+
+	worker_direct_insert(Value,Latin),
+	worker_insert_via_statement(Value,Latin),
+	% direct insert /= via statement
+	% because the direct statement in this test suite is created
+	% from the binary directly, then executed, while the statement
+	% parameter is quoted, and for this must be 1) decoded into a 
+	% list of codepoints (a string) and 2) back. The list resulting
+	% from the decoding looks the same whether it was made from
+	% UTF-8 or Latin-1 binaries. The encoding back into a binary
+	% is then done using the set encoding for the connection,
+	% Latin-1 in this case. Therefore, what is sent to the database
+	% is Latin-1 when prepared statements are used with UTF-8 binaries.
+	% The automatic quoting cannot be done with full ('direct')
+	% query strings as this would quote their quotes. /hd mar-12
+	
     ok.
 
 
 %% Test Case: Single Quote as binary.
 %%--------------------------------------------------------------------
-test_ascii_quote_as_binary(_) ->
+test_latin1_quote_as_binary(_) ->
 
 	Value = <<"'">>,
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,latin1,Value),
+	worker_insert_via_statement(Value,latin1,Value),
     ok.
 
 %% Test Case: Single Quote as liststring.
 %%--------------------------------------------------------------------
-test_ascii_quote_as_liststring(_) ->
+test_latin1_quote_as_liststring(_) ->
 
 	Value = "'",
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,list_to_binary(Value)),
+	worker_insert_via_statement(Value,list_to_binary(Value)),
     ok.
 
 %% Test Case: Single Quote as unicode binary.
 %%--------------------------------------------------------------------
 test_unicode_quote_as_binary(_) ->
 
-	Value = unicode:characters_to_list(<<"'"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	Value = <<"'"/utf8>>,
+	worker_direct_insert(Value,utf8,Value),
+	worker_insert_via_statement(Value,utf8,Value),
     ok.
 
 %% Test Case: Single Quote as unicode liststring.
 %%--------------------------------------------------------------------
 test_unicode_quote_as_liststring(_) ->
 
-	Value = unicode:characters_to_list(<<"'"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+    Expect = <<"'"/utf8>>,
+	Value = unicode:characters_to_list(Expect),
+	worker_direct_insert(Value,Expect),
+	worker_insert_via_statement(Value,Expect),
     ok.
 
 %% Test Case: Single Quote with text as binary.
 %%--------------------------------------------------------------------
-test_ascii_quote_and_text_as_binary(_) ->
+test_latin1_quote_and_text_as_binary(_) ->
 
 	Value = <<"Hank's">>,
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,latin1,Value),
+	worker_insert_via_statement(Value,latin1,Value),
     ok.
 
 %% Test Case: Single Quote with text as liststring.
 %%--------------------------------------------------------------------
-test_ascii_quote_and_text_as_liststring(_) ->
+test_latin1_quote_and_text_as_liststring(_) ->
 
 	Value = "Hank's",
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,list_to_binary(Value)),
+	worker_insert_via_statement(Value,list_to_binary(Value)),
     ok.
 
 %% Test Case: Single Quote with text as unicode binary.
 %%--------------------------------------------------------------------
 test_unicode_quote_and_text_as_binary(_) ->
 
-	Value = unicode:characters_to_list(<<"Hank's"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	Value = <<"Hank's"/utf8>>,
+	worker_direct_insert(Value,utf8,Value),
+	worker_insert_via_statement(Value,utf8,Value),
     ok.
 
 %% Test Case: Single Quote with text as unicode liststring.
 %%--------------------------------------------------------------------
 test_unicode_quote_and_text_as_liststring(_) ->
 
-	Value = unicode:characters_to_list(<<"Hank's"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+    Expect = <<"Hank's"/utf8>>,
+	Value = unicode:characters_to_list(Expect),
+	worker_direct_insert(Value,Expect),
+	worker_insert_via_statement(Value,Expect),
     ok.
 
 %% Test Case: Single Quote with trailing text as binary.
 %%--------------------------------------------------------------------
-test_ascii_quote_and_trailing_text_as_binary(_) ->
+test_latin1_quote_and_trailing_text_as_binary(_) ->
 
 	Value = <<"'gha!">>,
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,latin1,Value),
+	worker_insert_via_statement(Value,latin1,Value),
     ok.
 
 %% Test Case: Single Quote with trailing text as liststring.
 %%--------------------------------------------------------------------
-test_ascii_quote_and_trailing_text_as_liststring(_) ->
+test_latin1_quote_and_trailing_text_as_liststring(_) ->
 
 	Value = "'gha!",
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,list_to_binary(Value)),
+	worker_insert_via_statement(Value,list_to_binary(Value)),
     ok.
 
 %% Test Case: Single Quote with trailing text as unicode binary.
 %%--------------------------------------------------------------------
 test_unicode_quote_and_trailing_text_as_binary(_) ->
 
-	Value = unicode:characters_to_list(<<"'gha!"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	Value = <<"'gha!"/utf8>>,
+	worker_direct_insert(Value,utf8,Value),
+	worker_insert_via_statement(Value,utf8,Value),
     ok.
 
 %% Test Case: Single Quote with trailing text as unicode liststring.
 %%--------------------------------------------------------------------
 test_unicode_quote_and_trailing_text_as_liststring(_) ->
 
-	Value = unicode:characters_to_list(<<"'gha!"/utf8>>),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	Value = unicode:characters_to_list(Expected = <<"'gha!"/utf8>>),
+	worker_direct_insert(Value,Expected),
+	worker_insert_via_statement(Value,Expected),
     ok.
 
 %%--------------------------------------------------------------------
@@ -1047,37 +988,37 @@ test_unicode_quote_and_trailing_text_as_liststring(_) ->
 
 %% Worker: insert as binary.
 %%--------------------------------------------------------------------
-worker_insert_as_binary(V) ->
+worker_insert_as_latin1_binary(V) ->
 
 	Value = list_to_binary(V),
-	io:format("worker_insert_as_binary: ~p~n", [Value]),
-	worker_direct_insert(Value, castrate(Value)),
-	worker_insert_via_statement(Value, castrate(Value)),
+	worker_direct_insert(Value, latin1, Value),
+	worker_insert_via_statement(Value, latin1, Value),
     ok.
 
 %% Worker: insert as liststring.
 %%--------------------------------------------------------------------
-worker_insert_as_liststring(Value) ->
+worker_insert_as_latin1_liststring(Value) ->
 
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	worker_direct_insert(Value,list_to_binary(Value)),
+	worker_insert_via_statement(Value,list_to_binary(Value)),
     ok.
 
 %% Worker: insert as unicode binary.
 %%--------------------------------------------------------------------
-worker_as_unicode_binary(Value) ->
+worker_insert_as_unicode_binary(V) ->
 
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+    Value = unicode:characters_to_binary(V,latin1,utf8),
+	worker_direct_insert(Value,utf8,Value), 
+	worker_insert_via_statement(Value,utf8,Value),
     ok.
 
 %% Worker: insert as unicode liststring.
 %%--------------------------------------------------------------------
 worker_insert_as_unicode_liststring(V) ->
 
-	Value = unicode:characters_to_list(V),
-	worker_direct_insert(Value),
-	worker_insert_via_statement(Value),
+	Value = unicode:characters_to_list(V,latin1),
+	worker_direct_insert(Value,list_to_binary(Value)),
+    worker_insert_via_statement(Value,list_to_binary(Value)),
     ok.
 
 
@@ -1086,9 +1027,9 @@ worker_insert_as_unicode_liststring(V) ->
 test_worker_quartet_single_functions(_) ->
 
 	V = "'",
-	worker_insert_as_binary(V),
-	worker_insert_as_liststring(V),
-	worker_as_unicode_binary(V),
+	worker_insert_as_latin1_binary(V),
+	worker_insert_as_latin1_liststring(V),
+	worker_insert_as_unicode_binary(V),
 	worker_insert_as_unicode_liststring(V),
 	ok.
 
@@ -1096,9 +1037,9 @@ test_worker_quartet_single_functions(_) ->
 %%--------------------------------------------------------------------
 worker_quartet(V) ->
 
-	worker_insert_as_binary(V),
-	worker_insert_as_liststring(V),
-	worker_as_unicode_binary(V),
+	worker_insert_as_latin1_binary(V),
+	worker_insert_as_latin1_liststring(V),
+	worker_insert_as_unicode_binary(V),
 	worker_insert_as_unicode_liststring(V),
 	ok.
 
@@ -1131,9 +1072,9 @@ test_escaping(_) ->
 	worker_quartet("\\\"h\""),
 	ok.
 
-%% Test Case: Odd character combinations to be escaped with non asciis.
+%% Test Case: Odd character combinations to be escaped with non latin1s.
 %%--------------------------------------------------------------------
-test_escaping_with_non_ascii(_) ->
+test_escaping_with_non_latin1(_) ->
 
 	worker_quartet("'öüx"),
 	worker_quartet("''ö"),
@@ -1170,9 +1111,9 @@ test_escaping_with_non_ascii(_) ->
 
 	ok.
 
-%% Test Case: Odd character combinations to be escaped with non asciis.
+%% Test Case: Odd character combinations to be escaped with non latin1s.
 %%--------------------------------------------------------------------
-test_escaping_with_non_ascii_leading_umlaut(_) ->
+test_escaping_with_non_latin1_leading_umlaut(_) ->
 
 	worker_quartet("ü'öüx"),
 	worker_quartet("ü'ö"),
@@ -1223,3 +1164,21 @@ castrate([C | Rest], Acc) when C < 128 ->
 	castrate(Rest, [C | Acc]);
 castrate([_ | Rest], Acc) ->
 	castrate(Rest, [$? | Acc]).
+
+%% truncate at chars > 127.
+%% That is what MySQL makes with invalid UTF-8 characters.
+truncate(Bin) when is_binary(Bin) ->
+	list_to_binary(lists:reverse(truncate(binary_to_list(Bin), []))).
+	% note: this is a bytewise inspection that works for unicode, too.
+
+truncate([], Acc) ->
+	Acc;
+truncate([C | Rest], Acc) when C < 128 ->
+	truncate(Rest, [C | Acc]);
+truncate(_, Acc) ->
+	Acc.
+
+encode(Bin) when is_binary(Bin) ->
+    unicode:characters_to_binary(binary_to_list(Bin));
+encode(Bin) when is_list(Bin) ->
+    unicode:characters_to_binary(Bin).

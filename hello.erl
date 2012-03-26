@@ -10,7 +10,7 @@ run() ->
 
     emysql:add_pool(hello_pool, 1,
         "hello_username", "hello_password", "localhost", 3306,
-        "hello_database", utf8),
+        "hello_database", latin1),
 
     emysql:execute(hello_pool,
         <<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),

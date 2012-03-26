@@ -2,9 +2,28 @@
 
 ## Current Master
 
+**Incompatible changes for automatic UTF-8 conversion.**
+
+There are cases where the automatic conversion of parameters to prepared
+statements has been changed and now behaves different than before. The
+conversion now respects the encoding setting of the connection pool that it
+is for, which you assigned when opening the pool.
+
+There are extensive new tests checking as many sensible cases as possible, among
+them 40+ 'human readable' cases in the files test/utf8_SUITE, test/latin_SUITE,
+test/utf8_to_latindb_SUITE, test/latin_to_utf8db_SUITE. Please refer to these
+first in cases where you have doubt about expected behavior in fringe cases.
+
+
 **The current master has a proposed fix for issue #7 on board. It seems to work fine but if you run into trouble, please try the 'stable' branch.**
 
 	git checkout origin/stable
+
+#### Mar 26 2012 hd | Changed UTF-8/Latin-1 conversion
+* Magic taken out of automatic encoding
+* Added Common Tests for Latin-1 encoding
+* Added Common Tests for cross encoding (connection and db different)
+* This addressed issue #22, thanks to TheSquad
 
 #### Dec 14 2011 al | Detection of failed statement preparation d8330f035c
 * Error had been dropped silently.
@@ -41,8 +60,6 @@
 * The fix goes deep, so to be safe, tagging of previous master as 'stable' branch.
 * Tagging of dev branches for issue #7 and #9.
 * Support by Seven Du / seven1240 and Brendon Hogger / brendonh
-
-## Current 'stable' Branch
 
 #### Mar 23 2011 jm | Protocol Bug Fix 8a3c6dc123
 * Merge branch 'fix_pattern_mismatch'

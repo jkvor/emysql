@@ -44,9 +44,15 @@ set_encoding(Connection, Encoding) ->
 	Packet = <<?COM_QUERY, "set names '", (erlang:atom_to_binary(Encoding, utf8))/binary, "'">>,
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
 
-execute(Connection, Query, []) when is_list(Query); is_binary(Query) ->
-	 %-% io:format("~p execute: ~p using connection: ~p~n", [self(), iolist_to_binary(Query), Connection#emysql_connection.id]),
-	Packet = <<?COM_QUERY, (emysql_util:any_to_binary(Query))/binary>>,
+execute(Connection, Query, []) when is_list(Query) ->
+	 %-% io:format("~p execute list: ~p using connection: ~p~n", [self(), iolist_to_binary(Query), Connection#emysql_connection.id]),
+	Packet = <<?COM_QUERY, (emysql_util:to_binary(Query, Connection#emysql_connection.encoding))/binary>>,
+	% Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
+	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
+
+execute(Connection, Query, []) when is_binary(Query) ->
+	 %-% io:format("~p execute binary: ~p using connection: ~p~n", [self(), Query, Connection#emysql_connection.id]),
+	Packet = <<?COM_QUERY, Query/binary>>,
 	% Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
 
@@ -86,7 +92,7 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 prepare(Connection, Name, Statement) when is_atom(Name) ->
 	prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-	StatementBin = emysql_util:encode(Statement, true),
+	StatementBin = emysql_util:encode(Statement, binary, Connection#emysql_connection.encoding),
 	Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM ", StatementBin/binary>>,  % todo: utf8?
 	case emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0) of
 		OK when is_record(OK, ok_packet) ->
@@ -148,6 +154,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 			Connection = #emysql_connection{
 				id = erlang:port_to_list(Sock),
 				pool_id = PoolId,
+				encoding = Encoding,
 				socket = Sock,
 				version = Greeting#greeting.server_version,
 				thread_id = Greeting#greeting.thread_id,
@@ -163,7 +170,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 					 %-% io:format("~p open connection: ... db set error~n", [self()]),
 					exit({failed_to_set_database, Err1#error_packet.msg})
 			end,
-			 %-% io:format("~p open connection: ... set encoding ...~n", [self()]),
+			%-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
 			case emysql_conn:set_encoding(Connection, Encoding) of
 				OK2 when is_record(OK2, ok_packet) ->
 					ok;
@@ -228,8 +235,8 @@ close_connection(Conn) ->
 set_params(_, _, [], Result) -> Result;
 set_params(_, _, _, Error) when is_record(Error, error_packet) -> Error;
 set_params(Connection, Num, [Val|Tail], _) ->
-	NumBin = emysql_util:encode(Num, true), 
-	ValBin = emysql_util:encode(Val, true), % note: the only auto conversion
+	NumBin = emysql_util:encode(Num, binary, Connection#emysql_connection.encoding), 
+	ValBin = emysql_util:encode(Val, binary, Connection#emysql_connection.encoding), % can trigger conversion
 	Packet = <<?COM_QUERY, "SET @", NumBin/binary, "=", ValBin/binary>>,
 	Result = emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0),
 	set_params(Connection, Num+1, Tail, Result).
