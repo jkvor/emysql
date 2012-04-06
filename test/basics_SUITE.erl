@@ -245,6 +245,6 @@ select_by_stored_procedure(_) ->
                         254,<<>>,33,60,0,0}],
                 	[[<<"Hello World!">>]],
                 	<<>>},
-			   {ok_packet,6,0,0,2,0,[]}],
+			   {ok_packet,6,0,0,34,0,[]}],
 	
 	ok.
