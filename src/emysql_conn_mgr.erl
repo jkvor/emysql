@@ -84,7 +84,15 @@ wait_for_connection(PoolId)->
     				Connection
 			after lock_timeout() ->
                 %-% io:format("~p gets no connection and times out -> EXIT~n~n", [self()]),
-				exit(connection_lock_timeout)
+				case do_gen_call({end_wait, PoolId}) of
+					ok ->
+						exit(connection_lock_timeout);
+					not_waiting ->
+						%% If we aren't waiting, then someone must
+						%% have sent us a connection mssage at the
+						%% same time that we timed out.
+						receive_connection_not_waiting()
+				end
 			end;
 		Connection ->
             %-% io:format("~p gets connection~n", [self()]),
@@ -185,16 +193,38 @@ handle_call({remove_connections, PoolId, Num}, _From, State) ->
 	end;
 
 handle_call({lock_connection_or_wait, PoolId}, {From, _Mref}, State) ->
-	%% place to calling pid at the end of the waiting queue of its pool
 	case find_pool(PoolId, State#state.pools) of
 		{Pool, OtherPools} ->
 			case lock_next_connection(State, Pool, OtherPools) of
 				{ok, NewConn, State1} ->
 					{reply, NewConn, State1};
 				unavailable ->
+					%% place the calling pid at the end of the waiting queue of its pool
 					PoolNow = Pool#pool{ waiting = queue:in(From, Pool#pool.waiting) },
 					{reply, unavailable, State#state{pools=[PoolNow|OtherPools]}}
 			end;
+		undefined ->
+			{reply, {error, pool_not_found}, State}
+	end;
+
+handle_call({end_wait, PoolId}, {From, _Mref}, State) ->
+	case find_pool(PoolId, State#state.pools) of
+		{Pool, OtherPools} ->
+			%% Remove From from the wait queue
+			QueueNow = queue:filter(
+				     fun(Pid) -> Pid =/= From end,
+				     Pool#pool.waiting),
+			PoolNow = Pool#pool{ waiting = QueueNow },
+			%% See if the length changed to know if From was removed.
+			OldLen = queue:len(Pool#pool.waiting),
+			NewLen = queue:len(QueueNow),
+			if
+				OldLen =:= NewLen ->
+					Reply = not_waiting;
+				true ->
+					Reply = ok
+			end,
+			{reply, Reply, State#state{pools=[PoolNow|OtherPools]}};
 		undefined ->
 			{reply, {error, pool_not_found}, State}
 	end;
@@ -367,29 +397,36 @@ pass_on_or_queue_as_available(State, Connection) ->
     		    	end;
 
         		%% if the waiting queue is not empty then remove the head of
-	        	%% the queue and check if that process is still waiting
-		        %% for a connection. If so, send the connection. Regardless,
-    		    %% update the pool & queue in state once the head has been removed.
-    	    	false ->
+	        	%% the queue and send it the connection.
+			%% Update the pool & queue in state once the head has been removed.
+			false ->
 
-	    	    	{{value, Pid}, OtherWaiting} = queue:out(Waiting),
+				{{value, Pid}, OtherWaiting} = queue:out(Waiting),
    	    			PoolNow = Pool#pool{ waiting = OtherWaiting },
 			    	StateNow = State#state{ pools = [PoolNow|OtherPools] },
+				erlang:send(Pid, {connection, Connection}),
+				{ok, StateNow}
+		end;
 
-				case erlang:is_process_alive(Pid) of
-					true ->
-						erlang:send(Pid, {connection, Connection}),
-						{ok, StateNow};
-					_ ->
-						% loop, to traverse queue to find a healthy candidate, until empty.
-						pass_on_or_queue_as_available(StateNow, Connection)
-   			        end
-            end;
-
-        %% pool not found    
-   	    undefined ->
-	        {{error, pool_not_found}, State}
-    end.
+		%% pool not found    
+		undefined ->
+			{{error, pool_not_found}, State}
+	end.
 
 lock_timeout() ->
 	emysql_app:lock_timeout().
+
+
+%% This is called after we timed out, but discovered that we weren't waiting for a
+%% connection.
+receive_connection_not_waiting() ->
+	receive
+		{connection, Connection} -> 
+			%%-% io:format("~p gets a connection after timeout in queue~n", [self()]),
+			Connection
+	after 
+		%% This should never happen, as we should only be here if we had been sent a connection
+		lock_timeout() ->
+			%%-% io:format("~p gets no connection and times out again -> EXIT~n~n", [self()]),
+			exit(connection_lock_second_timeout)
+	end.
