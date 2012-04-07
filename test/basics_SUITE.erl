@@ -218,7 +218,7 @@ select_by_stored_procedure(_) ->
 
 	% first test
 	case Result1 of
-		{ok_packet,1,0,0,2,0,[]} -> ok;
+		{ok_packet,1,0,0,_,0,[]} -> ok;
 		{error_packet,1,1305,<<"42000">>,
               "PROCEDURE hello_database.sp_hello does not exist"} -> ok
     end,
@@ -230,7 +230,7 @@ select_by_stored_procedure(_) ->
 	io:format("~p~n", [Result2]),
 
 	% second test
-	Result2 = {ok_packet,1,0,0,2,0,[]},
+	{ok_packet,1,0,0,_,0,[]} = Result2,
 
 	Result3 = emysql:execute(test_pool,
 	   	<<"call sp_hello();">>),
@@ -239,12 +239,13 @@ select_by_stored_procedure(_) ->
 	io:format("~p~n", [Result3]),
 	
 	% third, main test
-	Result3 = [{result_packet,5,
+	[{result_packet,5,
               		[{field,2,<<"def">>,<<"hello_database">>,<<"hello_table">>,
                         <<"hello_table">>,<<"hello_text">>,<<"hello_text">>,
                         254,<<>>,33,60,0,0}],
                 	[[<<"Hello World!">>]],
                 	<<>>},
-			   {ok_packet,6,0,0,2,0,[]}],
+			   {ok_packet,6,0,0,_,0,[]}]
+			   = Result3,
 	
 	ok.

@@ -3,7 +3,7 @@
 %%% Descr    : Suite #7 - Testing connection manager. 
 %%% Authors  : R. Richardson, H. Diedrich
 %%% Created  : 04/06/2012 ransomr
-%%% Changed  : 04/07/2012 hd
+%%% Changed  : 04/07/2012 hd - added tests w/faster race provocation
 %%% Requires : Erlang 14B (prior may not have ct_run)
 %%%-------------------------------------------------------------------
 %%%
@@ -28,7 +28,12 @@
 % Test cases have self explanatory names.
 %%--------------------------------------------------------------------
 all() -> 
-    [stuck_waiting_2, pool_leak_2].
+    [ 
+      stuck_waiting_1, % former two_procs
+      stuck_waiting_2, 
+      pool_leak_1,     % former no_lock_timeout
+      pool_leak_2
+    ].
 
 
 %%--------------------------------------------------------------------
@@ -47,6 +52,64 @@ init_per_suite(Config) ->
 end_per_suite(_) ->
 	ok.
 
+
+%% Test Case: Test two processes trying to share one connection
+%% Test for Issue 9
+%% Original name: two_procs(_)
+%%--------------------------------------------------------------------
+stuck_waiting_1(_) ->
+    Num = 2,
+    process_flag(trap_exit, true),
+    [spawn_link(fun test_proc/0)
+     || _ <- lists:seq(1,Num)],
+    [receive
+	 {'EXIT', _, Reason} -> 
+	     normal = Reason
+     end
+     || _ <- lists:seq(1,Num)],
+    ok.
+
+%% Process that will do a bunch of requests against mysql
+test_proc() ->
+    [
+     #result_packet{} = emysql:execute(test_pool, "describe hello_table;")
+     || _ <- lists:seq(1,1000)
+    ].
+     
+%% Test Case: Make sure that the pool is still usable after a lock timeout
+%% Test for race on connection where the connection is sent to a process
+%% at the exact same time it hits the timeout.
+%% See ransomr's first comment on Issue 9
+%% Original name: no_lock_timeout(_)
+%%--------------------------------------------------------------------
+pool_leak_1(_) ->
+    Num = 2,
+    OldEnv = application:get_env(emysql, lock_timeout),
+    %% This is really hard to repro - the timing is very tricky.
+    %% On my machine a timeout of 1 seems to reproduce it after about 10 attempts.
+    %% Once it happens the connection is lost from the pool, so the pool needs to be reset.
+    application:set_env(emysql, lock_timeout, 1),
+    process_flag(trap_exit, true),
+    [spawn_link(fun test_proc/0)
+     || _ <- lists:seq(1,Num)],
+    %% We expect one process to timeout, but the other should exit normally
+    receive
+	{'EXIT', _, Reason1} ->
+	    connection_lock_timeout = Reason1
+    end,
+    receive
+	{'EXIT', _, Reason2} ->
+	    normal = Reason2
+    end,
+
+    case OldEnv of
+	undefined ->
+	    application:unset_env(emysql, lock_timeout);
+	{ok, Timeout} ->
+	    application:set_env(emysql, lock_timeout, Timeout)
+    end,
+    ok.
+    
 %% Test Case: Test two processes trying to share one connection.
 %% Test for race Issue #9.
 %% If one process times out, then it got stuck likely by the first of
@@ -103,7 +166,7 @@ stuck_waiting_2(_) ->
 %% Test for race Issue #9.
 %% Test for race on connection where the connection is sent to a 
 %% process at the exact same time it hits the timeout.
-%% This is a mod of Ransom's original no_lock_timeout test that 
+%% This is a mod of Ransom's original pool_leak_1 test that 
 %% replicates the race more consistently on some machines. /hd
 %%--------------------------------------------------------------------
 pool_leak_2(_) ->
@@ -153,13 +216,13 @@ pool_leak_2(_) ->
 %% Substitute for make_queries/1, executing and also provoking races faster.
 lock_and_pass_connection(Loops) ->
     [   case emysql_conn_mgr:wait_for_connection(test_pool) of
-	        Connection -> 
+	        Connection ->
         	        emysql_conn_mgr:pass_connection(Connection)
         end
         || _ <- lists:seq(1,Loops)
     ].
 
-%% Alternate payload of TRY_RACE. Less canceled down stand-in for above.    
+%% Alternate payload of TRY_RACE. Less canceled down stand-in for above.
 %% Process that will do a bunch of requests against mysql
 make_queries(Loops) ->
     [ #result_packet{} = emysql:execute(test_pool, "describe hello_table")

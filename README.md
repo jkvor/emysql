@@ -1,7 +1,7 @@
-## Emysql 0.2.13
+## Emysql 0.2.14
 
 <hr/>
-**Please note: this commit of Mar '12 has incompatible changes for automatic UTF-8 conversion vs the Dec '11 commits.**
+**Please note: this commit of Apr '12 has incompatible changes for automatic UTF-8 conversion vs the Dec '11 commits.**
 
 There are cases where the automatic conversion of parameters to prepared
 statements has been changed and now behaves different than before. The
@@ -326,7 +326,7 @@ To run the basic tests, at the command line type:
 
 Some tests can take up to half a minute to finish on a slow machine.
 
-These tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite).
+These tests currently check access to the database (environment suite) the same functionality as the samples (basics suite) and for race conditions as described in issue #9. Thank you, Ransom!
 
 ### Encoding Tests
 
@@ -426,7 +426,7 @@ Updated: Tue Dec 13 2011 04:17:36<BR/>
 </div>
 
 ### Issue Tests
-
+#### Issue 20
 There is a test to check on issue #20. For this test you need 
 two databases like this:
 
@@ -446,6 +446,14 @@ The test suite is test/pool_SUITE.erl. To run the test, use make:
 	
 Check the test results by opening test/index.html with a browser. 
 
+#### Issue 9
+The probably rare but still bad races of issue #9 have been solved at long last, courtesy of Ransom Richardson. They are tested for as part of the standard test. You can also use:
+
+	make test9
+	
+Check the test results by opening test/index.html with a browser. 
+
+
 ## History                                               <a name="History"></a>
 
 Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the sources to find out about their relationships with each other - and which one to pick. Here is a brief history.
@@ -461,9 +469,9 @@ A [parallel][20] fork from Yariv's branch, not entangled with Dave's tree, is [t
 
 **Emysql** was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by [Jacob Vorreuter][jv] at Electronic Arts and deployed at Shawn Fanning's Rupture.com, a social network site for gamers. Initially, [Nick Gerakines][ng], Jacob's boss at EA, rewrote large parts of erlang-mysql-server to [clean it up][21]. But some fundamental problems remained and when half a year in, they still could not overcome performance and stability issues, Nick gave Jacob the green light to rewrite it from the ground up because they felt that, in Jacob's words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, [Bill Warnecke][bw] helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality into direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straightforward architecture focused on providing a high performance node. Not only can Emysql open multiple connections, but multiple pools of multiple connections each to multiple database servers, which makes for a strong central OLTP node. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: "The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling." Rupture was killed in the consolidations of 2009. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.
 
-**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa], [Joel Meyer][jm], [Erik Seres][es], [Alexey Lebedeff][al], [Logan Owen][lo], [Seven Du][sd], [Brendon Hogger][bh] and [Bart van Deenen][bd] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. But the fork is otherwise still very close to the original, which currently lies dormant.
+**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa], [Joel Meyer][jm], [Erik Seres][es], [Alexey Lebedeff][al], [Logan Owen][lo], [Seven Du][sd], [Brendon Hogger][bh], [Bart van Deenen][bd] and [Ransom Richardson][rr] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. The fork is still close to the original, which currently lies dormant, but has started to add features and possibly increased stability.
 
-Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about any errors you may be spot. Thanks.
+Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about any errors you may spot. Thanks.
 
 
 ### Links and References
@@ -528,6 +536,7 @@ Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much
 [sd]: https://github.com/seven1240      "Seven Du"
 [bh]: brendonh@gmail.com                "Brendon Hogger"
 [bd]: https://github.com/bvdeenen       "Bart van Deenen"
+[rr]: https://github.com/ransomr        "Ransom Richardson"
 
 [emysql]:   https://github.com/Eonblast/Emysql  
            "Eonblast Emysql Repository"  
