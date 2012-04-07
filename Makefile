@@ -75,6 +75,9 @@ test: all
 test20: all
 	(cd test; ct_run -suite pool_SUITE -pa ../ebin $(CRYPTO_PATH))
 
+test9: all
+	(cd test; ct_run -suite con_mgr_SUITE -pa ../ebin $(CRYPTO_PATH))
+
 prove: all
 	(cd t;$(MAKE))
 	prove t/*.t
