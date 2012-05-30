@@ -133,6 +133,8 @@ auth(Sock, SeqNum, User, Password, Salt1, Salt2, Plugin) ->
 			Result
 	end.
 
+password_new([], _Salt) ->
+	<<>>;
 password_new(Password, Salt) ->
 	Stage1 = crypto:sha(Password),
 	Stage2 = crypto:sha(Stage1),
