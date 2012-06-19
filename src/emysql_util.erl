@@ -193,9 +193,9 @@ encode(Val, binary, Encoding) when is_list(Val) ->
 
 
 encode(Val, binary, latin1) when is_binary(Val) ->
-	io:format("encode latin-1 in : ~s = ~w ~n", [Val, Val]),
+	%-% io:format("encode latin-1 in : ~s = ~w ~n", [Val, Val]),
 	X = list_to_binary(quote(binary_to_list(Val))),
-	io:format("encode latin-1 out: ~s = ~w ~n", [X, X]),
+	%-% io:format("encode latin-1 out: ~s = ~w ~n", [X, X]),
 	X;
 	
 encode(Val, binary, Encoding) when is_binary(Val) ->
@@ -207,8 +207,8 @@ encode(Val, binary, Encoding) when is_binary(Val) ->
     end;
 
 encode(Val, list, _) when is_list(Val) ->
-	io:format("encode list in : ~s = ~w ~n", [Val, Val]),
-	io:format("encode list out: ~s = ~w ~n", [quote(Val), quote(Val)]),
+	%-% io:format("encode list in : ~s = ~w ~n", [Val, Val]),
+	%-% io:format("encode list out: ~s = ~w ~n", [quote(Val), quote(Val)]),
 	quote(Val);
 
 encode(Val, list, _) when is_integer(Val) ->
