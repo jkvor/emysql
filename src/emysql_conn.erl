@@ -36,6 +36,7 @@
 -include("emysql.hrl").
 
 set_database(_, undefined) -> ok;
+set_database(_, Empty) when Empty == ""; Empty == <<>> -> ok;
 set_database(Connection, Database) ->
 	Packet = <<?COM_QUERY, "use ", (iolist_to_binary(Database))/binary>>,  % todo: utf8?
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
@@ -163,6 +164,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
 			},
 			%-% io:format("~p open connection: ... set db ...~n", [self()]),
 			case emysql_conn:set_database(Connection, Database) of
+				ok -> ok;
 				OK1 when is_record(OK1, ok_packet) ->
 					 %-% io:format("~p open connection: ... db set ok~n", [self()]),
 					ok;
