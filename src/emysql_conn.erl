@@ -38,7 +38,7 @@
 set_database(_, undefined) -> ok;
 set_database(_, Empty) when Empty == ""; Empty == <<>> -> ok;
 set_database(Connection, Database) ->
-	Packet = <<?COM_QUERY, "use ", (iolist_to_binary(Database))/binary>>,  % todo: utf8?
+	Packet = <<?COM_QUERY, "use `", (iolist_to_binary(Database))/binary, "`">>,  % todo: utf8?
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
 
 set_encoding(Connection, Encoding) ->
