@@ -236,12 +236,28 @@ close_connection(Conn) ->
 %%--------------------------------------------------------------------
 set_params(_, _, [], Result) -> Result;
 set_params(_, _, _, Error) when is_record(Error, error_packet) -> Error;
-set_params(Connection, Num, [Val|Tail], _) ->
-    NumBin = emysql_util:encode(Num, binary, Connection#emysql_connection.encoding),
-    ValBin = emysql_util:encode(Val, binary, Connection#emysql_connection.encoding), % can trigger conversion
-    Packet = <<?COM_QUERY, "SET @", NumBin/binary, "=", ValBin/binary>>,
-    Result = emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0),
-    set_params(Connection, Num+1, Tail, Result).
+set_params(Connection, Num, Values, _) ->
+	Packet = set_params_packet(Num, Values, Connection#emysql_connection.encoding),
+	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
+
+set_params_packet(NumStart, Values, Encoding) ->
+	BinValues = [emysql_util:encode(Val, binary, Encoding) || Val <- Values],
+	BinNums = [emysql_util:encode(Num, binary, Encoding) || Num <- lists:seq(NumStart, NumStart + length(Values) - 1)],
+	BinPairs = lists:zip(BinNums, BinValues),
+	Parts = [<<"@", NumBin/binary, "=", ValBin/binary>> || {NumBin, ValBin} <- BinPairs], 
+	Sets = list_to_binary(join(Parts, <<",">>)),
+	<<?COM_QUERY, "SET ", Sets/binary>>.
+
+%% @doc Join elements of list with Sep
+%%
+%% 1> join([1,2,3], 0).
+%% [1,0,2,0,3]
+
+join([], _Sep) -> [];
+join(L, Sep) -> join(L, Sep, []).
+
+join([H], _Sep, Acc)  -> lists:reverse([H|Acc]);
+join([H|T], Sep, Acc) -> join(T, Sep, [Sep, H|Acc]).
 
 prepare_statement(Connection, StmtName) ->
     case emysql_statements:fetch(StmtName) of
