@@ -184,7 +184,7 @@ recv_packet_body(Sock, PacketLength, Acc) ->
         PacketLength > ?PACKETSIZE->
             case gen_tcp:recv(Sock, ?PACKETSIZE, ?TIMEOUT) of
                 {ok, Bin} ->
-                    recv_packet_body(Sock, PacketLength, [Bin|Acc]);
+                    recv_packet_body(Sock, PacketLength - ?PACKETSIZE, [Bin|Acc]);
                 {error, Reason1} ->
                     exit({failed_to_recv_packet_body, Reason1})
             end;
