@@ -199,8 +199,7 @@ reset_connection(Pools, Conn, StayLocked) ->
     %% by the next caller process coming along. So the
     %% pool can't run dry, even though it can freeze.
     %-% io:format("resetting connection~n"),
-    %-% io:format("spawn process to close connection~n"),
-    spawn(fun() -> close_connection(Conn) end),
+    close_connection(Conn),
     %% OPEN NEW SOCKET
     case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools) of
         {Pool, _} ->
