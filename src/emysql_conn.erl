@@ -129,10 +129,12 @@ open_connections(Pool) ->
      %-% io:format("open connections loop: .. "),
     case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
         true ->
-            %-% io:format(" continues~n"),
-            Conn = open_connection(Pool),
-            %-% io:format("opened connection: ~p~n", [Conn]),
-            open_connections(Pool#pool{available = queue:in(Conn, Pool#pool.available)});
+            case catch open_connection(Pool) of
+                #emysql_connection{} = Conn ->
+                    open_connections(Pool#pool{available = queue:in(Conn, Pool#pool.available)});
+				_ ->
+					Pool
+			end;
         false ->
             %-% io:format(" done~n"),
             Pool
