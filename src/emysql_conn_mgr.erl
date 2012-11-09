@@ -193,9 +193,9 @@ handle_call({remove_connections, PoolId, Num}, _From, State) ->
 handle_call({lock_connection_or_wait, PoolId}, {From, _Mref}, State) ->
     case find_pool(PoolId, State#state.pools) of
         {Pool, OtherPools} ->
-            case lock_next_connection(State, Pool, OtherPools) of
-                {ok, NewConn, State1} ->
-                    {reply, NewConn, State1};
+			case lock_next_connection(Pool) of
+				{ok, Connection, PoolNow} ->
+					{reply, Connection, State#state{pools=[PoolNow|OtherPools]}};
                 unavailable ->
                     %% place the calling pid at the end of the waiting queue of its pool
                     PoolNow = Pool#pool{ waiting = queue:in(From, Pool#pool.waiting) },
@@ -232,9 +232,9 @@ handle_call({lock_connection, PoolId}, _From, State) ->
     %-% io:format("gen srv: lock connection for pool ~p~n", [PoolId]),
     case find_pool(PoolId, State#state.pools) of
         {Pool, OtherPools} ->
-            case lock_next_connection(State, Pool, OtherPools) of
-                {ok, NewConn, State1} ->
-                    {reply, NewConn, State1};
+			case lock_next_connection(Pool) of
+				{ok, Connection, PoolNow} ->
+					{reply, Connection, State#state{pools=[PoolNow|OtherPools]}};
                 unavailable ->
                     {reply, unavailable, State}
             end;
@@ -395,13 +395,20 @@ find_pool(PoolId, [#pool{pool_id = PoolId} = Pool|Tail], OtherPools) ->
 find_pool(PoolId, [Pool|Tail], OtherPools) ->
     find_pool(PoolId, Tail, [Pool|OtherPools]).
 
-lock_next_connection(State, Pool, OtherPools) ->
-    case queue:out(Pool#pool.available) of
-        {{value, Conn}, OtherConns} ->
+lock_next_connection(Pool) ->
+	case lock_next_connection(Pool#pool.available, Pool#pool.locked) of
+		{ok, Connection, OtherAvailable, NewLocked} ->
+			{ok ,Connection ,Pool#pool{available=OtherAvailable, locked=NewLocked}};
+		unavailable ->
+			unavailable
+	end.
+
+lock_next_connection(Available ,Locked) ->
+	case queue:out(Available) of
+		{{value, Conn}, OtherAvailable} ->
             NewConn = connection_locked_at(Conn),
-            Locked = gb_trees:enter(NewConn#emysql_connection.id, NewConn, Pool#pool.locked),
-            State1 = State#state{pools = [Pool#pool{available=OtherConns, locked=Locked}|OtherPools]},
-            {ok, Conn, State1};
+			NewLocked = gb_trees:enter(NewConn#emysql_connection.id, NewConn, Locked),
+			{ok, NewConn, OtherAvailable, NewLocked};
         {empty, _} ->
             unavailable
     end.
@@ -416,14 +423,12 @@ serve_waiting_pids(Pool) ->
 serve_waiting_pids(Waiting, Available, Locked) ->
     case queue:is_empty(Waiting) of
         false ->
-            case queue:out(Available) of
-                {{value, Conn}, OtherAvailable} ->
+			case lock_next_connection(Available, Locked) of
+				{ok, Connection, OtherAvailable, NewLocked} ->
                     {{value, Pid}, OtherWaiting} = queue:out(Waiting),
-                    NewConn = connection_locked_at(Conn),
-                    NewLocked = gb_trees:enter(NewConn#emysql_connection.id, NewConn, Locked),
-                    erlang:send(Pid, {connection, NewConn}),
+					erlang:send(Pid, {connection, Connection}),
                     serve_waiting_pids(OtherWaiting, OtherAvailable, NewLocked);
-                {empty, _} ->
+				unavailable ->
                     {Waiting, Available, Locked}
             end;
         true ->
