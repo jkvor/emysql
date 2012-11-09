@@ -69,13 +69,13 @@ remove_connections(PoolId, Num) when is_integer(Num) ->
     do_gen_call({remove_connections, PoolId, Num}).
 
 lock_connection(PoolId)->
-    do_gen_call({lock_connection, PoolId}).
+	do_gen_call({lock_connection, PoolId, false}).
 
 wait_for_connection(PoolId)->
     %% try to lock a connection. if no connections are available then
     %% wait to be notified of the next available connection
     %-% io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
-        case do_gen_call({lock_connection_or_wait, PoolId}) of
+        case do_gen_call({lock_connection, PoolId, true}) of
         unavailable ->
             %-% io:format("~p is queued~n", [self()]),
             receive
@@ -190,16 +190,18 @@ handle_call({remove_connections, PoolId, Num}, _From, State) ->
             {reply, {error, pool_not_found}, State}
     end;
 
-handle_call({lock_connection_or_wait, PoolId}, {From, _Mref}, State) ->
+handle_call({lock_connection, PoolId, Wait}, {From, _Mref}, State) ->
     case find_pool(PoolId, State#state.pools) of
         {Pool, OtherPools} ->
 			case lock_next_connection(Pool) of
 				{ok, Connection, PoolNow} ->
 					{reply, Connection, State#state{pools=[PoolNow|OtherPools]}};
-                unavailable ->
+				unavailable when Wait =:= true ->
                     %% place the calling pid at the end of the waiting queue of its pool
-                    PoolNow = Pool#pool{ waiting = queue:in(From, Pool#pool.waiting) },
-                    {reply, unavailable, State#state{pools=[PoolNow|OtherPools]}}
+                    PoolNow = Pool#pool{waiting = queue:in(From, Pool#pool.waiting)},
+                    {reply, unavailable, State#state{pools=[PoolNow|OtherPools]}};
+                unavailable when Wait =:= false ->
+                    {reply, unavailable, State}
             end;
         undefined ->
             {reply, {error, pool_not_found}, State}
@@ -223,21 +225,6 @@ handle_call({end_wait, PoolId}, {From, _Mref}, State) ->
                     Reply = ok
             end,
             {reply, Reply, State#state{pools=[PoolNow|OtherPools]}};
-        undefined ->
-            {reply, {error, pool_not_found}, State}
-    end;
-
-handle_call({lock_connection, PoolId}, _From, State) ->
-    %% find the next available connection in the pool identified by PoolId
-    %-% io:format("gen srv: lock connection for pool ~p~n", [PoolId]),
-    case find_pool(PoolId, State#state.pools) of
-        {Pool, OtherPools} ->
-			case lock_next_connection(Pool) of
-				{ok, Connection, PoolNow} ->
-					{reply, Connection, State#state{pools=[PoolNow|OtherPools]}};
-                unavailable ->
-                    {reply, unavailable, State}
-            end;
         undefined ->
             {reply, {error, pool_not_found}, State}
     end;
