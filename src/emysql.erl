@@ -515,16 +515,16 @@ execute(PoolId, Query, Args, Timeout, nonblocking) when (is_list(Query) orelse i
     case emysql_conn_mgr:lock_connection(PoolId) of
         Connection when is_record(Connection, emysql_connection) ->
             monitor_work(Connection, Timeout, [Connection, Query, Args]);
-        Other ->
-            Other
+        unavailable ->
+            unavailable
     end;
 
 execute(PoolId, StmtName, Args, Timeout, nonblocking) when is_atom(StmtName), is_list(Args) andalso is_integer(Timeout) ->
     case emysql_conn_mgr:lock_connection(PoolId) of
         Connection when is_record(Connection, emysql_connection) ->
             monitor_work(Connection, Timeout, [Connection, StmtName, Args]);
-        Other ->
-            Other
+        unavailable ->
+            unavailable
     end.
 
 %%--------------------------------------------------------------------

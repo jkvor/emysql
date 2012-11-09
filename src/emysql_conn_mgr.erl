@@ -237,8 +237,8 @@ handle_call({lock_connection, PoolId}, _From, State) ->
             case lock_next_connection(State, Pool, OtherPools) of
                 {ok, NewConn, State1} ->
                     {reply, NewConn, State1};
-                Other ->
-                    {reply, Other, State}
+                unavailable ->
+                    {reply, unavailable, State}
             end;
         undefined ->
             {reply, {error, pool_not_found}, State}
