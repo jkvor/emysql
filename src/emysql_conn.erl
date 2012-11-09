@@ -224,11 +224,9 @@ reset_connection(Pools, Conn, StayLocked) ->
     end.
 
 close_connection(Conn) ->
-    %% DEALLOCATE PREPARED STATEMENTS
-    [(catch unprepare(Conn, Name)) || Name <- emysql_statements:remove(Conn#emysql_connection.id)],
-    %% CLOSE SOCKET
-    gen_tcp:close(Conn#emysql_connection.socket),
-    ok.
+	%% garbage collect statements
+	emysql_statements:remove(Conn#emysql_connection.id),
+	ok = gen_tcp:close(Conn#emysql_connection.socket).
 
 %%--------------------------------------------------------------------
 %%% Internal functions
