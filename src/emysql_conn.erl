@@ -130,7 +130,7 @@ open_connections(Pool) ->
     case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
         true ->
             %-% io:format(" continues~n"),
-            Conn = emysql_conn:open_connection(Pool),
+            Conn = open_connection(Pool),
             %-% io:format("opened connection: ~p~n", [Conn]),
             open_connections(Pool#pool{available = queue:in(Conn, Pool#pool.available)});
         false ->
@@ -164,8 +164,9 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
                 caps = Greeting#greeting.caps,
                 language = Greeting#greeting.language
             },
+
             %-% io:format("~p open connection: ... set db ...~n", [self()]),
-            case emysql_conn:set_database(Connection, Database) of
+            case set_database(Connection, Database) of
                 ok -> ok;
                 OK1 when is_record(OK1, ok_packet) ->
                      %-% io:format("~p open connection: ... db set ok~n", [self()]),
@@ -176,7 +177,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
                      exit({failed_to_set_database, Err1#error_packet.msg})
             end,
             %-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
-            case emysql_conn:set_encoding(Connection, Encoding) of
+            case set_encoding(Connection, Encoding) of
                 OK2 when is_record(OK2, ok_packet) ->
                     ok;
                 Err2 when is_record(Err2, error_packet) ->
