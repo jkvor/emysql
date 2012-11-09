@@ -100,7 +100,7 @@ wait_for_connection(PoolId)->
     end.
 
 pass_connection(Connection) ->
-    do_gen_call({pass_connection, Connection}).
+    do_gen_call({replace_connection, Connection, Connection}).
 
 replace_connection_as_available(OldConn, NewConn) ->
     do_gen_call({replace_connection_as_available, OldConn, NewConn}).
@@ -229,10 +229,6 @@ handle_call({end_wait, PoolId}, {From, _Mref}, State) ->
             {reply, {error, pool_not_found}, State}
     end;
 
-handle_call({pass_connection, Connection}, _From, State) ->
-    {Result, State1} = pass_on_or_queue_as_available(State, Connection),
-    {reply, Result, State1};
-
 handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) ->
     %% if an error occurs while doing work over a connection then
     %% the connection must be closed and a new one created in its
@@ -263,18 +259,6 @@ handle_call({replace_connection_as_locked, OldConn, NewConn}, _From, State) ->
             LockedAdded = gb_trees:enter(NewConn#emysql_connection.id, NewConn, LockedStripped),
             Pool1 = Pool#pool{locked = LockedAdded},
             {reply, ok, State#state{pools=[Pool1|OtherPools]}};
-        undefined ->
-            {reply, {error, pool_not_found}, State}
-    end;
-
-handle_call({unlock_connection, Connection}, _From, State) ->
-    case find_pool(Connection#emysql_connection.pool_id, State#state.pools) of
-        {Pool, OtherPools} ->
-            Pool1 = Pool#pool{
-                available = queue:in(Connection#emysql_connection{locked_at=undefined}, Pool#pool.available),
-                locked = gb_trees:delete_any(Connection#emysql_connection.id, Pool#pool.locked)
-            },
-            {reply, ok, State#state{pools=[serve_waiting_pids(Pool1)|OtherPools]}};
         undefined ->
             {reply, {error, pool_not_found}, State}
     end;
