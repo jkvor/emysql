@@ -210,21 +210,28 @@ reset_connection(Pools, Conn, StayLocked) ->
     %% OPEN NEW SOCKET
     case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools) of
         {Pool, _} ->
-            %-% io:format("... open new connection to renew~n"),
             case catch open_connection(Pool) of
-                NewConn when is_record(NewConn, emysql_connection) ->
-                    %-% io:format("... got it, replace old (~p)~n", [StayLocked]),
-                    case StayLocked of
-                        pass -> emysql_conn_mgr:replace_connection_as_available(Conn, NewConn);
-                        keep -> emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn)
-                    end,
-                    %-% io:format("... done, return new connection~n"),
-                    NewConn;
-                Error ->
-                    DeadConn = Conn#emysql_connection{alive=false},
-                    emysql_conn_mgr:replace_connection_as_available(Conn, DeadConn),
-                    %-% io:format("... failed to re-open. Shelving dead connection as available.~n"),
-                    {error, {cannot_reopen_in_reset, Error}}
+                #emysql_connection{} = NewConn ->
+                    emysql_conn_mgr:replace_connection(Conn, NewConn);
+                {'EXIT' ,Reason} ->
+                    emysql_conn_mgr:unlock_connection(Conn),
+                    exit(Reason)
+            end;
+        undefined ->
+            exit(pool_not_found)
+    end.
+
+renew_connection(Pools, Conn) ->
+	close_connection(Conn),
+	case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools, []) of
+		{Pool, _} ->
+			case catch open_connection(Pool) of
+				#emysql_connection{} = NewConn ->
+					emysql_conn_mgr:replace_connection_locked(Conn, NewConn),
+					NewConn;
+				{'EXIT' ,Reason} ->
+					emysql_conn_mgr:unlock_connection(Conn),
+					exit(Reason)
             end;
         undefined ->
             exit(pool_not_found)
