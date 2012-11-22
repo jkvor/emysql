@@ -603,9 +603,7 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
             %% then reset the connection and throw a timeout error
             %-% io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
             erlang:demonitor(Mref),
-            case emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass) of
-                {error, FailedReset} ->
-                    exit({mysql_timeout, Timeout, {and_conn_reset_failed, FailedReset}});
-                _ -> exit({mysql_timeout, Timeout, {}})
-            end
+            exit(Pid, kill),
+            emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
+            exit(mysql_timeout)
     end.
