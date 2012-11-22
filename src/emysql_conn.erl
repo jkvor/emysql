@@ -145,15 +145,12 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
      %-% io:format("~p open connection: ... connect ... ~n", [self()]),
     case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
         {ok, Sock} ->
-			case emysql_conn_mgr:give_manager_control(Sock) of
-				{error ,Reason} ->
+			Greeting = case catch emysql_auth:do_handshake(Sock, User, Password) of
+				{'EXIT', ExitReason} ->
                           gen_tcp:close(Sock),
-					exit({Reason,
-						         "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
-				ok -> ok
+					exit(ExitReason);
+				Greeting0 -> Greeting0
 			      end,
-            Greeting = emysql_auth:do_handshake(Sock, User, Password),
-            %-% io:format("~p open connection: ... make new connection~n", [self()]),
             Connection = #emysql_connection{
                 id = erlang:port_to_list(Sock),
                 pool_id = PoolId,
@@ -181,11 +178,16 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
                 OK2 when is_record(OK2, ok_packet) ->
                     ok;
                 Err2 when is_record(Err2, error_packet) ->
-					gen_tcp:close(Sock),
+                    gen_tcp:close(Sock),
                     exit({failed_to_set_encoding, Err2#error_packet.msg})
             end,
-             %-% io:format("~p open connection: ... ok, return connection~n", [self()]),
-            Connection;
+            case emysql_conn_mgr:give_manager_control(Sock) of
+                {error ,Reason} ->
+                    gen_tcp:close(Sock),
+                    exit({Reason,
+                        "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
+                ok -> Connection
+            end;
         {error, Reason} ->
              %-% io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
              %-% io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
