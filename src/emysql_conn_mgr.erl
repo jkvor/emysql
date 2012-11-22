@@ -34,7 +34,7 @@
 
 -export([pools/0, add_pool/1, remove_pool/1,
         add_connections/2, remove_connections/2,
-        lock_connection/1, wait_for_connection/1,
+        lock_connection/1, wait_for_connection/1, wait_for_connection/2,
         pass_connection/1,
         replace_connection_as_available/2, replace_connection_as_locked/2,
         find_pool/2]).
@@ -72,6 +72,9 @@ lock_connection(PoolId)->
 	do_gen_call({lock_connection, PoolId, false}).
 
 wait_for_connection(PoolId)->
+	wait_for_connection(PoolId, lock_timeout()).
+
+wait_for_connection(PoolId ,Timeout)->
     %% try to lock a connection. if no connections are available then
     %% wait to be notified of the next available connection
     %-% io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
@@ -79,19 +82,13 @@ wait_for_connection(PoolId)->
         unavailable ->
             %-% io:format("~p is queued~n", [self()]),
             receive
-                {connection, Connection} ->
-                    %-% io:format("~p gets a connection after waiting in queue~n", [self()]),
-                    Connection
-            after lock_timeout() ->
-                %-% io:format("~p gets no connection and times out -> EXIT~n~n", [self()]),
-                case do_gen_call({end_wait, PoolId}) of
-                    ok ->
-                        exit(connection_lock_timeout);
-                    not_waiting ->
-                        %% If we aren't waiting, then someone must
-                        %% have sent us a connection mssage at the
-                        %% same time that we timed out.
-                        receive_connection_not_waiting()
+                {connection, Connection} -> Connection
+            after Timeout ->
+                do_gen_call({abort_wait, PoolId}),
+                receive
+                    {connection, Connection} -> Connection
+                after
+                    0 -> exit(connection_lock_timeout)
                 end
             end;
         Connection ->
