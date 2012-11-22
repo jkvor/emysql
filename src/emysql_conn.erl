@@ -223,7 +223,7 @@ reset_connection(Pools, Conn, StayLocked) ->
 
 renew_connection(Pools, Conn) ->
 	close_connection(Conn),
-	case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools, []) of
+	case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools) of
 		{Pool, _} ->
 			case catch open_connection(Pool) of
 				#emysql_connection{} = NewConn ->
