@@ -118,7 +118,7 @@ auth(Sock, SeqNum, User, Password, Salt1, Salt2, Plugin) ->
 	end,
 	DBCaps = 0,
 	DatabaseB = <<>>,
-	Caps = ?LONG_PASSWORD bor ?LONG_FLAG bor ?TRANSACTIONS bor
+	Caps = ?LONG_PASSWORD  bor ?CLIENT_LOCAL_FILE bor ?LONG_FLAG bor ?TRANSACTIONS bor
 		?CLIENT_MULTI_STATEMENTS bor ?CLIENT_MULTI_RESULTS bor
 		?PROTOCOL_41 bor ?SECURE_CONNECTION bor DBCaps,
 	Maxsize = ?MAXPACKETBYTES,
