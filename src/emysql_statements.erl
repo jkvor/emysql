@@ -42,27 +42,27 @@
 %% Description: Starts the server
 %%--------------------------------------------------------------------
 start_link() ->
-	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 all() ->
-	State = gen_server:call(?MODULE, all, infinity),
-	[{statements, [StmtName || {StmtName, _} <- gb_trees:to_list(State#state.statements)]},
-		{prepared, gb_trees:to_list(State#state.prepared)}].
+    State = gen_server:call(?MODULE, all, infinity),
+    [{statements, [StmtName || {StmtName, _} <- gb_trees:to_list(State#state.statements)]},
+        {prepared, gb_trees:to_list(State#state.prepared)}].
 
 fetch(StmtName) ->
-	gen_server:call(?MODULE, {fetch, StmtName}, infinity).
+    gen_server:call(?MODULE, {fetch, StmtName}, infinity).
 
 add(StmtName, Statement) ->
-	gen_server:call(?MODULE, {add, StmtName, Statement}, infinity).
+    gen_server:call(?MODULE, {add, StmtName, Statement}, infinity).
 
 version(ConnId, StmtName) ->
-	gen_server:call(?MODULE, {version, ConnId, StmtName}, infinity).
+    gen_server:call(?MODULE, {version, ConnId, StmtName}, infinity).
 
 prepare(ConnId, StmtName, Version) ->
-	gen_server:call(?MODULE, {prepare, ConnId, StmtName, Version}, infinity).
+    gen_server:call(?MODULE, {prepare, ConnId, StmtName, Version}, infinity).
 
 remove(ConnId) ->
-	gen_server:call(?MODULE, {remove, ConnId}, infinity).
+    gen_server:call(?MODULE, {remove, ConnId}, infinity).
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -75,7 +75,7 @@ remove(ConnId) ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-	{ok, #state{}}.
+    {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -89,54 +89,54 @@ init([]) ->
 %% GB trees, see [http://www.erlang.org/doc/man/gb_trees.html]
 %%--------------------------------------------------------------------
 handle_call(all, _From, State) ->
-	{reply, State, State};
+    {reply, State, State};
 
 handle_call({fetch, StmtName}, _From, State) ->
-	{reply, lookup(StmtName, State#state.statements), State};
+    {reply, lookup(StmtName, State#state.statements), State};
 
 handle_call({add, StmtName, Statement}, _From, State) ->
-	State1 =
-		case lookup(StmtName, State#state.statements) of
-			undefined ->
-				State#state{
-					statements = gb_trees:enter(StmtName, {1, Statement}, State#state.statements)
-				};
-			{_, Statement} ->
-				State;
-			{Version, _} ->
-				State#state{
-					statements = gb_trees:enter(StmtName, {Version+1, Statement}, State#state.statements)
-				}
-		end,
-	{reply, ok, State1};
+    State1 =
+        case lookup(StmtName, State#state.statements) of
+            undefined ->
+                State#state{
+                    statements = gb_trees:enter(StmtName, {1, Statement}, State#state.statements)
+                };
+            {_, Statement} ->
+                State;
+            {Version, _} ->
+                State#state{
+                    statements = gb_trees:enter(StmtName, {Version+1, Statement}, State#state.statements)
+                }
+        end,
+    {reply, ok, State1};
 
 handle_call({version, ConnId, StmtName}, _From, State) ->
-	Version =
-		case lookup(ConnId, State#state.prepared) of
-			undefined -> undefined;
-			Versions -> lookup(StmtName, Versions)
-		end,
-	{reply, Version, State};
+    Version =
+        case lookup(ConnId, State#state.prepared) of
+            undefined -> undefined;
+            Versions -> lookup(StmtName, Versions)
+        end,
+    {reply, Version, State};
 
 handle_call({prepare, ConnId, StmtName, Version}, _From, State) ->
-	Versions =
-		case lookup(ConnId, State#state.prepared) of
-			undefined ->
-				gb_trees:enter(StmtName, Version, gb_trees:empty());
-			Versions1 ->
-				gb_trees:enter(StmtName, Version, Versions1)
-		end,
-	Prepared = gb_trees:enter(ConnId, Versions, State#state.prepared),
-	{reply, ok, State#state{prepared=Prepared}};
+    Versions =
+        case lookup(ConnId, State#state.prepared) of
+            undefined ->
+                gb_trees:enter(StmtName, Version, gb_trees:empty());
+            Versions1 ->
+                gb_trees:enter(StmtName, Version, Versions1)
+        end,
+    Prepared = gb_trees:enter(ConnId, Versions, State#state.prepared),
+    {reply, ok, State#state{prepared=Prepared}};
 
 handle_call({remove, ConnId}, _From, State) ->
-	StmtNames =
-		case lookup(ConnId, State#state.prepared) of
-			undefined -> [];
-			Versions -> gb_trees:keys(Versions)
-		end,
-	Prepared = gb_trees:delete_any(ConnId, State#state.prepared),
-	{reply, StmtNames, State#state{prepared=Prepared}};
+    StmtNames =
+        case lookup(ConnId, State#state.prepared) of
+            undefined -> [];
+            Versions -> gb_trees:keys(Versions)
+        end,
+    Prepared = gb_trees:delete_any(ConnId, State#state.prepared),
+    {reply, StmtNames, State#state{prepared=Prepared}};
 
 handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
 
@@ -147,7 +147,7 @@ handle_call(_, _From, State) -> {reply, {error, invalid_call}, State}.
 %% Description: Handling cast messages
 %%--------------------------------------------------------------------
 handle_cast(_Msg, State) ->
-	{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_info(Info, State) -> {noreply, State} |
@@ -156,7 +156,7 @@ handle_cast(_Msg, State) ->
 %% Description: Handling all non call/cast messages
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
-	{noreply, State}.
+    {noreply, State}.
 
 %%--------------------------------------------------------------------
 %% Function: terminate(Reason, State) -> void()
@@ -166,20 +166,20 @@ handle_info(_Info, State) ->
 %% The return value is ignored.
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-	ok.
+    ok.
 
 %%--------------------------------------------------------------------
 %% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% Description: Convert process state when code is changed
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %%% Internal functions
 %%--------------------------------------------------------------------
 lookup(Key, Tree) ->
-	case gb_trees:lookup(Key, Tree) of
-		{value, Val} -> Val;
-		none -> undefined
-	end.
+    case gb_trees:lookup(Key, Tree) of
+        {value, Val} -> Val;
+        none -> undefined
+    end.

@@ -31,44 +31,44 @@
 
 start(_Type, _StartArgs) ->
 
-	% case StartArgs of
-	%	"%MAKETIME%" -> ok; % happens with rebar build
-	%	_ -> io:format("Build time: ~p~n", StartArgs)
-	% end,
-	
-	emysql_sup:start_link().
+    % case StartArgs of
+    %   "%MAKETIME%" -> ok; % happens with rebar build
+    %   _ -> io:format("Build time: ~p~n", StartArgs)
+    % end,
+
+    emysql_sup:start_link().
 
 stop(_State) ->
-	lists:foreach(
-		fun(Pool) ->
-			lists:foreach(
-				fun emysql_conn:close_connection/1,
-				lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))
-			)
-		end,
-		emysql_conn_mgr:pools()
-	),
-	ok.
+    lists:foreach(
+        fun(Pool) ->
+            lists:foreach(
+                fun emysql_conn:close_connection/1,
+                lists:append(queue:to_list(Pool#pool.available), gb_trees:values(Pool#pool.locked))
+            )
+        end,
+        emysql_conn_mgr:pools()
+    ),
+    ok.
 
 modules() ->
-	{ok, Modules} = application_controller:get_key(emysql, modules), Modules.
+    {ok, Modules} = application_controller:get_key(emysql, modules), Modules.
 
 default_timeout() ->
-	case application:get_env(emysql, default_timeout) of
-		undefined -> ?TIMEOUT;
-		{ok, Timeout} -> Timeout
-	end.
+    case application:get_env(emysql, default_timeout) of
+        undefined -> ?TIMEOUT;
+        {ok, Timeout} -> Timeout
+    end.
 
 lock_timeout() ->
-	case application:get_env(emysql, lock_timeout) of
-		undefined -> ?LOCK_TIMEOUT;
-		{ok, Timeout} -> Timeout
-	end.
+    case application:get_env(emysql, lock_timeout) of
+        undefined -> ?LOCK_TIMEOUT;
+        {ok, Timeout} -> Timeout
+    end.
 
 pools() ->
-	case application:get_env(emysql, pools) of
-		{ok, Pools} when is_list(Pools) ->
-			Pools;
-		_ ->
-			[]
-	end.
+    case application:get_env(emysql, pools) of
+        {ok, Pools} when is_list(Pools) ->
+            Pools;
+        _ ->
+            []
+    end.

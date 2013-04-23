@@ -1,7 +1,6 @@
-## Emysql 0.2.14
+## Emysql 0.2.15
 
 <hr/>
-**Please note: this commit of Apr '12 has incompatible changes for automatic UTF-8 conversion vs the Dec '11 commits.**
 
 There are cases where the automatic conversion of parameters to prepared
 statements has been changed and now behaves different than before. The
@@ -181,6 +180,7 @@ Sample programs are in ./samples.
 * [c\_rows\_as\_records](http://github.com/Eonblast/Emysql/blob/master/samples/c_rows_as_records.erl) - Using Erlang records to access result rows
 * [d\_prepared\_statement](http://github.com/Eonblast/Emysql/blob/master/samples/d_prepared_statement.erl) - Using prepared statements
 * [e\_stored\_procedure](http://github.com/Eonblast/Emysql/blob/master/samples/e_stored_procedure.erl) - Using stored procedures
+* [f\_load\_from\_file](http://github.com/Eonblast/Emysql/blob/master/samples/f_load_from_file.erl) - Fast loading of data from a flat file
 
 To run the samples, create the database as listed above at localhost, and simply run the compile & run batches:
 
@@ -190,6 +190,7 @@ To run the samples, create the database as listed above at localhost, and simply
 	$ ./c_rows_as_records
 	$ ./d_prepared_statement
 	$ ./e_stored_procedure
+	$ ./f_load_from_file
 	
 or (after building emysql.app and the database, as explained above), start a_hello etc. manually along these lines:
 
@@ -300,6 +301,22 @@ For other record types, see include/emysql.hrl.
 	   [begin
 		  io:format("foo: ~p, ~p, ~p~n", [Foo#foo.bar, Foo#foo.baz, Foo#foo.bat])
 	    end || Foo <- Recs].
+
+#### Loading Data From a File
+
+	emysql:execute(hello_pool,
+		<<"LOAD DATA INFILE 'hello.txt' INTO TABLE hello_table (hello_text)">>).
+
+Note, you must grant: 
+    
+    grant file on *.* to hello_username@localhost identified by'hello_password';
+
+You need to give LOCAL or an absolute path, else the file is expected in the database server root. To use the current directory:
+
+    {ok, Dir} = file:get_cwd(),
+	emysql:execute(hello_pool,
+	    list_to_binary("LOAD DATA INFILE '" ++ Dir ++
+	        "/hello.txt' INTO TABLE hello_table (hello_text)")).
 
 
 ## Tests                                             <a name="Tests"></a>
@@ -469,9 +486,9 @@ A [parallel][20] fork from Yariv's branch, not entangled with Dave's tree, is [t
 
 **Emysql** was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by [Jacob Vorreuter][jv] at Electronic Arts and deployed at Shawn Fanning's Rupture.com, a social network site for gamers. Initially, [Nick Gerakines][ng], Jacob's boss at EA, rewrote large parts of erlang-mysql-server to [clean it up][21]. But some fundamental problems remained and when half a year in, they still could not overcome performance and stability issues, Nick gave Jacob the green light to rewrite it from the ground up because they felt that, in Jacob's words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, [Bill Warnecke][bw] helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality into direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straightforward architecture focused on providing a high performance node. Not only can Emysql open multiple connections, but multiple pools of multiple connections each to multiple database servers, which makes for a strong central OLTP node. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: "The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling." Rupture was killed in the consolidations of 2009. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.
 
-**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa], [Joel Meyer][jm], [Erik Seres][es], [Alexey Lebedeff][al], [Logan Owen][lo], [Seven Du][sd], [Brendon Hogger][bh], [Bart van Deenen][bd] and [Ransom Richardson][rr] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. The fork is still close to the original, which currently lies dormant, but has started to add features and possibly increased stability.
+**Eonblast Emysql** is a continuation fork of [Jacob's work][1], including all his commits and adding [docs][], [samples][], [fixes][] and [extensions][24]. [Henning Diedrich][hd], [Vitaliy Batichko][vb], [Chris Rempel][cr], [Patrick Atambo][pa], [Joel Meyer][jm], [Erik Seres][es], [Alexey Lebedeff][al], [Logan Owen][lo], [Seven Du][sd], [Brendon Hogger][bh], [Bart van Deenen][bd], [Ransom Richardson][rr] and [Qing Liang][ql] have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. The fork is still close to the original, which currently lies dormant, but has started to add features and possibly increased stability.
 
-Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about any errors you may spot. Thanks.
+Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are [mine][hd]. Please let me know about any errors you may spot. Thanks. - Henning
 
 
 ### Links and References
@@ -537,6 +554,7 @@ Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much
 [bh]: brendonh@gmail.com                "Brendon Hogger"
 [bd]: https://github.com/bvdeenen       "Bart van Deenen"
 [rr]: https://github.com/ransomr        "Ransom Richardson"
+[ql]: https://github.com/qingliangcn    "Qing Liang"
 
 [emysql]:   https://github.com/Eonblast/Emysql  
            "Eonblast Emysql Repository"  
