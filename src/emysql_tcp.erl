@@ -31,7 +31,6 @@
 -include("emysql.hrl").
 
 -define(PACKETSIZE, 1460).
--define(ETS_SELECT(TableID), ets:select(TableID,[{{'_','$2'},[],['$2']}])).
 
 send_and_recv_packet(Sock, Packet, SeqNum) ->
     %-% io:format("~nsend_and_receive_packet: SEND SeqNum: ~p, Binary: ~p~n", [SeqNum, <<(size(Packet)):24/little, SeqNum:8, Packet/binary>>]),
@@ -178,97 +177,82 @@ recv_packet_header(Sock) ->
 %   end.
 
 recv_packet_body(Sock, PacketLength) ->
-    Tid = ets:new(emysql_buffer, [ordered_set, private]),
-    Bin = recv_packet_body(Sock, PacketLength, Tid, 0),
-    ets:delete(Tid),
-    Bin.
+    recv_packet_body(Sock, PacketLength, []).
 
-recv_packet_body(Sock, PacketLength, Tid, Key) ->
+recv_packet_body(Sock, PacketLength, Acc) ->
     if
-        PacketLength > ?PACKETSIZE ->
+        PacketLength > ?PACKETSIZE->
             case gen_tcp:recv(Sock, ?PACKETSIZE, ?TIMEOUT) of
                 {ok, Bin} ->
-                    ets:insert(Tid, {Key, Bin}),
-                    recv_packet_body(Sock, PacketLength - ?PACKETSIZE, Tid, Key+1);
+                    recv_packet_body(Sock, PacketLength, [Bin|Acc]);
                 {error, Reason1} ->
                     exit({failed_to_recv_packet_body, Reason1})
             end;
         true ->
             case gen_tcp:recv(Sock, PacketLength, ?TIMEOUT) of
                 {ok, Bin} ->
-                    if
-                        Key == 0 -> Bin;
-                        true -> iolist_to_binary(?ETS_SELECT(Tid) ++ Bin)
-                    end;
+                    iolist_to_binary(lists:reverse([Bin|Acc]));
                 {error, Reason1} ->
                     exit({failed_to_recv_packet_body, Reason1})
             end
     end.
 
 recv_field_list(Sock, SeqNum) ->
-    Tid = ets:new(emysql_field_list, [ordered_set, private]),
-    Res = recv_field_list(Sock, SeqNum, Tid, 0),
-    ets:delete(Tid),
-    Res.
+    recv_field_list(Sock, SeqNum, []).
 
-recv_field_list(Sock, _SeqNum, Tid, Key) ->
-    case recv_packet(Sock) of
-        #packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, _ServerStatus:16/little>>} -> % (*)!
-            %-% io:format("- eof: ~p~n", [emysql_conn:hstate(_ServerStatus)]),
-            {SeqNum1, ?ETS_SELECT(Tid)};
-        #packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
-            %-% io:format("- eof~n", []),
-            {SeqNum1, ?ETS_SELECT(Tid)};
-        #packet{seq_num = SeqNum1, data = Data} ->
-            {Catalog, Rest2} = emysql_util:length_coded_string(Data),
-            {Db, Rest3} = emysql_util:length_coded_string(Rest2),
-            {Table, Rest4} = emysql_util:length_coded_string(Rest3),
-            {OrgTable, Rest5} = emysql_util:length_coded_string(Rest4),
-            {Name, Rest6} = emysql_util:length_coded_string(Rest5),
-            {OrgName, Rest7} = emysql_util:length_coded_string(Rest6),
-            <<_:1/binary, CharSetNr:16/little, Length:32/little, Rest8/binary>> = Rest7,
-            <<Type:8/little, Flags:16/little, Decimals:8/little, _:2/binary, Rest9/binary>> = Rest8,
-            {Default, _} = emysql_util:length_coded_binary(Rest9),
-            Field = #field{
-                seq_num = SeqNum1,
-                catalog = Catalog,
-                db = Db,
-                table = Table,
-                org_table = OrgTable,
-                name = Name,
-                org_name = OrgName,
-                type = Type,
-                default = Default,
-                charset_nr = CharSetNr,
-                length = Length,
-                flags = Flags,
-                decimals = Decimals
-            },
-            ets:insert(Tid, {Key, Field}),
-            recv_field_list(Sock, SeqNum1, Tid, Key+1)
-    end.
+recv_field_list(Sock, _SeqNum, Acc) ->
+	case recv_packet(Sock) of
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, _ServerStatus:16/little>>} -> % (*)!
+			%-% io:format("- eof: ~p~n", [emysql_conn:hstate(_ServerStatus)]),
+                        {SeqNum1, lists:reverse(Acc)};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
+			%-% io:format("- eof~n", []),
+                        {SeqNum1, lists:reverse(Acc)};
+		#packet{seq_num = SeqNum1, data = Data} ->
+			{Catalog, Rest2} = emysql_util:length_coded_string(Data),
+			{Db, Rest3} = emysql_util:length_coded_string(Rest2),
+			{Table, Rest4} = emysql_util:length_coded_string(Rest3),
+			{OrgTable, Rest5} = emysql_util:length_coded_string(Rest4),
+			{Name, Rest6} = emysql_util:length_coded_string(Rest5),
+			{OrgName, Rest7} = emysql_util:length_coded_string(Rest6),
+			<<_:1/binary, CharSetNr:16/little, Length:32/little, Rest8/binary>> = Rest7,
+			<<Type:8/little, Flags:16/little, Decimals:8/little, _:2/binary, Rest9/binary>> = Rest8,
+			{Default, _} = emysql_util:length_coded_binary(Rest9),
+			Field = #field{
+				seq_num = SeqNum1,
+				catalog = Catalog,
+				db = Db,
+				table = Table,
+				org_table = OrgTable,
+				name = Name,
+				org_name = OrgName,
+				type = Type,
+				default = Default,
+				charset_nr = CharSetNr,
+				length = Length,
+				flags = Flags,
+				decimals = Decimals
+			},
+			recv_field_list(Sock, SeqNum1, [Field|Acc])
+	end.
 
 recv_row_data(Sock, FieldList, SeqNum) ->
-    Tid = ets:new(emysql_row_data, [ordered_set, private]),
-    Res = recv_row_data(Sock, FieldList, SeqNum, Tid, 0),
-    ets:delete(Tid),
-    Res.
+        recv_row_data(Sock, FieldList, SeqNum, []).
 
-recv_row_data(Sock, FieldList, _SeqNum, Tid, Key) ->
-    %-% io:format("~nreceive row ~p: ", [Key]),
-    case recv_packet(Sock) of
-        #packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, ServerStatus:16/little>>} ->
-            %-% io:format("- eof: ~p~n", [emysql_conn:hstate(ServerStatus)]),
-            {SeqNum1, ?ETS_SELECT(Tid), ServerStatus};
-        #packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
-            %-% io:format("- eof.~n", []),
-            {SeqNum1, ?ETS_SELECT(Tid), ?SERVER_NO_STATUS};
-        #packet{seq_num = SeqNum1, data = RowData} ->
-            %-% io:format("Seq: ~p raw: ~p~n", [SeqNum1, RowData]),
-            Row = decode_row_data(RowData, FieldList, []),
-            ets:insert(Tid, {Key, Row}),
-            recv_row_data(Sock, FieldList, SeqNum1, Tid, Key+1)
-    end.
+recv_row_data(Sock, FieldList, _SeqNum, Acc) ->
+	%-% io:format("~nreceive row ~p: ", [Key]),
+	case recv_packet(Sock) of
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _WarningCount:16/little, ServerStatus:16/little>>} ->
+			%-% io:format("- eof: ~p~n", [emysql_conn:hstate(ServerStatus)]),
+                        {SeqNum1, lists:reverse(Acc), ServerStatus};
+		#packet{seq_num = SeqNum1, data = <<?RESP_EOF, _/binary>>} ->
+			%-% io:format("- eof.~n", []),
+                        {SeqNum1, lists:reverse(Acc), ?SERVER_NO_STATUS};
+		#packet{seq_num = SeqNum1, data = RowData} ->
+			%-% io:format("Seq: ~p raw: ~p~n", [SeqNum1, RowData]),
+			Row = decode_row_data(RowData, FieldList, []),
+			recv_row_data(Sock, FieldList, SeqNum1, [Row|Acc])
+	end.
 
 decode_row_data(<<>>, [], Acc) ->
     lists:reverse(Acc);
