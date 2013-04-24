@@ -46,7 +46,8 @@ all() ->
      insert_and_read_back_as_recs,
      select_by_prepared_statement,
 	 delete_non_existant_procedure,
-	 select_by_stored_procedure].
+	 select_by_stored_procedure,
+     encode_floating_point_data].
 
 
 %% Optional suite pre test initialization
@@ -128,6 +129,18 @@ insert_and_read_back(_) ->
                [[<<"Hello World!">>]],
                <<>>},
     
+    ok.
+
+%% Test Case: Encode floating point data into a test table (Issue 57)
+encode_floating_point_data(_Config) ->
+    emysql:execute(test_pool, <<"DROP TABLE float_test">>),
+    emysql:execute(test_pool, <<"CREATE TABLE float_test ( x FLOAT )">>),
+    emysql:prepare(encode_float_stmt, <<"INSERT INTO float_test (x) VALUES (?)">>),
+    
+    Result = emysql:execute(test_pool, encode_float_stmt, [3.14]),
+
+    ct:log("Result: ~p", [Result]),
+    ok_packet = element(1, Result),
     ok.
 
 %% Test Case: Make an Insert and Select it back, reading out as Record
