@@ -41,6 +41,7 @@ suite() ->
 
 all() -> 
     [delete_all,
+     encode_atoms,
      insert_only,
      insert_and_read_back,
      insert_and_read_back_as_recs,
@@ -103,6 +104,19 @@ insert_only(_) ->
     emysql:execute(test_pool,
         <<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
 
+    ok.
+
+%% Test Case: Allow insertion of atom values through the encoder
+%%--------------------------------------------------------------------
+encode_atoms(_Config) ->
+    emysql:execute(test_pool, <<"DROP TABLE encode_atoms_test">>),
+    emysql:execute(test_pool, <<"CREATE TABLE encode_atoms_test (x VARCHAR(32))">>),
+
+    emysql:prepare(encode_atoms, <<"INSERT INTO encode_atoms_test (x) VALUES (?)">>),
+    Result = emysql:execute(test_pool, encode_atoms, [foo]),
+    ct:log("Result: ~p", [Result]),
+
+    ok_packet = element(1, Result),
     ok.
 
 %% Test Case: Make an Insert and Select it back
