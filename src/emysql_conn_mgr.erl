@@ -406,52 +406,6 @@ serve_waiting_pids(Waiting, Available, Locked) ->
             {Waiting, Available, Locked}
     end.
 
-%% This function does not wait, but may loop over the queue.
-pass_on_or_queue_as_available(State, Connection) ->
-
-    % get the pool that this connection belongs to
-    case find_pool(Connection#emysql_connection.pool_id, State#state.pools) of
-
-        {Pool, OtherPools} ->
-
-            %% check if any processes are waiting for a connection
-            Waiting = Pool#pool.waiting,
-            case queue:is_empty(Waiting) of
-
-                %% if no processes are waiting then unlock the connection
-                true ->
-
-                    %% find connection in locked tree
-                    case gb_trees:lookup(Connection#emysql_connection.id, Pool#pool.locked) of
-                        {value, _Conn} ->
-                            Pool1 = Pool#pool{
-								available = queue:in(Connection#emysql_connection{locked_at=undefined}, Pool#pool.available),
-                                locked = gb_trees:delete_any(Connection#emysql_connection.id, Pool#pool.locked)
-                            },
-                            {ok, State#state{pools = [Pool1|OtherPools]}};
-
-                        none ->
-                            {{error, connection_not_found}, State}
-                    end;
-
-                %% if the waiting queue is not empty then remove the head of
-                %% the queue and send it the connection.
-            %% Update the pool & queue in state once the head has been removed.
-            false ->
-
-                {{value, Pid}, OtherWaiting} = queue:out(Waiting),
-                    NewConn = Connection#emysql_connection{locked_at=lists:nth(2, tuple_to_list(now()))},
-                    Locked = gb_trees:enter(NewConn#emysql_connection.id, NewConn, Pool#pool.locked),
-                    PoolNow = Pool#pool{waiting=OtherWaiting ,locked=Locked},
-                    StateNow = State#state{pools = [PoolNow|OtherPools]},
-                    erlang:send(Pid, {connection, NewConn}),
-                {ok, StateNow}
-        end;
-
-        %% pool not found
-        undefined ->
-            {{error, pool_not_found}, State}
-    end.
 lock_timeout() ->
     emysql_app:lock_timeout().
 
