@@ -258,9 +258,12 @@ handle_call({replace_connection_as_locked, OldConn, NewConn}, _From, State) ->
     %% without having to lock another connection.
     case find_pool(OldConn#emysql_connection.pool_id, State#state.pools) of
         {Pool, OtherPools} ->
-            LockedStripped = gb_trees:delete_any(OldConn#emysql_connection.id, Pool#pool.locked),
-            LockedAdded = gb_trees:enter(NewConn#emysql_connection.id, NewConn, LockedStripped),
-            Pool1 = Pool#pool{locked = LockedAdded},
+            Locked = gb_trees:enter(
+                NewConn#emysql_connection.id, NewConn ,gb_trees:delete_any(
+                    OldConn#emysql_connection.id, Pool#pool.locked
+                )
+            ),
+            Pool1 = Pool#pool{locked = Locked},
             {reply, ok, State#state{pools=[Pool1|OtherPools]}};
         undefined ->
             {reply, {error, pool_not_found}, State}
@@ -280,23 +283,6 @@ handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
                 locked = gb_trees:delete_any(OldConn#emysql_connection.id, Pool#pool.locked)
             },
             {reply, ok, State#state{pools=[serve_waiting_pids(Pool1)|OtherPools]}};
-        undefined ->
-            {reply, {error, pool_not_found}, State}
-    end;
-
-handle_call({replace_connection_locked, OldConn, NewConn}, _From, State) ->
-    %% replace an existing, locked condition with the newly supplied one
-    %% and keep it in the locked list so that the caller can continue to use it
-    %% without having to lock another connection.
-    case find_pool(OldConn#emysql_connection.pool_id, State#state.pools) of
-        {Pool, OtherPools} ->
-            Locked = gb_trees:enter(
-                NewConn#emysql_connection.id, NewConn ,gb_trees:delete_any(
-                    OldConn#emysql_connection.id, Pool#pool.locked
-                )
-            ),
-            Pool1 = Pool#pool{locked = Locked},
-            {reply, ok, State#state{pools=[Pool1|OtherPools]}};
         undefined ->
             {reply, {error, pool_not_found}, State}
     end;
@@ -411,18 +397,3 @@ serve_waiting_pids(Waiting, Available, Locked) ->
 
 lock_timeout() ->
     emysql_app:lock_timeout().
-
-
-%% This is called after we timed out, but discovered that we weren't waiting for a
-%% connection.
-receive_connection_not_waiting() ->
-    receive
-        {connection, Connection} ->
-            %%-% io:format("~p gets a connection after timeout in queue~n", [self()]),
-            Connection
-    after
-        %% This should never happen, as we should only be here if we had been sent a connection
-        lock_timeout() ->
-            %%-% io:format("~p gets no connection and times out again -> EXIT~n~n", [self()]),
-            exit(connection_lock_second_timeout)
-    end.
