@@ -78,7 +78,7 @@ wait_for_connection(PoolId ,Timeout)->
     %% try to lock a connection. if no connections are available then
     %% wait to be notified of the next available connection
     %-% io:format("~p waits for connection to pool ~p~n", [self(), PoolId]),
-        case do_gen_call({lock_connection, PoolId, true}) of
+    case do_gen_call({lock_connection, PoolId, true}) of
         unavailable ->
             %-% io:format("~p is queued~n", [self()]),
             receive
@@ -210,7 +210,7 @@ handle_call({lock_connection, PoolId, Wait}, {From, _Mref}, State) ->
             {reply, {error, pool_not_found}, State}
     end;
 
-handle_call({end_wait, PoolId}, {From, _Mref}, State) ->
+handle_call({abort_wait, PoolId}, {From, _Mref}, State) ->
     case find_pool(PoolId, State#state.pools) of
         {Pool, OtherPools} ->
             %% Remove From from the wait queue
