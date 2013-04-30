@@ -214,7 +214,7 @@ reset_connection(Pools, Conn, StayLocked) ->
                 #emysql_connection{} = NewConn ->
                     emysql_conn_mgr:replace_connection(Conn, NewConn);
                 {'EXIT' ,Reason} ->
-                    emysql_conn_mgr:unlock_connection(Conn),
+                    emysql_conn_mgr:pass_connection(Conn),
                     exit(Reason)
             end;
         undefined ->
