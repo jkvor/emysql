@@ -468,13 +468,13 @@ insert_and_read_back_as_recs(_) ->
 	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result: ~p~n", [Result]),
+	ct:log("Result: ~p~n", [Result]),
 
 	Recs = emysql_util:as_record(
 		Result, hello_record, record_info(fields, hello_record)),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Recs: ~p~n", [Recs]),
+	ct:log("Recs: ~p~n", [Recs]),
 
 	% the test
 	Recs = [{hello_record,<<"Hello World!">>}],
@@ -497,13 +497,13 @@ select_by_prepared_statement(_) ->
 	Result = emysql:execute(test_pool, test_stmt, ["Hello%"]),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result: ~p~n", [Result]),
+	ct:log("Result: ~p~n", [Result]),
 
 	Recs = emysql_util:as_record(
 		Result, hello_record, record_info(fields, hello_record)),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Recs: ~p~n", [Recs]),
+	ct:log("Recs: ~p~n", [Recs]),
 
 	% the test
 	Recs = [{hello_record,<<"Hello World!">>}],
@@ -511,7 +511,7 @@ select_by_prepared_statement(_) ->
 	[{hello_record,BinString}] = Recs,
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result String (latin-1 string): ~ts~n", [BinString]),
+	ct:log("Result String (latin-1 string): ~ts~n", [BinString]),
 
 	% the test
 	BinString = <<"Hello World!">>,
@@ -536,24 +536,24 @@ read_back_directly(Value) when is_list(Value) ->
 read_back_directly(Value) when is_binary(Value) ->
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Read Back executing SELECT directly, expecting: ~p~n", [Value]),
-	% io:format("                           expecting (unicode): ~ts~n", [Value]),
-	io:format("                           expecting (integer): ~w~n", [Value]),
+	ct:log("Read Back executing SELECT directly, expecting: ~p~n", [Value]),
+	% ct:log("                           expecting (unicode): ~ts~n", [Value]),
+	ct:log("                           expecting (integer): ~w~n", [Value]),
 
 	Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result: ~p~n", [Result]),
+	ct:log("Result: ~p~n", [Result]),
 
 	Recs = emysql_util:as_record(
 		Result, hello_record, record_info(fields, hello_record)),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Recs: ~p~n", [Recs]),
+	ct:log("Recs: ~p~n", [Recs]),
 
 	% find this output by clicking on the test name, then case name in test/index.html
 	[{hello_record, ResultBin}] = Recs,
-   	io:format("Result String: ~w~n", [ResultBin]),
+   	ct:log("Result String: ~w~n", [ResultBin]),
 
 	% the test
  	ResultBin = Value,
@@ -572,20 +572,20 @@ read_back_by_statement(Value) when is_list(Value) ->
 read_back_by_statement(Value) when is_binary(Value) ->
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Read Back using SELECT through prepared statement, expecting: ~p~n", [Value]),
+	ct:log("Read Back using SELECT through prepared statement, expecting: ~p~n", [Value]),
 	
-	io:format("                                        expecting (integer): ~w~n", [Value]),
+	ct:log("                                        expecting (integer): ~w~n", [Value]),
 
 	Result = emysql:execute(test_pool, stmt_select),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result: ~p~n", [Result]),
+	ct:log("Result: ~p~n", [Result]),
 
 	Recs = emysql_util:as_record(
 		Result, hello_record, record_info(fields, hello_record)),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Recs: ~p~n", [Recs]),
+	ct:log("Recs: ~p~n", [Recs]),
 
 	% the test
 	Recs = [{hello_record, Value}],
@@ -593,7 +593,7 @@ read_back_by_statement(Value) when is_binary(Value) ->
 
 	% find this output by clicking on the test name, then case name in test/index.html
 	[{hello_record,BinString}] = Recs,
-	io:format("Result String: ~w~n", [BinString]),
+	ct:log("Result String: ~w~n", [BinString]),
 
 	% the test
 	BinString = Value,
@@ -717,15 +717,15 @@ test_latin1_liststring_via_parameter(_) ->
 %%--------------------------------------------------------------------
 worker_direct_insert(Value, QuoteEncoding, Expect) when is_binary(Value) ->
 
-	io:format("Worker: write binary as direct insert statement: ~p = ~w. (Exp: ~w)~n", [Value,Value,Expect]),
-	io:format("******************************************~n", []),
+	ct:log("Worker: write binary as direct insert statement: ~p = ~w. (Exp: ~w)~n", [Value,Value,Expect]),
+	ct:log("******************************************~n", []),
 
-	io:format("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value,QuoteEncoding),emysql_util:quote(Value,QuoteEncoding)]),
+	ct:log("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value,QuoteEncoding),emysql_util:quote(Value,QuoteEncoding)]),
 
 	X = emysql_util:any_to_binary(["INSERT INTO hello_table SET hello_text = ",
 			emysql_util:quote(Value,QuoteEncoding)]),
 
-	io:format("=> ~p = ~w.~n", [X,X]),
+	ct:log("=> ~p = ~w.~n", [X,X]),
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -742,12 +742,12 @@ worker_direct_insert(Value, QuoteEncoding, Expect) when is_binary(Value) ->
 %%--------------------------------------------------------------------
 worker_direct_insert(Value, Binary) when is_list(Value) ->
 
-	io:format("Worker: write liststring as direct insert statement.~n", []),
-	io:format("**********************************************~n", []),
+	ct:log("Worker: write liststring as direct insert statement.~n", []),
+	ct:log("**********************************************~n", []),
 
-	io:format("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value),emysql_util:quote(Value)]),
+	ct:log("                                  quote() makes: ~p = ~w.~n", [emysql_util:quote(Value),emysql_util:quote(Value)]),
 
-	io:format("Binary: ~p = ~w.~n", [Binary,Binary]),
+	ct:log("Binary: ~p = ~w.~n", [Binary,Binary]),
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
@@ -764,18 +764,18 @@ worker_direct_insert(Value, Binary) when is_list(Value) ->
 %%--------------------------------------------------------------------
 worker_insert_via_statement(Value,_,Expect) when is_binary(Value) ->
 
-	io:format("Worker: write binary as parameter to prepared insert statement.~n", []),
-	io:format("*********************************************************~n", []),
+	ct:log("Worker: write binary as parameter to prepared insert statement.~n", []),
+	ct:log("*********************************************************~n", []),
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
 	emysql:execute(test_pool, stmt_insert, [Value]),
 
-	io:format("... read back directly~n", []),
+	ct:log("... read back directly~n", []),
 
 	read_back_directly(Expect),
 
-	io:format("... read back via statement~n", []),
+	ct:log("... read back via statement~n", []),
 
 	read_back_by_statement(Expect),
 
@@ -785,18 +785,18 @@ worker_insert_via_statement(Value,_,Expect) when is_binary(Value) ->
 %%--------------------------------------------------------------------
 worker_insert_via_statement(Value,Binary) when is_list(Value) ->
 
-	io:format("Worker: write liststring as parameter to prepared insert statement.~n", []),
-	io:format("*************************************************************~n", []),
+	ct:log("Worker: write liststring as parameter to prepared insert statement.~n", []),
+	ct:log("*************************************************************~n", []),
 
     emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
 
 	emysql:execute(test_pool, stmt_insert, [Value]),
 
-	io:format("... read back directly~n", []),
+	ct:log("... read back directly~n", []),
 
 	read_back_directly(Binary),
 
-	io:format("... read back via statement~n", []),
+	ct:log("... read back via statement~n", []),
 
 	read_back_by_statement(Binary),
 

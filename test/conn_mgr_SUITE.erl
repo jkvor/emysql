@@ -127,8 +127,8 @@ stuck_waiting_2(_) ->
     % find needed time for the sql command
     {Micro, _} = timer:tc(?MODULE, ?TRY_RACE, [1]),
     Timeout = trunc(Micro / 1000 * LenienceFactor) + 100,
-    io:format("Seen execution time: ~p µs (microseconds)~n", [Micro]),
-    io:format("Set timeout: ~p ms (milliseconds)~n", [Timeout]),
+    ct:log("Seen execution time: ~p ï¿½s (microseconds)~n", [Micro]),
+    ct:log("Set timeout: ~p ms (milliseconds)~n", [Timeout]),
 
     %% Warn about time when run with actual MySQL query for TRY_RACE.
     Timeout > 5000 andalso
@@ -143,10 +143,10 @@ stuck_waiting_2(_) ->
      || _ <- lists:seq(1,Processes)],
     [receive
 	 {'EXIT', _, normal} -> 
-	    io:format("One process complete, other could now use connections.", []);
+	    ct:log("One process complete, other could now use connections.", []);
 	 {'EXIT', _, connection_lock_timeout} -> 
-	    io:format("One process exits stuck in timeout.", []),
-	    io:format("Timout was set to ~pms to be sure it can even outlast complete starvation by the other process and really indicatetes that even a free connection could be assigned to this process. Loops: ~p, used time for one sample SQL operation: ~p ms.", 
+	    ct:log("One process exits stuck in timeout.", []),
+	    ct:log("Timout was set to ~pms to be sure it can even outlast complete starvation by the other process and really indicatetes that even a free connection could be assigned to this process. Loops: ~p, used time for one sample SQL operation: ~p ms.", 
 	    [Timeout, Loops, Micro/1000]),
 	    exit(issue9_stuck_waiting);
 	 {'EXIT', _, Reason} -> exit({unexpected_error, Reason})
@@ -175,7 +175,7 @@ pool_leak_2(_) ->
     
     %% find this output via test/index.html
     [Pool] = emysql_conn_mgr:pools(),
-    io:format("Pool available at start: ~p~n", [Pool#pool.available]),
+    ct:log("Pool available at start: ~p~n", [Pool#pool.available]),
 
     %% preliminary test
     {[{emysql_connection, _,test_pool,_,_,_,_,_,_,{0,nil}, undefined,true}], 
@@ -195,7 +195,7 @@ pool_leak_2(_) ->
 
     %% Test if pool still has one connection (and available)
     [Pool1] = emysql_conn_mgr:pools(),
-    io:format("Pool available after test: ~p~n", [Pool1#pool.available]),
+    ct:log("Pool available after test: ~p~n", [Pool1#pool.available]),
     case Pool1#pool.available of
         {[{emysql_connection, _,test_pool,_,_,_,_,_,_,{0,nil}, undefined,true}],
          []} -> ok;
