@@ -100,10 +100,10 @@ pass_connection(Connection) ->
     do_gen_call({replace_connection, Connection, Connection}).
 
 replace_connection_as_available(OldConn, NewConn) ->
-    do_gen_call({replace_connection_as_available, OldConn, NewConn}).
+    do_gen_call({{replace_connection, available}, OldConn, NewConn}).
 
 replace_connection_as_locked(OldConn, NewConn) ->
-    do_gen_call({replace_connection_as_locked, OldConn, NewConn}).
+    do_gen_call({{replace_connection, locked}, OldConn, NewConn}).
 
 give_manager_control(Socket) ->
 	case whereis(?MODULE) of
@@ -232,7 +232,8 @@ handle_call({abort_wait, PoolId}, {From, _Mref}, State) ->
             {reply, {error, pool_not_found}, State}
     end;
 
-handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) ->
+
+handle_call({{replace_connection, Kind}, OldConn, NewConn}, _From, State) ->
     %% if an error occurs while doing work over a connection then
     %% the connection must be closed and a new one created in its
     %% place. The calling process is responsible for creating the
@@ -241,33 +242,21 @@ handle_call({replace_connection_as_available, OldConn, NewConn}, _From, State) -
     %% passed in to serve as the replacement for the old one.
     %% But i.e. if the sql server is down, it can be fed a dead
     %% old connection as new connection, to preserve the pool size.
-    case find_pool(OldConn#emysql_connection.pool_id, State#state.pools) of
-        {Pool, OtherPools} ->
-            Pool1 = Pool#pool{
-                available = queue:in(NewConn, Pool#pool.available),
-                locked = gb_trees:delete_any(OldConn#emysql_connection.id, Pool#pool.locked)
-            },
-            {reply, ok, State#state{pools=[Pool1|OtherPools]}};
-        undefined ->
-            {reply, {error, pool_not_found}, State}
-    end;
-
-handle_call({replace_connection_as_locked, OldConn, NewConn}, _From, State) ->
-    %% replace an existing, locked condition with the newly supplied one
-    %% and keep it in the locked list so that the caller can continue to use it
-    %% without having to lock another connection.
-    case find_pool(OldConn#emysql_connection.pool_id, State#state.pools) of
-        {Pool, OtherPools} ->
-            Locked = gb_trees:enter(
-                NewConn#emysql_connection.id, NewConn ,gb_trees:delete_any(
-                    OldConn#emysql_connection.id, Pool#pool.locked
-                )
-            ),
-            Pool1 = Pool#pool{locked = Locked},
-            {reply, ok, State#state{pools=[Pool1|OtherPools]}};
-        undefined ->
-            {reply, {error, pool_not_found}, State}
-    end;
+    {Result, NewState} =
+      with_pool(OldConn#emysql_connection.pool_id,
+                fun(#pool { available = Available, locked = Locked } = Pool) ->
+                    Stripped = gb_trees:delete_any(OldConn#emysql_connection.id, Locked),
+                    case Kind of
+                       available ->
+                         {ok, Pool#pool { locked = Stripped,
+                                     available = queue:in(NewConn, Available) }};
+                       locked ->
+                         {ok, Pool#pool { locked = gb_trees:enter(NewConn#emysql_connection.id,
+                                                                  Stripped) }}
+                    end
+                end,
+                State),
+    {reply, Result, NewState};
 
 handle_call({replace_connection, OldConn, NewConn}, _From, State) ->
     %% if an error occurs while doing work over a connection then
@@ -397,3 +386,14 @@ serve_waiting_pids(Waiting, Available, Locked) ->
 
 lock_timeout() ->
     emysql_app:lock_timeout().
+
+%% @doc Execute a function for a specific pool
+%% @end
+with_pool(P, F, #state { pools = Pools } = State) ->
+    case find_pool(P, Pools) of
+        undefined ->
+           {{error, pool_not_found}, State};
+        {Pl, Ps} ->
+           {Reply, UpdatedP} = F(Pl),
+           {Reply, State#state { pools = [UpdatedP | Ps] }}
+    end.
