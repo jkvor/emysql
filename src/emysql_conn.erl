@@ -230,7 +230,6 @@ close_connection(Conn) ->
 %%% Internal functions
 %%--------------------------------------------------------------------
 set_params(_, _, [], Result) -> Result;
-set_params(_, _, _, Error) when is_record(Error, error_packet) -> Error;
 set_params(Connection, Num, Values, _) ->
 	Packet = set_params_packet(Num, Values, Connection#emysql_connection.encoding),
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
