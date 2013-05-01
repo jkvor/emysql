@@ -594,12 +594,12 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
             erlang:demonitor(Mref, [flush]),
             emysql_conn_mgr:pass_connection(Connection),
             Result
-        after Timeout ->
-            %% if we timeout waiting for the process to return,
-            %% then reset the connection and throw a timeout error
-            %-% io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
-            erlang:demonitor(Mref),
-            exit(Pid, kill),
-            emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection),
-            exit(mysql_timeout)
+    after Timeout ->
+        %% if we timeout waiting for the process to return,
+        %% then reset the connection and throw a timeout error
+        %-% io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
+        erlang:demonitor(Mref, [flush]),
+        exit(Pid, kill),
+        emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass),
+        exit(mysql_timeout)
     end.

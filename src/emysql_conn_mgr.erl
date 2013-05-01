@@ -195,10 +195,10 @@ handle_call({remove_connections, PoolId, Num}, _From, State) ->
 handle_call({lock_connection, PoolId, Wait}, {From, _Mref}, State) ->
     case find_pool(PoolId, State#state.pools) of
         {Pool, OtherPools} ->
-			case lock_next_connection(Pool) of
-				{ok, Connection, PoolNow} ->
-					{reply, Connection, State#state{pools=[PoolNow|OtherPools]}};
-				unavailable when Wait =:= true ->
+            case lock_next_connection(Pool) of
+                {ok, Connection, PoolNow} ->
+                    {reply, Connection, State#state{pools=[PoolNow|OtherPools]}};
+                unavailable when Wait =:= true ->
                     %% place the calling pid at the end of the waiting queue of its pool
                     PoolNow = Pool#pool{waiting = queue:in(From, Pool#pool.waiting)},
                     {reply, unavailable, State#state{pools=[PoolNow|OtherPools]}};
