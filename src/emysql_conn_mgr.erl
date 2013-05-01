@@ -251,11 +251,12 @@ handle_call({{replace_connection, Kind}, OldConn, NewConn}, _From, State) ->
                            serve_waiting_pids(
                              Pool#pool { locked = Stripped,
                                          available = queue:in(
-                                            NewConn#emysql_connection { locked_at = undefined},
+                                            NewConn#emysql_connection { locked_at = undefined },
                                             Available) }),
                          {ok, ServedPool};
                        locked ->
                          {ok, Pool#pool { locked = gb_trees:enter(NewConn#emysql_connection.id,
+                                                                  NewConn,
                                                                   Stripped) }}
                     end
                 end,
