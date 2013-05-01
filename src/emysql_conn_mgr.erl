@@ -35,7 +35,7 @@
 -export([pools/0, add_pool/1, remove_pool/1,
         add_connections/2, remove_connections/2,
         lock_connection/1, wait_for_connection/1, wait_for_connection/2,
-        pass_connection/1,
+        pass_connection/1, replace_connection_as_locked/2, replace_connection_as_available/2,
         find_pool/2, give_manager_control/1]).
 
 -include("emysql.hrl").

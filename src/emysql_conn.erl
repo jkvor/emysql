@@ -208,27 +208,14 @@ reset_connection(Pools, Conn, StayLocked) ->
     case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools) of
         {Pool, _} ->
             case catch open_connection(Pool) of
-                #emysql_connection{} = NewConn ->
-                    emysql_conn_mgr:replace_connection(Conn, NewConn);
-                {'EXIT' ,Reason} ->
-                    emysql_conn_mgr:pass_connection(Conn),
-                    exit(Reason)
-            end;
-        undefined ->
-            exit(pool_not_found)
-    end.
-
-renew_connection(Pools, Conn) ->
-	close_connection(Conn),
-	case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools) of
-		{Pool, _} ->
-			case catch open_connection(Pool) of
-				#emysql_connection{} = NewConn ->
-					emysql_conn_mgr:replace_connection_locked(Conn, NewConn),
-					NewConn;
-				{'EXIT' ,Reason} ->
-					emysql_conn_mgr:unlock_connection(Conn),
-					exit(Reason)
+                #emysql_connection{} = NewConn when StayLocked == pass ->
+                    emysql_conn_mgr:replace_connection_as_available(Conn, NewConn);
+                #emysql_connection{} = NewConn when StayLocked == keep ->
+                    emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn);
+                {'EXIT', Reason} ->
+                    DeadConn = Conn#emysql_connection { alive = false },
+                    emysql_conn_mgr:replace_connection_as_available(Conn, DeadConn),
+                    {error, {cannot_reopen_in_reset, Reason}}
             end;
         undefined ->
             exit(pool_not_found)
