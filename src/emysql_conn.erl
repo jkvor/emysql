@@ -146,11 +146,11 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
     case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
         {ok, Sock} ->
 			Greeting = case catch emysql_auth:do_handshake(Sock, User, Password) of
-				{'EXIT', ExitReason} ->
-                          gen_tcp:close(Sock),
+                {'EXIT', ExitReason} ->
+                    gen_tcp:close(Sock),
 					exit(ExitReason);
 				Greeting0 -> Greeting0
-			      end,
+			end,
             Connection = #emysql_connection{
                 id = erlang:port_to_list(Sock),
                 pool_id = PoolId,
@@ -169,9 +169,9 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
                      %-% io:format("~p open connection: ... db set ok~n", [self()]),
                     ok;
                 Err1 when is_record(Err1, error_packet) ->
-                     %-% io:format("~p open connection: ... db set error~n", [self()]),
-                     gen_tcp:close(Sock),
-                     exit({failed_to_set_database, Err1#error_packet.msg})
+                    %-% io:format("~p open connection: ... db set error~n", [self()]),
+                    gen_tcp:close(Sock),
+                    exit({failed_to_set_database, Err1#error_packet.msg})
             end,
             %-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
             case set_encoding(Connection, Encoding) of
@@ -287,7 +287,6 @@ prepare_statement(Connection, StmtName) ->
 % human readable string rep of the server state flag
 %% @private
 hstate(State) ->
-
-       case (State band ?SERVER_STATUS_AUTOCOMMIT) of 0 -> ""; _-> "AUTOCOMMIT " end
-    ++ case (State band ?SERVER_MORE_RESULTS_EXIST) of 0 -> ""; _-> "MORE_RESULTS_EXIST " end
+       case (State band ?SERVER_STATUS_AUTOCOMMIT)   of 0 -> ""; _-> "AUTOCOMMIT " end
+    ++ case (State band ?SERVER_MORE_RESULTS_EXIST)  of 0 -> ""; _-> "MORE_RESULTS_EXIST " end
     ++ case (State band ?SERVER_QUERY_NO_INDEX_USED) of 0 -> ""; _-> "NO_INDEX_USED " end.
