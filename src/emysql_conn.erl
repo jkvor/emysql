@@ -47,7 +47,7 @@ set_encoding(Connection, Encoding) ->
 
 execute(Connection, Query, []) when is_list(Query) ->
      %-% io:format("~p execute list: ~p using connection: ~p~n", [self(), iolist_to_binary(Query), Connection#emysql_connection.id]),
-    Packet = <<?COM_QUERY, (emysql_util:to_binary(Query, Connection#emysql_connection.encoding))/binary>>,
+    Packet = <<?COM_QUERY, (emysql_util:to_binary(Query))/binary>>,
     % Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
     emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
 
@@ -93,7 +93,7 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 prepare(Connection, Name, Statement) when is_atom(Name) ->
     prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-    StatementBin = emysql_util:encode(Statement, binary, Connection#emysql_connection.encoding),
+    StatementBin = emysql_util:encode(Statement, binary),
     Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM ", StatementBin/binary>>,  % todo: utf8?
     case emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0) of
         OK when is_record(OK, ok_packet) ->
@@ -231,12 +231,12 @@ close_connection(Conn) ->
 %%--------------------------------------------------------------------
 set_params(_, _, [], Result) -> Result;
 set_params(Connection, Num, Values, _) ->
-	Packet = set_params_packet(Num, Values, Connection#emysql_connection.encoding),
+	Packet = set_params_packet(Num, Values),
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
 
-set_params_packet(NumStart, Values, Encoding) ->
-	BinValues = [emysql_util:encode(Val, binary, Encoding) || Val <- Values],
-	BinNums = [emysql_util:encode(Num, binary, Encoding) || Num <- lists:seq(NumStart, NumStart + length(Values) - 1)],
+set_params_packet(NumStart, Values) ->
+	BinValues = [emysql_util:encode(Val, binary) || Val <- Values],
+	BinNums = [emysql_util:encode(Num, binary) || Num <- lists:seq(NumStart, NumStart + length(Values) - 1)],
 	BinPairs = lists:zip(BinNums, BinValues),
 	Parts = [<<"@", NumBin/binary, "=", ValBin/binary>> || {NumBin, ValBin} <- BinPairs], 
 	Sets = list_to_binary(join(Parts, <<",">>)),
