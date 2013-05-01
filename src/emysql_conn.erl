@@ -145,55 +145,68 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
      %-% io:format("~p open connection: ... connect ... ~n", [self()]),
     case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
         {ok, Sock} ->
-			Greeting = case catch emysql_auth:do_handshake(Sock, User, Password) of
-                {'EXIT', ExitReason} ->
-                    gen_tcp:close(Sock),
-					exit(ExitReason);
-				Greeting0 -> Greeting0
-			end,
+			#greeting {
+              server_version = Version,
+              thread_id = ThreadId,
+              caps = Caps,
+              language = Language
+            } = handshake(Sock, User, Password),
             Connection = #emysql_connection{
                 id = erlang:port_to_list(Sock),
                 pool_id = PoolId,
                 encoding = Encoding,
                 socket = Sock,
-                version = Greeting#greeting.server_version,
-                thread_id = Greeting#greeting.thread_id,
-                caps = Greeting#greeting.caps,
-                language = Greeting#greeting.language
+                version = Version,
+                thread_id = ThreadId,
+                caps = Caps,
+                language = Language
             },
 
             %-% io:format("~p open connection: ... set db ...~n", [self()]),
-            case set_database(Connection, Database) of
-                ok -> ok;
-                OK1 when is_record(OK1, ok_packet) ->
-                     %-% io:format("~p open connection: ... db set ok~n", [self()]),
-                    ok;
-                Err1 when is_record(Err1, error_packet) ->
-                    %-% io:format("~p open connection: ... db set error~n", [self()]),
-                    gen_tcp:close(Sock),
-                    exit({failed_to_set_database, Err1#error_packet.msg})
-            end,
-            %-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
-            case set_encoding(Connection, Encoding) of
-                OK2 when is_record(OK2, ok_packet) ->
-                    ok;
-                Err2 when is_record(Err2, error_packet) ->
-                    gen_tcp:close(Sock),
-                    exit({failed_to_set_encoding, Err2#error_packet.msg})
-            end,
-            case emysql_conn_mgr:give_manager_control(Sock) of
-                {error ,Reason} ->
-                    gen_tcp:close(Sock),
-                    exit({Reason,
-                        "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
-                ok -> Connection
-            end;
+            ok = set_database_or_die(Connection, Database),
+            ok = set_encoding_or_die(Connection, Encoding),
+            ok = give_manager_control(Sock),
+            Connection;
         {error, Reason} ->
              %-% io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
              %-% io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
             exit({failed_to_connect_to_database, Reason})
     end.
 
+handshake(Sock, User, Password) ->
+   case catch emysql_auth:do_handshake(Sock, User, Password) of
+       {'EXIT', ExitReason} ->
+           gen_tcp:close(Sock),
+           exit(ExitReason);
+       #greeting{} = G -> G
+   end.
+
+give_manager_control(Socket) ->
+    case emysql_conn_mgr:give_manager_control(Socket) of
+        {error, Reason} ->
+            gen_tcp:close(Socket),
+            exit({Reason,
+                 "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
+        ok -> ok
+   end.
+
+set_database_or_die(#emysql_connection { socket = Socket } = Connection, Database) ->
+    case set_database(Connection, Database) of
+        ok -> ok;
+        OK1 when is_record(OK1, ok_packet) -> ok;
+        Err1 when is_record(Err1, error_packet) ->
+             gen_tcp:close(Socket),
+             exit({failed_to_set_database, Err1#error_packet.msg})
+    end.
+ 
+set_encoding_or_die(#emysql_connection { socket = Socket } = Connection, Encoding) ->
+    case set_encoding(Connection, Encoding) of
+        OK2 when is_record(OK2, ok_packet) -> ok;
+        Err2 when is_record(Err2, error_packet) ->
+            gen_tcp:close(Socket),
+            exit({failed_to_set_encoding, Err2#error_packet.msg})
+    end.
+ 
 reset_connection(Pools, Conn, StayLocked) ->
     %% if a process dies or times out while doing work
     %% the socket must be closed and the connection reset
