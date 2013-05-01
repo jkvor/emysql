@@ -276,7 +276,7 @@ quote(String) when is_list(String) ->
 quote(String, _) when is_list(String) ->
     quote(String);
 
-quote(Any, Pool) when is_record(Any,pool) ->
+quote(Any, Pool) when is_record(Pool,pool) ->
     quote(Any, Pool#pool.encoding);
 
 quote(Bin, latin1) when is_binary(Bin) ->
