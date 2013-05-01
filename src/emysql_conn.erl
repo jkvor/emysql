@@ -191,10 +191,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
         {error, Reason} ->
              %-% io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
              %-% io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
-            exit({failed_to_connect_to_database, Reason});
-        What ->
-             %-% io:format("~p open connection: ... UNKNOWN ERROR ~p~n", [self(), What]),
-            exit({unknown_fail, What})
+            exit({failed_to_connect_to_database, Reason})
     end.
 
 reset_connection(Pools, Conn, StayLocked) ->
