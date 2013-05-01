@@ -561,14 +561,10 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
     %% spawn a new process to do work, then monitor that process until
     %% it either dies, returns data or times out.
     Parent = self(),
-    Pid = spawn(
+    {Pid, Mref} = spawn_monitor(
         fun() ->
-            receive start ->
                 Parent ! {self(), apply(fun emysql_conn:execute/3, Args)}
-            end
         end),
-    Mref = erlang:monitor(process, Pid),
-    Pid ! start,
     receive
         {'DOWN', Mref, process, Pid, {_, closed}} ->
             %-% io:format("monitor_work: ~p DOWN/closed -> renew~n", [Pid]),
