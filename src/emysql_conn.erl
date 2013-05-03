@@ -222,9 +222,11 @@ reset_connection(Pools, Conn, StayLocked) ->
         {Pool, _} ->
             case catch open_connection(Pool) of
                 #emysql_connection{} = NewConn when StayLocked == pass ->
-                    emysql_conn_mgr:replace_connection_as_available(Conn, NewConn);
+                    ok = emysql_conn_mgr:replace_connection_as_available(Conn, NewConn),
+                    NewConn;
                 #emysql_connection{} = NewConn when StayLocked == keep ->
-                    emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn);
+                    ok = emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn),
+                    NewConn;
                 {'EXIT', Reason} ->
                     DeadConn = Conn#emysql_connection { alive = false },
                     emysql_conn_mgr:replace_connection_as_available(Conn, DeadConn),
