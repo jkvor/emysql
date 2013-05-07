@@ -64,7 +64,7 @@ package: clean
 install:
 	@for i in ebin/*.beam ebin/*.app include/*.hrl src/*.erl; do install -m 644 -D $$i $(prefix)/$(LIBDIR)/$(PKGNAME)-$(VERSION)/$$i ; done
 
-all-test: test encoding-test test20
+all-test: test encoding-test test20 testutil
 
 encoding-test: all
 	(cd test; ct_run -suite latin_SUITE utf8_SUITE utf8_to_latindb_SUITE latin_to_utf8db_SUITE -pa ../ebin $(CRYPTO_PATH))
@@ -77,6 +77,9 @@ test20: all
 
 test9: all
 	(cd test; ct_run -suite con_mgr_SUITE -pa ../ebin $(CRYPTO_PATH))
+
+testutil: all
+	(cd test; ct_run -suite as_record_SUITE -cover as_record.cover -pa ../ebin $(CRYPTO_PATH))
 
 prove: all
 	(cd t;$(MAKE))

@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Module emysql_util</title>
+<link rel="stylesheet" type="text/css" href="emysql-style.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module emysql_util</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" class=index border="0" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#as_record-3">as_record/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#as_record-4">as_record/4</a></td><td>package row data as records.</td></tr>
+<tr><td valign="top"><a href="#asciz-1">asciz/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#bxor_binary-2">bxor_binary/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#dualmap-3">dualmap/3</a></td><td></td></tr>
+<tr><td valign="top"><a href="#encode-1">encode/1</a></td><td>Encode a value so that it can be included safely in a MySQL query.</td></tr>
+<tr><td valign="top"><a href="#encode-2">encode/2</a></td><td>Encode a value so that it can be included safely in a MySQL query.</td></tr>
+<tr><td valign="top"><a href="#field_names-1">field_names/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#hash-1">hash/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#length_coded_binary-1">length_coded_binary/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#length_coded_string-1">length_coded_string/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#null_terminated_string-2">null_terminated_string/2</a></td><td></td></tr>
+<tr><td valign="top"><a href="#quote-1">quote/1</a></td><td>Quote a string or binary value so that it can be included safely in a
+  MySQL query.</td></tr>
+<tr><td valign="top"><a href="#rnd-3">rnd/3</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="as_record-3">as_record/3</a></h3>
+<div class="spec">
+<p><tt>as_record(Result, RecordName, Fields) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="as_record-4">as_record/4</a></h3>
+<div class="spec">
+<p><tt>as_record(Result, RecordName, Fields, Fun) -&gt; Result</tt>
+<ul class="definitions"><li><tt>Result = #result_packet{}</tt></li><li><tt>RecordName = atom()</tt></li><li><tt>Fields = [atom()]</tt></li><li><tt>Fun = function()</tt></li><li><tt>Result = [Row]</tt></li><li><tt>Row = [<a href="#type-record">record()</a>]</tt></li></ul></p>
+</div><p><p>package row data as records</p>
+ 
+  <p>RecordName is the name of the record to generate.  
+Fields are the field names to generate for each record.</p>
+ 
+  <p>-module(fetch_example).</p>
+ 
+  fetch_foo() -&gt;
+ 	Res = emysql:execute(pool1, "select * from foo"),
+ 	Res:as_record(foo, record_info(fields, foo)).</p>
+
+<h3 class="function"><a name="asciz-1">asciz/1</a></h3>
+<div class="spec">
+<p><tt>asciz(Data) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="bxor_binary-2">bxor_binary/2</a></h3>
+<div class="spec">
+<p><tt>bxor_binary(B1, B2) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="dualmap-3">dualmap/3</a></h3>
+<div class="spec">
+<p><tt>dualmap(F, R1, R2) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="encode-1">encode/1</a></h3>
+<div class="spec">
+<p><tt>encode(Val::term()) -&gt; binary() | {error, Error}</tt><br></p>
+</div><p>Encode a value so that it can be included safely in a MySQL query.</p>
+
+<h3 class="function"><a name="encode-2">encode/2</a></h3>
+<div class="spec">
+<p><tt>encode(Val::term(), ReturnType::list | binary) -&gt; string() | binary() | {error, Error}</tt><br></p>
+</div><p>Encode a value so that it can be included safely in a MySQL query.</p>
+
+<h3 class="function"><a name="field_names-1">field_names/1</a></h3>
+<div class="spec">
+<p><tt>field_names(Result) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="hash-1">hash/1</a></h3>
+<div class="spec">
+<p><tt>hash(S) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="length_coded_binary-1">length_coded_binary/1</a></h3>
+<div class="spec">
+<p><tt>length_coded_binary(X1) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="length_coded_string-1">length_coded_string/1</a></h3>
+<div class="spec">
+<p><tt>length_coded_string(Bin) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="null_terminated_string-2">null_terminated_string/2</a></h3>
+<div class="spec">
+<p><tt>null_terminated_string(X1, Acc) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="quote-1">quote/1</a></h3>
+<div class="spec">
+<p><tt>quote(String::<a href="#type-x">x()</a>) -&gt; <a href="#type-x">x()</a></tt>
+<ul class="definitions"><li><tt><a name="type-x">x()</a> = list() | binary()</tt></li></ul></p>
+</div><p>Quote a string or binary value so that it can be included safely in a
+  MySQL query. For the quoting, a binary is converted to a list and back.
+  For this, it's necessary to know the encoding of the binary.</p>
+
+<h3 class="function"><a name="rnd-3">rnd/3</a></h3>
+<div class="spec">
+<p><tt>rnd(N, Seed1, Seed2) -&gt; any()</tt></p>
+</div>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, Mar 26 2012, 02:20:04.</i></p>
+</body>
+</html>
