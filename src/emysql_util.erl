@@ -52,19 +52,24 @@ field_names(Result) when is_record(Result, result_packet) ->
 %%  Res = emysql:execute(pool1, "select * from foo"),
 %%  Res:as_record(foo, record_info(fields, foo)).
 as_record(Result, RecordName, Fields, Fun) when is_record(Result, result_packet), is_atom(RecordName), is_list(Fields), is_function(Fun) ->
-    {Lookup, _} = lists:mapfoldl(
-        fun(#field{name=Name}, Acc) ->
-            {{binary_to_atom(Name, utf8), Acc}, Acc+1}
-        end, 1, Result#result_packet.field_list),
-    [begin
-        RecordData = [case proplists:get_value(Field, Lookup) of
-                undefined ->
-                    undefined;
-                Index ->
-                    lists:nth(Index, Row)
-        end || Field <- Fields],
-        Fun(list_to_tuple([RecordName | RecordData]))
-    end || Row <- Result#result_packet.rows].
+	Columns = Result#result_packet.field_list,
+
+	S = lists:seq(1, length(Columns)),
+	P = lists:zip([ binary_to_atom(C1#field.name, utf8) || C1 <- Columns ], S),
+	F = fun(FieldName) ->
+		case proplists:lookup(FieldName, P) of
+			none ->
+					fun(_) -> undefined end;
+			{FieldName, Pos} ->
+					fun(Row) -> lists:nth(Pos, Row) end
+		end
+	end,
+	Fs = [ F(FieldName) || FieldName <- Fields ],
+	F1 = fun(Row) ->
+		RecordData = [ Fx(Row) || Fx <- Fs ],
+		Fun(list_to_tuple([RecordName|RecordData]))
+	end,
+	[ F1(Row) || Row <- Result#result_packet.rows ].
 
 as_record(Result, RecordName, Fields) when is_record(Result, result_packet), is_atom(RecordName), is_list(Fields) ->
     as_record(Result, RecordName, Fields, fun(A) -> A end).
