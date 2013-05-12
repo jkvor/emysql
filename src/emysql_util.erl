@@ -236,7 +236,8 @@ encode({time, Val}, ReturnType, Encoding) ->
     encode(Val, ReturnType, Encoding);
 
 encode({{Year, Month, Day}, {Hour, Minute, Second}}, list, _) ->
-    Res = two_digits([Year, Month, Day, Hour, Minute, Second]),
+    Res = io_lib:format("'~4.4.0w-~2.2.0w-~2.2.0w ~2.2.0w:~2.2.0w:~2.2.0w'",
+                        [Year, Month, Day, Hour, Minute, Second]),
     lists:flatten(Res);
 
 encode({{_Year, _Month, _Day}, {_Hour, _Minute, _Second}}=Val, binary, E) ->
