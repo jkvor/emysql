@@ -148,9 +148,10 @@ response(Sock, #packet{seq_num = SeqNum, data = Data}=_Packet) ->
       ServerStatus }.
 
 recv_packet_header(Sock) ->
+    Timeout = emysql_app:default_timeout(),
     %-% io:format("~p recv_packet_header~n", [self()]),
     %-% io:format("~p recv_packet_header: recv~n", [self()]),
-    case gen_tcp:recv(Sock, 4, ?TIMEOUT) of
+    case gen_tcp:recv(Sock, 4, Timeout) of
         {ok, <<PacketLength:24/little-integer, SeqNum:8/integer>>} ->
             %-% io:format("~p recv_packet_header: ok~n", [self()]),
             {PacketLength, SeqNum};
@@ -180,16 +181,17 @@ recv_packet_body(Sock, PacketLength) ->
     recv_packet_body(Sock, PacketLength, []).
 
 recv_packet_body(Sock, PacketLength, Acc) ->
+    Timeout = emysql_app:default_timeout(),
     if
         PacketLength > ?PACKETSIZE->
-            case gen_tcp:recv(Sock, ?PACKETSIZE, ?TIMEOUT) of
+            case gen_tcp:recv(Sock, ?PACKETSIZE, Timeout) of
                 {ok, Bin} ->
                     recv_packet_body(Sock, PacketLength - ?PACKETSIZE, [Bin|Acc]);
                 {error, Reason1} ->
                     exit({failed_to_recv_packet_body, Reason1})
             end;
         true ->
-            case gen_tcp:recv(Sock, PacketLength, ?TIMEOUT) of
+            case gen_tcp:recv(Sock, PacketLength, Timeout) of
                 {ok, Bin} ->
                     iolist_to_binary(lists:reverse([Bin|Acc]));
                 {error, Reason1} ->
