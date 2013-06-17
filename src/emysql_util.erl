@@ -24,9 +24,26 @@
 %% FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 %% OTHER DEALINGS IN THE SOFTWARE.
 -module(emysql_util).
--export([field_names/1, as_record/4, as_record/3, length_coded_binary/1, length_coded_string/1,
-    null_terminated_string/2, asciz/1, bxor_binary/2, dualmap/3, hash/1, to_binary/1,
-    rnd/3, encode/1, encode/2, quote/1, as_proplist/1, as_dict/1]).
+-export([
+         asciz/1,
+         as_dict/1,
+         as_json/1,
+         as_proplist/1,
+         as_record/3,
+         as_record/4,
+         bxor_binary/2,
+         dualmap/3,
+         encode/1,
+         encode/2,
+         field_names/1,
+         hash/1,
+         length_coded_binary/1,
+         length_coded_string/1,
+         null_terminated_string/2,
+         quote/1,
+         rnd/3,
+         to_binary/1
+        ]).
 
 -include("emysql.hrl").
 
@@ -116,6 +133,25 @@ as_record(Result, RecordName, Fields, Fun) when is_record(Result, result_packet)
 
 as_record(Result, RecordName, Fields) when is_record(Result, result_packet), is_atom(RecordName), is_list(Fields) ->
     as_record(Result, RecordName, Fields, fun(A) -> A end).
+
+%% @spec as_json(Result) -> Result
+%% @doc package row data as erlang json (jsx/jiffy compatible)
+as_json(Result) when is_record(Result, result_packet) ->
+    Fields = emysql_util:field_names(Result),
+    Rows = Result#result_packet.rows,
+    [begin
+        {JSRow, _} = lists:mapfoldl( fun(K, [V | T]) -> {{K, json_val(V)}, T} end, Row, Fields),
+        JSRow
+    end || Row <- Rows].
+
+json_val(undefined) ->
+    null;
+json_val({date,{Year,Month,Day}}) ->
+    iolist_to_binary( io_lib:format("~4.4.0w-~2.2.0w-~2.2.0w", [Year, Month, Day]));
+json_val({datetime,{ {Year,Month,Day}, {Hour,Min,Sec} }}) ->
+    iolist_to_binary( io_lib:format("~4.4.0w-~2.2.0w-~2.2.0wT~2.2.0w:~2.2.0w:~2.2.0wZ", [Year, Month, Day, Hour, Min, Sec]));
+json_val(Value) ->
+    Value.
 
 length_coded_binary(<<>>) -> {<<>>, <<>>};
 length_coded_binary(<<FirstByte:8, Tail/binary>>) ->
