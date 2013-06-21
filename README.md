@@ -470,6 +470,19 @@ The probably rare but still bad races of issue #9 have been solved at long last,
 	
 Check the test results by opening test/index.html with a browser. 
 
+### Util Tests
+For this test you need database like this:
+
+	$ mysql [-u<user> -p]
+	create database test_database;
+	grant all privileges on test_database.* to test_username@localhost identified by 'test_password';
+	flush privileges;
+
+The test suite is test/as_record_SUITE.erl. To run the test, use make:
+
+	make testutil
+
+Check the test results by opening test/index.html with a browser.
 
 ## History                                               <a name="History"></a>
 
