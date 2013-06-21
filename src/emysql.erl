@@ -562,9 +562,10 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
     %% it either dies, returns data or times out.
     Parent = self(),
     {Pid, Mref} = spawn_monitor(
-        fun() ->
-                Parent ! {self(), apply(fun emysql_conn:execute/3, Args)}
-        end),
+                    fun() ->
+                            put(query_arguments, Args),
+                            Parent ! {self(), apply(fun emysql_conn:execute/3, Args)}
+                    end),
     receive
         {'DOWN', Mref, process, Pid, {_, closed}} ->
             %-% io:format("monitor_work: ~p DOWN/closed -> renew~n", [Pid]),

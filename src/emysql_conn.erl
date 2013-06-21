@@ -47,7 +47,7 @@ set_encoding(Connection, Encoding) ->
 
 execute(Connection, Query, []) when is_list(Query) ->
      %-% io:format("~p execute list: ~p using connection: ~p~n", [self(), iolist_to_binary(Query), Connection#emysql_connection.id]),
-    Packet = <<?COM_QUERY, (emysql_util:to_binary(Query, Connection#emysql_connection.encoding))/binary>>,
+    Packet = <<?COM_QUERY, (emysql_util:to_binary(Query))/binary>>,
     % Packet = <<?COM_QUERY, (iolist_to_binary(Query))/binary>>,
     emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
 
@@ -93,7 +93,7 @@ execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) ->
 prepare(Connection, Name, Statement) when is_atom(Name) ->
     prepare(Connection, atom_to_list(Name), Statement);
 prepare(Connection, Name, Statement) ->
-    StatementBin = emysql_util:encode(Statement, binary, Connection#emysql_connection.encoding),
+    StatementBin = emysql_util:encode(Statement, binary),
     Packet = <<?COM_QUERY, "PREPARE ", (list_to_binary(Name))/binary, " FROM ", StatementBin/binary>>,  % todo: utf8?
     case emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0) of
         OK when is_record(OK, ok_packet) ->
@@ -145,55 +145,67 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
      %-% io:format("~p open connection: ... connect ... ~n", [self()]),
     case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
         {ok, Sock} ->
-			Greeting = case catch emysql_auth:do_handshake(Sock, User, Password) of
-                {'EXIT', ExitReason} ->
-                    gen_tcp:close(Sock),
-					exit(ExitReason);
-				Greeting0 -> Greeting0
-			end,
+            #greeting {
+               server_version = Version,
+               thread_id = ThreadId,
+               caps = Caps,
+               language = Language
+              } = handshake(Sock, User, Password),
             Connection = #emysql_connection{
-                id = erlang:port_to_list(Sock),
-                pool_id = PoolId,
-                encoding = Encoding,
-                socket = Sock,
-                version = Greeting#greeting.server_version,
-                thread_id = Greeting#greeting.thread_id,
-                caps = Greeting#greeting.caps,
-                language = Greeting#greeting.language
-            },
-
-            %-% io:format("~p open connection: ... set db ...~n", [self()]),
-            case set_database(Connection, Database) of
-                ok -> ok;
-                OK1 when is_record(OK1, ok_packet) ->
-                     %-% io:format("~p open connection: ... db set ok~n", [self()]),
-                    ok;
-                Err1 when is_record(Err1, error_packet) ->
-                    %-% io:format("~p open connection: ... db set error~n", [self()]),
-                    gen_tcp:close(Sock),
-                    exit({failed_to_set_database, Err1#error_packet.msg})
-            end,
-            %-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
-            case set_encoding(Connection, Encoding) of
-                OK2 when is_record(OK2, ok_packet) ->
-                    ok;
-                Err2 when is_record(Err2, error_packet) ->
-                    gen_tcp:close(Sock),
-                    exit({failed_to_set_encoding, Err2#error_packet.msg})
-            end,
-            case emysql_conn_mgr:give_manager_control(Sock) of
-                {error ,Reason} ->
-                    gen_tcp:close(Sock),
-                    exit({Reason,
-                        "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
-                ok -> Connection
-            end;
+                            id = erlang:port_to_list(Sock),
+                            pool_id = PoolId,
+                            encoding = Encoding,
+                            socket = Sock,
+                            version = Version,
+                            thread_id = ThreadId,
+                            caps = Caps,
+                            language = Language
+                           },
+            %%-% io:format("~p open connection: ... set db ...~n", [self()]),
+            ok = set_database_or_die(Connection, Database),
+            ok = set_encoding_or_die(Connection, Encoding),
+            ok = give_manager_control(Sock),
+            Connection;
         {error, Reason} ->
              %-% io:format("~p open connection: ... ERROR ~p~n", [self(), Reason]),
              %-% io:format("~p open connection: ... exit with failed_to_connect_to_database~n", [self()]),
             exit({failed_to_connect_to_database, Reason})
     end.
 
+handshake(Sock, User, Password) ->
+   case catch emysql_auth:do_handshake(Sock, User, Password) of
+       {'EXIT', ExitReason} ->
+           gen_tcp:close(Sock),
+           exit(ExitReason);
+       #greeting{} = G -> G
+   end.
+
+give_manager_control(Socket) ->
+    case emysql_conn_mgr:give_manager_control(Socket) of
+        {error, Reason} ->
+            gen_tcp:close(Socket),
+            exit({Reason,
+                 "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
+        ok -> ok
+   end.
+
+set_database_or_die(#emysql_connection { socket = Socket } = Connection, Database) ->
+    case set_database(Connection, Database) of
+        ok -> ok;
+        OK1 when is_record(OK1, ok_packet) -> ok;
+        Err1 when is_record(Err1, error_packet) ->
+             gen_tcp:close(Socket),
+             exit({failed_to_set_database, Err1#error_packet.msg})
+    end.
+ 
+set_encoding_or_die(#emysql_connection { socket = Socket } = Connection, Encoding) ->
+    case set_encoding(Connection, Encoding) of
+        OK2 when is_record(OK2, ok_packet) -> ok;
+        Err2 when is_record(Err2, error_packet) ->
+            gen_tcp:close(Socket),
+            exit({failed_to_set_encoding, Err2#error_packet.msg})
+    end.
+ 
 reset_connection(Pools, Conn, StayLocked) ->
     %% if a process dies or times out while doing work
     %% the socket must be closed and the connection reset
@@ -209,9 +221,11 @@ reset_connection(Pools, Conn, StayLocked) ->
         {Pool, _} ->
             case catch open_connection(Pool) of
                 #emysql_connection{} = NewConn when StayLocked == pass ->
-                    emysql_conn_mgr:replace_connection_as_available(Conn, NewConn);
+                    ok = emysql_conn_mgr:replace_connection_as_available(Conn, NewConn),
+                    NewConn;
                 #emysql_connection{} = NewConn when StayLocked == keep ->
-                    emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn);
+                    ok = emysql_conn_mgr:replace_connection_as_locked(Conn, NewConn),
+                    NewConn;
                 {'EXIT', Reason} ->
                     DeadConn = Conn#emysql_connection { alive = false },
                     emysql_conn_mgr:replace_connection_as_available(Conn, DeadConn),
@@ -231,12 +245,12 @@ close_connection(Conn) ->
 %%--------------------------------------------------------------------
 set_params(_, _, [], Result) -> Result;
 set_params(Connection, Num, Values, _) ->
-	Packet = set_params_packet(Num, Values, Connection#emysql_connection.encoding),
+	Packet = set_params_packet(Num, Values),
 	emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0).
 
-set_params_packet(NumStart, Values, Encoding) ->
-	BinValues = [emysql_util:encode(Val, binary, Encoding) || Val <- Values],
-	BinNums = [emysql_util:encode(Num, binary, Encoding) || Num <- lists:seq(NumStart, NumStart + length(Values) - 1)],
+set_params_packet(NumStart, Values) ->
+	BinValues = [emysql_util:encode(Val, binary) || Val <- Values],
+	BinNums = [emysql_util:encode(Num, binary) || Num <- lists:seq(NumStart, NumStart + length(Values) - 1)],
 	BinPairs = lists:zip(BinNums, BinValues),
 	Parts = [<<"@", NumBin/binary, "=", ValBin/binary>> || {NumBin, ValBin} <- BinPairs], 
 	Sets = list_to_binary(join(Parts, <<",">>)),
