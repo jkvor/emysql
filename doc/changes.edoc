@@ -9,6 +9,15 @@
  git checkout origin/stable
 '''
 
+==== Jun 21 2013 hd | doc ====
+<li> Fixed abuse of ETS table to store Mysql results</li>
+<li> Fixed floating point encoding in the driver base</li>
+<li> Support using atoms as prepared statements</li>
+<li> Optimize the code path around SETing parameters</li>
+<li> Fixed bug in receiving packet bodies which would lead to conn. stream corruption</li>
+<li> Make it possible to use configurable TCP timeout values</li>
+<li> Fix date encoding of special dates, e.g., year 1</li>
+
 ==== Apr 23 2013 hd | doc ====
 <li> Fixed issue #44: LOAD DATA INFILE. Thanks to Qing Liang / qingliangcn.  </li>
 <li> Added samples and brief description of LOAD DATA INFILE  </li>
