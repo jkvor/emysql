@@ -1,16 +1,16 @@
-## Emysql 0.2.16
+## Emysql 0.3.0
 
 <hr/>
 
-There are cases where the automatic conversion of parameters to prepared
-statements has been changed and now behaves different than before. The
-conversion now respects the encoding setting of the connection pool that it
-is for, which you assigned when opening the pool.
+*Note:* Automatic conversion to the encoding of the underlying MySQL
+server was removed in the 0.3.x branch. If you specify, e.g., utf-8
+encoding, then the MySQL server will reject wrongly-encoded strings
+and data, but the *driver* will not perform any encoding by itself
+anymore.
 
-There are extensive new tests checking as many sensible cases as possible, among
-them 40+ 'human readable' cases in the files test/utf8_SUITE, test/latin_SUITE,
-test/utf8_to_latindb_SUITE, test/latin_to_utf8db_SUITE. Please refer to these
-first in cases where you have doubt about expected behavior in fringe cases.
+It is now the driver *callers* responsibility to ensure that data is
+properly encoded. This change makes it possible to pass binary BLOB
+data to the MySQL server once again.
 
 <hr/>
 
