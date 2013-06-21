@@ -130,7 +130,7 @@ open_connections(Pool) ->
     case (queue:len(Pool#pool.available) + gb_trees:size(Pool#pool.locked)) < Pool#pool.size of
         true ->
             %-% io:format(" continues~n"),
-            Conn = emysql_conn:open_connection(Pool),
+            Conn = open_connection(Pool),
             %-% io:format("opened connection: ~p~n", [Conn]),
             open_connections(Pool#pool{available = queue:in(Conn, Pool#pool.available)});
         false ->
@@ -143,11 +143,13 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
      %-% io:format("~p open connection: ... connect ... ~n", [self()]),
     case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
         {ok, Sock} ->
-            %-% io:format("~p open connection: ... got socket~n", [self()]),
-            Mgr = whereis(emysql_conn_mgr),
-            Mgr /= undefined orelse
-                exit({failed_to_find_conn_mgr,
-                    "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."}),
+            Mgr = case whereis(emysql_conn_mgr) of
+                      undefined ->
+                          gen_tcp:close(Sock),
+                          exit({failed_to_find_conn_mgr,
+						         "Failed to find conn mgr when opening connection. Make sure crypto is started and emysql.app is in the Erlang path."});
+                      Mgr0 -> Mgr0
+			      end,
             gen_tcp:controlling_process(Sock, Mgr),
             %-% io:format("~p open connection: ... greeting~n", [self()]),
             Greeting = emysql_auth:do_handshake(Sock, User, Password),
@@ -162,21 +164,24 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
                 caps = Greeting#greeting.caps,
                 language = Greeting#greeting.language
             },
+
             %-% io:format("~p open connection: ... set db ...~n", [self()]),
-            case emysql_conn:set_database(Connection, Database) of
+            case set_database(Connection, Database) of
                 ok -> ok;
                 OK1 when is_record(OK1, ok_packet) ->
                      %-% io:format("~p open connection: ... db set ok~n", [self()]),
                     ok;
                 Err1 when is_record(Err1, error_packet) ->
                      %-% io:format("~p open connection: ... db set error~n", [self()]),
-                    exit({failed_to_set_database, Err1#error_packet.msg})
+                     gen_tcp:close(Sock),
+                     exit({failed_to_set_database, Err1#error_packet.msg})
             end,
             %-% io:format("~p open connection: ... set encoding ...: ~p~n", [self(), Encoding]),
-            case emysql_conn:set_encoding(Connection, Encoding) of
+            case set_encoding(Connection, Encoding) of
                 OK2 when is_record(OK2, ok_packet) ->
                     ok;
                 Err2 when is_record(Err2, error_packet) ->
+					gen_tcp:close(Sock),
                     exit({failed_to_set_encoding, Err2#error_packet.msg})
             end,
              %-% io:format("~p open connection: ... ok, return connection~n", [self()]),
@@ -199,8 +204,7 @@ reset_connection(Pools, Conn, StayLocked) ->
     %% by the next caller process coming along. So the
     %% pool can't run dry, even though it can freeze.
     %-% io:format("resetting connection~n"),
-    %-% io:format("spawn process to close connection~n"),
-    spawn(fun() -> close_connection(Conn) end),
+    close_connection(Conn),
     %% OPEN NEW SOCKET
     case emysql_conn_mgr:find_pool(Conn#emysql_connection.pool_id, Pools) of
         {Pool, _} ->
@@ -225,11 +229,9 @@ reset_connection(Pools, Conn, StayLocked) ->
     end.
 
 close_connection(Conn) ->
-    %% DEALLOCATE PREPARED STATEMENTS
-    [(catch unprepare(Conn, Name)) || Name <- emysql_statements:remove(Conn#emysql_connection.id)],
-    %% CLOSE SOCKET
-    gen_tcp:close(Conn#emysql_connection.socket),
-    ok.
+	%% garbage collect statements
+	emysql_statements:remove(Conn#emysql_connection.id),
+	ok = gen_tcp:close(Conn#emysql_connection.socket).
 
 %%--------------------------------------------------------------------
 %%% Internal functions

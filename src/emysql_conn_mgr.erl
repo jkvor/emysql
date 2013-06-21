@@ -237,8 +237,8 @@ handle_call({lock_connection, PoolId}, _From, State) ->
             case lock_next_connection(State, Pool, OtherPools) of
                 {ok, NewConn, State1} ->
                     {reply, NewConn, State1};
-                Other ->
-                    {reply, Other, State}
+                unavailable ->
+                    {reply, unavailable, State}
             end;
         undefined ->
             {reply, {error, pool_not_found}, State}
@@ -382,12 +382,9 @@ pass_on_or_queue_as_available(State, Connection) ->
 
                     %% find connection in locked tree
                     case gb_trees:lookup(Connection#emysql_connection.id, Pool#pool.locked) of
-
-                        {value, Conn} ->
-
-                            %% add the connection to the 'available' queue and remove from 'locked' tree
+                        {value, _Conn} ->
                             Pool1 = Pool#pool{
-                                available = queue:in(Conn#emysql_connection{locked_at=undefined}, Pool#pool.available),
+								available = queue:in(Connection#emysql_connection{locked_at=undefined}, Pool#pool.available),
                                 locked = gb_trees:delete_any(Connection#emysql_connection.id, Pool#pool.locked)
                             },
                             {ok, State#state{pools = [Pool1|OtherPools]}};
@@ -402,9 +399,11 @@ pass_on_or_queue_as_available(State, Connection) ->
             false ->
 
                 {{value, Pid}, OtherWaiting} = queue:out(Waiting),
-                    PoolNow = Pool#pool{ waiting = OtherWaiting },
-                    StateNow = State#state{ pools = [PoolNow|OtherPools] },
-                erlang:send(Pid, {connection, Connection}),
+                    NewConn = Connection#emysql_connection{locked_at=lists:nth(2, tuple_to_list(now()))},
+                    Locked = gb_trees:enter(NewConn#emysql_connection.id, NewConn, Pool#pool.locked),
+                    PoolNow = Pool#pool{waiting=OtherWaiting ,locked=Locked},
+                    StateNow = State#state{pools = [PoolNow|OtherPools]},
+                    erlang:send(Pid, {connection, NewConn}),
                 {ok, StateNow}
         end;
 
