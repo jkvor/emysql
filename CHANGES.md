@@ -7,6 +7,14 @@
 	git checkout origin/stable
 
 #### Jun 21 2013 hd | doc
+* Remove utf-8 encoding of binary data
+  *Rationale*: The user must ensure that data passed to the MySQL
+  connection is already encoded in the right utf-8 format. The socket
+  doesn't know about encoding. In turn, one can again send binary BLOB
+  data over the driver.
+* Fixes many small errors by merging two major Emysql branches
+
+#### Jun 21 2013 hd | doc
 * Fixed abuse of ETS table to store Mysql results
 * Fixed floating point encoding in the driver base
 * Support using atoms as prepared statements
