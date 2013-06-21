@@ -81,3 +81,12 @@ test9: all
 prove: all
 	(cd t;$(MAKE))
 	prove t/*.t
+
+APPS = kernel stdlib erts crypto public_key ssl compiler asn1
+REPO = emysql
+COMBO_PLT = $(HOME)/.$(REPO)_combo_dialyzer_plt
+build_plt:
+	dialyzer --build_plt --output_plt $(COMBO_PLT) --apps $(APPS)
+
+dialyzer:
+	dialyzer --fullpath -nn --plt $(COMBO_PLT) ebin

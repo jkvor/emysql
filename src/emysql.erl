@@ -561,14 +561,10 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
     %% spawn a new process to do work, then monitor that process until
     %% it either dies, returns data or times out.
     Parent = self(),
-    Pid = spawn(
+    {Pid, Mref} = spawn_monitor(
         fun() ->
-            receive start ->
                 Parent ! {self(), apply(fun emysql_conn:execute/3, Args)}
-            end
         end),
-    Mref = erlang:monitor(process, Pid),
-    Pid ! start,
     receive
         {'DOWN', Mref, process, Pid, {_, closed}} ->
             %-% io:format("monitor_work: ~p DOWN/closed -> renew~n", [Pid]),
@@ -598,14 +594,12 @@ monitor_work(Connection, Timeout, Args) when is_record(Connection, emysql_connec
             erlang:demonitor(Mref, [flush]),
             emysql_conn_mgr:pass_connection(Connection),
             Result
-        after Timeout ->
-            %% if we timeout waiting for the process to return,
-            %% then reset the connection and throw a timeout error
-            %-% io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
-            erlang:demonitor(Mref),
-            case emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass) of
-                {error, FailedReset} ->
-                    exit({mysql_timeout, Timeout, {and_conn_reset_failed, FailedReset}});
-                _ -> exit({mysql_timeout, Timeout, {}})
-            end
+    after Timeout ->
+        %% if we timeout waiting for the process to return,
+        %% then reset the connection and throw a timeout error
+        %-% io:format("monitor_work: ~p TIMEOUT -> demonitor, reset connection, exit~n", [Pid]),
+        erlang:demonitor(Mref, [flush]),
+        exit(Pid, kill),
+        emysql_conn:reset_connection(emysql_conn_mgr:pools(), Connection, pass),
+        exit(mysql_timeout)
     end.

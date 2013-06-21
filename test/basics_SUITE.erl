@@ -133,7 +133,7 @@ insert_and_read_back(_) ->
         <<"select hello_text from hello_table">>),
 	
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("~p~n", [Result]),
+	ct:log("~p~n", [Result]),
 
 	% the test
 	Result = {result_packet,5,
@@ -172,7 +172,7 @@ insert_and_read_back_as_recs(_) ->
 		Result, hello_record, record_info(fields, hello_record)),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("~p~n", [Recs]),
+	ct:log("~p~n", [Recs]),
 
 	% the test
 	Recs = [{hello_record,<<"Hello World!">>}],
@@ -195,7 +195,7 @@ select_by_prepared_statement(_) ->
 	Result = emysql:execute(test_pool, test_stmt, ["Hello%"]),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("Result: ~p~n", [Result]),
+	ct:log("Result: ~p~n", [Result]),
 
 	% the test
 	Result = {result_packet,5,
@@ -219,7 +219,7 @@ delete_non_existant_procedure(_) ->
 	  	% note: returns ok even if sp_hello does not exist
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("~p~n", [Result1]),
+	ct:log("~p~n", [Result1]),
 
 	% test
 	Result1 = {error_packet,1,1305,<<"42000">>,
@@ -241,7 +241,7 @@ select_by_stored_procedure(_) ->
 	  	% note: returns ok even if sp_hello does not exist
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("~p~n", [Result1]),
+	ct:log("~p~n", [Result1]),
 
 	% first test
 	case Result1 of
@@ -254,7 +254,7 @@ select_by_stored_procedure(_) ->
 	  	<<"create procedure sp_hello() begin select * from hello_table limit 2; end">>),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("~p~n", [Result2]),
+	ct:log("~p~n", [Result2]),
 
 	% second test
 	{ok_packet,1,0,0,_,0,[]} = Result2,
@@ -263,7 +263,7 @@ select_by_stored_procedure(_) ->
 	   	<<"call sp_hello();">>),
 
 	% find this output by clicking on the test name, then case name in test/index.html
-	io:format("~p~n", [Result3]),
+	ct:log("~p~n", [Result3]),
 	
 	% third, main test
 	[{result_packet,5,

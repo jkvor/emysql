@@ -83,5 +83,5 @@ insert_a_record(_) ->
 select_a_record(_) ->
     Result = emysql:execute(environment_test_pool,
         <<"select hello_text from hello_table">>),
-    io:format("~n~p~n", [Result]),
+    ct:log("~n~p~n", [Result]),
     ok.
