@@ -14,10 +14,9 @@
 </p>
 <p><b>Authors:</b> Bill Warnecke, Jacob Vorreuter, Henning Diedrich. Contributions by Vitaliy Batichko, Chris Rempel, Patrick Atambo, Joel Meyer, Erik Seres, Alexey Lebedeff, Logan Owen, Seven Du, Brendon Hogger, Bart van Deenen and TheSquad. Thanks a lot.</p>
 
-<h3><a name="Emysql">Emysql</a></h3>
+<h3><a name="Emysql_0.2.16">Emysql 0.2.16</a></h3>
 
-<hr><p>
-<b>Please note: this commit of Mar '12 has incompatible changes for automatic UTF-8 conversion vs the Dec '11 commits.</b></p>
+<hr>
 
 <p>There are cases where the automatic conversion of parameters to prepared
 statements has been changed and now behaves different than before. The
@@ -193,7 +192,8 @@ Sample programs are in ./samples. </p>
 <li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/b_raw.erl">b_raw</a> - Hello World, raw output</li>
 <li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/c_rows_as_records.erl">c_rows_as_records</a> - Using Erlang records to access result rows</li>
 <li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/d_prepared_statement.erl">d_prepared_statement</a> - Using prepared statements</li>
-<li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/e_stored_procedure.erl">e_stored_procedure</a> - Using stored procedures</li></p>
+<li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/e_stored_procedure.erl">e_stored_procedure</a> - Using stored procedures</li>
+<li> <a href="http://github.com/Eonblast/Emysql/blob/master/samples/f_load_from_file.erl">f_load_from_file</a> - Fast loading of data from a flat file</li></p>
 
 <p>To run the samples, create the database as listed above at localhost, and simply run the compile &amp; run batches:</p>
 
@@ -202,7 +202,8 @@ Sample programs are in ./samples. </p>
  $ ./b_raw
  $ ./c_rows_as_records
  $ ./d_prepared_statement
- $ ./e_stored_procedure</pre><p>
+ $ ./e_stored_procedure
+ $ ./f_load_from_file</pre><p>
 or (after building emysql.app and the database, as explained above), start a_hello etc. manually along these lines:</p>
 
 <pre> $ make
@@ -313,6 +314,22 @@ or (after building emysql.app and the database, as explained above), start a_hel
  	  io:format("foo: ~p, ~p, ~p~n", [Foo#foo.bar, Foo#foo.baz, Foo#foo.bat])
      end || Foo &lt;- Recs].</pre>
 
+<h5><a name="Loading_Data_From_a_File">Loading Data From a File</a></h5>
+
+<pre> emysql:execute(hello_pool,
+ 	&lt;&lt;"LOAD DATA INFILE 'hello.txt' INTO TABLE hello_table (hello_text)"&gt;&gt;).</pre>
+
+<p>Note, you must grant: 
+  <br>
+    grant file on <em>.</em> to hello_username@localhost identified by'hello_password';</p>
+
+<p>You need to give LOCAL or an absolute path, else the file is expected in the database server root. To use the current directory:</p>
+
+    {ok, Dir} = file:get_cwd(),
+<pre> emysql:execute(hello_pool,
+     list_to_binary("LOAD DATA INFILE '" ++ Dir ++
+         "/hello.txt' INTO TABLE hello_table (hello_text)")).</pre>
+
 
 <h3><a name="Tests">Tests</a></h3>
 
@@ -338,7 +355,7 @@ help you find trip ups in your system set up (environment and basics suites). </
 
 <p>Some tests can take up to half a minute to finish on a slow machine.</p>
 
-<p>These tests currently check access to the database (environment suite) and the same functionality as the samples (basics suite).</p>
+<p>These tests currently check access to the database (environment suite) the same functionality as the samples (basics suite) and for race conditions as described in issue #9. Thank you, Ransom!</p>
 
 <h4><a name="Encoding_Tests">Encoding Tests</a></h4>
 
@@ -436,8 +453,8 @@ Updated: Tue Dec 13 2011 04:17:36<BR></BR>
 </div>
 
 <h4><a name="Issue_Tests">Issue Tests</a></h4>
-
-<p>There is a test to check on issue #20. For this test you need 
+<h5><a name="Issue_20">Issue 20</a></h5><p>
+There is a test to check on issue #20. For this test you need 
 two databases like this:</p>
 
 <pre> $ mysql [-u&lt;user&gt; -p]
@@ -455,6 +472,13 @@ two databases like this:</p>
 <pre> make test20</pre><p>
 Check the test results by opening test/index.html with a browser. </p>
 
+<h5><a name="Issue_9">Issue 9</a></h5><p>
+The probably rare but still bad races of issue #9 have been solved at long last, courtesy of Ransom Richardson. They are tested for as part of the standard test. You can also use:</p>
+
+<pre> make test9</pre><p>
+Check the test results by opening test/index.html with a browser. </p>
+
+
 <h3><a name="History">History</a></h3>
 
 <p>Open Source Erlang MySQL driver efforts are a fractured matter. You may find yourself digging in the sources to find out about their relationships with each other - and which one to pick. Here is a brief history.</p>
@@ -470,9 +494,9 @@ Check the test results by opening test/index.html with a browser. </p>
 
 <p><b>Emysql</b> was created from scratch in 2009, specifically to achieve better stability and throughput. It was proposed and written by <a href="#jv">Jacob Vorreuter</a> at Electronic Arts and deployed at Shawn Fanning's Rupture.com, a social network site for gamers. Initially, <a href="#ng">Nick Gerakines</a>, Jacob's boss at EA, rewrote large parts of erlang-mysql-server to <a href="#21">clean it up</a>. But some fundamental problems remained and when half a year in, they still could not overcome performance and stability issues, Nick gave Jacob the green light to rewrite it from the ground up because they felt that, in Jacob's words, the Yxa branch had been touched by so many people that it had become more complicated than necessary. According to Jacob, <a href="#bw">Bill Warnecke</a> helped in the early design and testing. They abandoned the separation into three process layers and pulled the socket handling and bit-parsing into one module, coupling the functionality into direct function calls. It looks like they borrowed some chore lines from Magnus but generally created a new, straightforward architecture focused on providing a high performance node. Not only can Emysql open multiple connections, but multiple pools of multiple connections each to multiple database servers, which makes for a strong central OLTP node. Jacob says that Emysql is pretty stable and ran without issues in production at EA. Nick remembers: "The primary way we used it was to have a single Erlang node be the MySQL communication point and allow a number of connected nodes to connect through it to MySQL. We wanted very high throughput with many pids across a grid connecting to it and needed the ability to have a number of MySQL connections open for connection pooling." Rupture was killed in the consolidations of 2009. But Shawn could probably keep the money and we the fond memory of Napster and now, the glistening Emysql.</p>
 
-<p><b>Eonblast Emysql</b> is a continuation fork of <a href="#1">Jacob's work</a>, including all his commits and adding <a href="#docs">docs</a>, <a href="#samples">samples</a>, <a href="#fixes">fixes</a> and <a href="#24">extensions</a>. <a href="#hd">Henning Diedrich</a>, <a href="#vb">Vitaliy Batichko</a>, <a href="#cr">Chris Rempel</a>, <a href="#pa">Patrick Atambo</a>, <a href="#jm">Joel Meyer</a>, <a href="#es">Erik Seres</a>, <a href="#al">Alexey Lebedeff</a>, <a href="#lo">Logan Owen</a>, <a href="#sd">Seven Du</a>, <a href="#bh">Brendon Hogger</a> and <a href="#bd">Bart van Deenen</a> have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. But the fork is otherwise still very close to the original, which currently lies dormant.</p>
+<p><b>Eonblast Emysql</b> is a continuation fork of <a href="#1">Jacob's work</a>, including all his commits and adding <a href="#docs">docs</a>, <a href="#samples">samples</a>, <a href="#fixes">fixes</a> and <a href="#24">extensions</a>. <a href="#hd">Henning Diedrich</a>, <a href="#vb">Vitaliy Batichko</a>, <a href="#cr">Chris Rempel</a>, <a href="#pa">Patrick Atambo</a>, <a href="#jm">Joel Meyer</a>, <a href="#es">Erik Seres</a>, <a href="#al">Alexey Lebedeff</a>, <a href="#lo">Logan Owen</a>, <a href="#sd">Seven Du</a>, <a href="#bh">Brendon Hogger</a>, <a href="#bd">Bart van Deenen</a>, <a href="#rr">Ransom Richardson</a> and <a href="#ql">Qing Liang</a> have contributed to this branch. Support for stored procedures has been added, remaining issues are being addressed and there is work going on to bring Mnesia-style transactions. The fork is still close to the original, which currently lies dormant, but has started to add features and possibly increased stability.</p>
 
-<p>Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are <a href="#hd">mine</a>. Please let me know about any errors you may be spot. Thanks.</p>
+<p>Fredrik, Nick and Jacob helped shedding light on the matter. Thank you very much! Errors and omissions are <a href="#hd">mine</a>. Please let me know about any errors you may spot. Thanks. - Henning</p>
 
 
 <h4><a name="Links_and_References">Links and References</a></h4>
@@ -521,7 +545,9 @@ Check the test results by opening test/index.html with a browser. </p>
 <li class="ref url"> Logan Owen:<a name="lo" id="lo" href="https://github.com/lsowen" target="_parent">https://github.com/lsowen</a></li>
 <li class="ref url"> Seven Du:<a name="sd" id="sd" href="https://github.com/seven1240" target="_parent">https://github.com/seven1240</a></li>
 <li class="ref email"> Brendon Hogger:<a name="bh" id="bh" href="mailto:brendonh@gmail.com">brendonh@gmail.com</a></li>
-<li class="ref url"> Bart van Deenen:<a name="bd" id="bd" href="https://github.com/bvdeenen" target="_parent">https://github.com/bvdeenen</a></li></p>
+<li class="ref url"> Bart van Deenen:<a name="bd" id="bd" href="https://github.com/bvdeenen" target="_parent">https://github.com/bvdeenen</a></li>
+<li class="ref url"> Ransom Richardson:<a name="rr" id="rr" href="https://github.com/ransomr" target="_parent">https://github.com/ransomr</a></li>
+<li class="ref url"> Qing Liang:<a name="ql" id="ql" href="https://github.com/qingliangcn" target="_parent">https://github.com/qingliangcn</a></li></p>
 
 <p><li class="ref url"> Eonblast Emysql Repository:<a name="emysql" id="emysql" href="https://github.com/Eonblast/Emysql" target="_parent">https://github.com/Eonblast/Emysql</a></li>
 <li class="ref url"> Emysql fixes:<a name="fixes" id="fixes" href="https://github.com/Eonblast/Emysql/issues/closed" target="_parent">https://github.com/Eonblast/Emysql/issues/closed</a></li>
@@ -598,6 +624,6 @@ function url(tag) { var o=document.getElementById(tag); return o ? o.href : '#'+
 
 <hr>
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Mar 26 2012, 02:20:04.</i></p>
+<p><i>Generated by EDoc, Jun 21 2013, 10:34:42.</i></p>
 </body>
 </html>

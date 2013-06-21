@@ -26,24 +26,24 @@
   <li>change the <b>connection pool</b> size.</li></p>
  
   <h4><a name="Sample">Sample</a></h4>
-  <pre>  	-module(sample).
- 	-export([run/0]).
- 	
- 	run() -&gt;
- 	
- 		crypto:start(),
- 		emysql:start(),
- 	
- 		emysql:add_pool(hello_pool, 1,
- 			"hello_username", "hello_password", "localhost", 3306,
- 			"hello_database", utf8),
- 	
- 		emysql:execute(hello_pool,
- 			&lt;&lt;"INSERT INTO hello_table SET hello_text = 'Hello World!'"&gt;&gt;),
+  <pre>   -module(sample).
+   -export([run/0]).
  
- 		emysql:prepare(my_stmt, &lt;&lt;"SELECT * from mytable WHERE id = ?"&gt;&gt;),
+   run() -&gt;
  
- 		Result = emysql:execute(mypoolname, my_stmt, [1]).</pre>
+       crypto:start(),
+       emysql:start(),
+ 
+       emysql:add_pool(hello_pool, 1,
+           "hello_username", "hello_password", "localhost", 3306,
+           "hello_database", utf8),
+ 
+       emysql:execute(hello_pool,
+           &lt;&lt;"INSERT INTO hello_table SET hello_text = 'Hello World!'"&gt;&gt;),
+ 
+       emysql:prepare(my_stmt, &lt;&lt;"SELECT * from mytable WHERE id = ?"&gt;&gt;),
+ 
+       Result = emysql:execute(mypoolname, my_stmt, [1]).</pre>
  
   <h4><a name="Implementation">Implementation</a></h4>
  
@@ -52,20 +52,20 @@ inner workings of Emysql. If you are new to Emysql, you may safely ignore
 them.</p>
  
   start(), stop(), modules() and default_timeout() are one-line 'fascades':
-  <pre>  	start() -&gt; application:start(emysql).
-  	stop() -&gt; application:stop(emysql).
-  	modules() -&gt; emysql_app:modules().
-  	default_timeout() -&gt; emysql_app:default_timeout().</pre>
+  <pre>   start() -&gt; application:start(emysql).
+   stop() -&gt; application:stop(emysql).
+   modules() -&gt; emysql_app:modules().
+   default_timeout() -&gt; emysql_app:default_timeout().</pre>
  
   execute() and prepare() are the bulk of the source
   of this module. A lot gets repeated for default values in lesser arities.
   The quintessential execute however is this, in execute/2:
-  <pre>  	execute(PoolId, Query, Args, Timeout)
- 		when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) -&gt;
- 		
- 			Connection =
- 				emysql_conn_mgr:wait_for_connection(PoolId),
- 				monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});</pre><p>  
+  <pre>   execute(PoolId, Query, Args, Timeout)
+       when (is_list(Query) orelse is_binary(Query)) andalso is_list(Args) andalso is_integer(Timeout) -&gt;
+ 
+           Connection =
+               emysql_conn_mgr:wait_for_connection(PoolId),
+               monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query, Args]});</pre><p>  
 As all executions, it uses the monitor_work/3 function to create a process to  
 asynchronously handle the execution.</p>
  
@@ -199,7 +199,7 @@ Timeout is the query timeout in milliseconds.</p>
  
   Basically:
   <pre>  {Connection, connection} = case emysql_conn_mgr:lock_connection(PoolId),
-  		monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query_or_StmtName, Args]}).</pre>
+       monitor_work(Connection, Timeout, {emysql_conn, execute, [Connection, Query_or_StmtName, Args]}).</pre>
  
   <p>The result is a list for stored procedure execution &gt;= MySQL 4.1</p>
  
@@ -243,24 +243,24 @@ Emysql.</p>
  
   run() -&gt;
  
-  	application:start(sasl),
-  	crypto:start(),
-  	application:start(emysql),
+   application:start(sasl),
+   crypto:start(),
+   application:start(emysql),
  
-  	emysql:add_pool(hello_pool, 1,
-  		"hello_username", "hello_password", "localhost", 3306,
-  		"hello_database", utf8),
+   emysql:add_pool(hello_pool, 1,
+       "hello_username", "hello_password", "localhost", 3306,
+       "hello_database", utf8),
  
-  	emysql:execute(hello_pool,
-  		&lt;&lt;"INSERT INTO hello_table SET hello_text = 'Hello World!'"&gt;&gt;),
+   emysql:execute(hello_pool,
+       &lt;&lt;"INSERT INTO hello_table SET hello_text = 'Hello World!'"&gt;&gt;),
  
-  	emysql:prepare(hello_stmt,
-  		&lt;&lt;"SELECT * from hello_table WHERE hello_text like ?"&gt;&gt;),
+   emysql:prepare(hello_stmt,
+       &lt;&lt;"SELECT * from hello_table WHERE hello_text like ?"&gt;&gt;),
  
-  	Result = emysql:execute(hello_pool, hello_stmt, ["Hello%"]),
+   Result = emysql:execute(hello_pool, hello_stmt, ["Hello%"]),
  
-  	 io:format("~n~s~n", [string:chars($-,72)]),
-  	 io:format("~p~n", [Result]),
+    io:format("~n~s~n", [string:chars($-,72)]),
+    io:format("~p~n", [Result]),
  
       ok.</pre>
   Output:
@@ -278,21 +278,21 @@ Emysql.</p>
   <code>handle_call({add, StmtName, Statement}, _From, State)</code>.</p>
  
   The statement is there added to the Emysql statement GB tree:
-  ... <pre> 				State#state{
- 					statements = gb_trees:enter(StmtName, {1, Statement},
- 						State#state.statements)</pre>
+  ... <pre>               State#state{
+                   statements = gb_trees:enter(StmtName, {1, Statement},
+                       State#state.statements)</pre>
   Execution is called like this:
   <pre>  execute(Connection, StmtName, Args) when is_atom(StmtName), is_list(Args) -&gt;
-  	prepare_statement(Connection, StmtName),
-  	case set_params(Connection, 1, Args, undefined) of
-  		OK when is_record(OK, ok_packet) -&gt;
-  			ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I &lt;- lists:seq(1, length(Args))], ", ")),
-  			StmtNameBin = atom_to_binary(StmtName, utf8),
-  			Packet = &lt;&lt;?COM_QUERY, "EXECUTE ", StmtNameBin/binary, " USING ", ParamNamesBin/binary&gt;&gt;,
-  			emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
-  		Error -&gt;
-  			Error
-  	end.</pre>
+   prepare_statement(Connection, StmtName),
+   case set_params(Connection, 1, Args, undefined) of
+       OK when is_record(OK, ok_packet) -&gt;
+           ParamNamesBin = list_to_binary(string:join([[$@ | integer_to_list(I)] || I &lt;- lists:seq(1, length(Args))], ", ")),
+           StmtNameBin = atom_to_binary(StmtName, utf8),
+           Packet = &lt;&lt;?COM_QUERY, "EXECUTE ", StmtNameBin/binary, " USING ", ParamNamesBin/binary&gt;&gt;,
+           emysql_tcp:send_and_recv_packet(Connection#emysql_connection.socket, Packet, 0);
+       Error -&gt;
+           Error
+   end.</pre>
  </p>
 <p><b>See also:</b> <a href="emysql_conn.html#execute-3">emysql_conn:execute/3</a>, <a href="emysql_statements.html#add-2">emysql_statements:add/2</a>, <a href="emysql_statements.html#handle-3">emysql_statements:handle/3</a>.</p>
 
@@ -347,6 +347,6 @@ affected.</p>
 <hr>
 
 <div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
-<p><i>Generated by EDoc, Mar 26 2012, 02:20:04.</i></p>
+<p><i>Generated by EDoc, Jun 21 2013, 10:34:42.</i></p>
 </body>
 </html>

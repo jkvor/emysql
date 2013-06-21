@@ -1,5 +1,5 @@
 LIBDIR=$(shell erl -eval 'io:format("~s~n", [code:lib_dir()])' -s init stop -noshell)
-VERSION=0.2
+VERSION=0.2.16
 PKGNAME=emysql
 APP_NAME=emysql
 CRYPTO_PATH=/opt/local/var/macports/software/erlang/R14A_0/opt/local/lib/erlang/lib/crypto-2.0/ebin/
