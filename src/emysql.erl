@@ -212,6 +212,15 @@ add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
     add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding, []).
 
 add_pool(PoolId, Size, User, Passwd, Host, Port, DB, Encoding, StartCmds) ->
+  when is_atom(PoolId),
+       is_integer(Size),
+       is_list(User),
+       is_list(Password),
+       is_list(Host),
+       is_integer(Port),
+       is_list(Database),
+       is_atom(Encoding),
+       is_list(StartCmds) ->
     Pool = #pool{
         pool_id = PoolId,
         size = Size,
