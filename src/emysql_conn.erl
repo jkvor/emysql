@@ -140,7 +140,9 @@ open_connections(Pool) ->
             Pool
     end.
 
-open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=Password, database=Database, encoding=Encoding}) ->
+open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User,
+        password=Password, database=Database, encoding=Encoding,
+        start_cmds=StartCmds}) ->
      %-% io:format("~p open connection for pool ~p host ~p port ~p user ~p base ~p~n", [self(), PoolId, Host, Port, User, Database]),
      %-% io:format("~p open connection: ... connect ... ~n", [self()]),
     case gen_tcp:connect(Host, Port, [binary, {packet, raw}, {active, false}]) of
@@ -164,6 +166,7 @@ open_connection(#pool{pool_id=PoolId, host=Host, port=Port, user=User, password=
             %%-% io:format("~p open connection: ... set db ...~n", [self()]),
             ok = set_database_or_die(Connection, Database),
             ok = set_encoding_or_die(Connection, Encoding),
+            ok = run_startcmds_or_die(Connection, StartCmds),
             ok = give_manager_control(Sock),
             Connection;
         {error, Reason} ->
@@ -197,6 +200,21 @@ set_database_or_die(#emysql_connection { socket = Socket } = Connection, Databas
              gen_tcp:close(Socket),
              exit({failed_to_set_database, Err1#error_packet.msg})
     end.
+
+run_startcmds_or_die(#emysql_connection{socket=Socket}, StartCmds) ->
+    lists:foreach(
+        fun(Cmd) ->
+                Packet = <<?COM_QUERY, Cmd/binary>>,
+                case emysql_tcp:send_and_recv_packet(Socket, Packet, 0) of
+                    OK when OK =:= ok orelse is_record(OK, ok_packet) ->
+                        ok;
+                    #error_packet{msg=Msg} ->
+                        gen_tcp:close(Socket),
+                        exit({failed_to_run_cmd, Msg})
+                end
+        end,
+        StartCmds
+    ).
  
 set_encoding_or_die(#emysql_connection { socket = Socket } = Connection, Encoding) ->
     case set_encoding(Connection, Encoding) of
