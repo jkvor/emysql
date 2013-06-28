@@ -117,8 +117,8 @@ open_n_connections(PoolId, N) ->
                 case catch open_connection(Pool) of
                     #emysql_connection{} = Connection ->
                         [Connection | Connections];
-                    _ ->
-                        Connections
+                    {'EXIT', Reason} ->
+                        exit(Reason)
                 end
             end, [], lists:seq(1, N));
         _ ->
@@ -132,8 +132,8 @@ open_connections(Pool) ->
             case catch open_connection(Pool) of
                 #emysql_connection{} = Conn ->
                     open_connections(Pool#pool{available = queue:in(Conn, Pool#pool.available)});
-				_ ->
-					Pool
+                {'EXIT', Reason} ->
+                    exit(Reason)
 			end;
         false ->
             %-% io:format(" done~n"),
