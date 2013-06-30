@@ -129,7 +129,17 @@ For the exact spec, see below, [Usage][]. Regarding the 'pool', also see below.
 
 Emysql uses a sophisticated connection pooling mechanism.
 
-	emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306, "mydatabase", utf8).
+	emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306,
+      "mydatabase", utf8).
+
+Arbitrary post-connection start-up commands can be added as a list of binaries
+to the last `emysql:add_pool/9` argument:
+
+	emysql:add_pool(my_pool, 1, "myuser", "mypass", "myhost", 3306,
+      "mydatabase", utf8, [
+          <<"SET TIME_ZONE='+00:00'">>,
+          <<"SET SQL_MODE='STRICT_ALL_TABLES'">>
+      ]).
 
 ### Running Hello World
 

@@ -96,6 +96,7 @@
 -module(emysql).
 
 -export([   start/0, stop/0,
+            add_pool/9,
             add_pool/8, remove_pool/1, increment_pool_size/2, decrement_pool_size/2,
             prepare/2,
             execute/2, execute/3, execute/4, execute/5,
@@ -186,7 +187,7 @@ modules() ->
 default_timeout() ->
     emysql_app:default_timeout().
 
-%% @spec add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) -> Result
+%% @spec add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding, StartCmds) -> Result
 %%      PoolId = atom()
 %%      Size = integer()
 %%      User = string()
@@ -194,7 +195,8 @@ default_timeout() ->
 %%      Host = string()
 %%      Port = integer()
 %%      Database = string()
-%%      Encoding = string()
+%%      Encoding = utf8 | latin1
+%%      StartCmds = list(binary())
 %%      Result = {reply, {error, pool_already_exists}, state()} | {reply, ok, state() }
 %%
 %% @doc Synchronous call to the connection manager to add a pool.
@@ -207,15 +209,19 @@ default_timeout() ->
 %% @end doc: hd feb 11
 
 add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding) ->
+    add_pool(PoolId, Size, User, Password, Host, Port, Database, Encoding, []).
+
+add_pool(PoolId, Size, User, Passwd, Host, Port, DB, Encoding, StartCmds) ->
     Pool = #pool{
         pool_id = PoolId,
         size = Size,
         user = User,
-        password = Password,
+        password = Passwd,
         host = Host,
         port = Port,
-        database = Database,
-        encoding = Encoding
+        database = DB,
+        encoding = Encoding,
+        start_cmds = StartCmds
     },
     Pool1 = emysql_conn:open_connections(Pool),
     emysql_conn_mgr:add_pool(Pool1).
