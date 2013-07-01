@@ -25,7 +25,7 @@
 -module(emysql_app).
 -behaviour(application).
 
--export([start/2, stop/1, modules/0, default_timeout/0, lock_timeout/0, pools/0]).
+-export([start/2, stop/1, modules/0, default_timeout/0, lock_timeout/0, pools/0, conn_test_period/0]).
 
 -include("emysql.hrl").
 
@@ -66,3 +66,10 @@ pools() ->
         _ ->
             []
     end.
+
+
+conn_test_period() ->
+  case application:get_env(emysql, conn_test_period) of
+    undefined -> ?CONN_TEST_PERIOD;
+    {ok, Period} -> Period
+  end.

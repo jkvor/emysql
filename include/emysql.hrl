@@ -26,8 +26,8 @@
 %% OTHER DEALINGS IN THE SOFTWARE.
 
 
--record(pool, {pool_id, size, user, password, host, port, database, encoding, available=queue:new(), locked=gb_trees:empty(), waiting=queue:new(), start_cmds=[]}).
--record(emysql_connection, {id, pool_id, encoding, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at, alive=true}).
+-record(pool, {pool_id, size, user, password, host, port, database, encoding, available=queue:new(), locked=gb_trees:empty(), waiting=queue:new(), start_cmds=[], conn_test_period=0}).
+-record(emysql_connection, {id, pool_id, encoding, socket, version, thread_id, caps, language, prepared=gb_trees:empty(), locked_at, alive=true, test_period=0, last_test_time=0}).
 -record(greeting, {protocol_version, server_version, thread_id, salt1, salt2, caps, caps_high, language, status, seq_num, plugin}).
 -record(field, {seq_num, catalog, db, table, org_table, name, org_name, type, default, charset_nr, length, flags, decimals}).
 -record(packet, {size, seq_num, data}).
@@ -48,6 +48,7 @@
 -define(TRANSACTIONS, 8192).
 -define(SECURE_CONNECTION, 32768).
 -define(CONNECT_WITH_DB, 8).
+-define(CONN_TEST_PERIOD, 28000).
 
 %% MYSQL COMMANDS
 -define(COM_SLEEP, 16#00).
