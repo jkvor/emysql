@@ -25,12 +25,54 @@
 -module(emysql_util).
 -export([field_names/1, as_record/4, as_record/3, length_coded_binary/1, length_coded_string/1,
     null_terminated_string/2, asciz/1, bxor_binary/2, dualmap/3, hash/1, to_binary/1,
-    rnd/3, encode/1, encode/2, quote/1]).
+    rnd/3, encode/1, encode/2, quote/1, as_proplist/1, as_dict/1]).
 
 -include("emysql.hrl").
 
 field_names(Result) when is_record(Result, result_packet) ->
     [Field#field.name || Field <- Result#result_packet.field_list].
+
+%% @spec as_dict(Result) -> dict
+%%      Result = #result_packet{}
+%%
+%% @doc package row data as a dict
+%%
+%% -module(fetch_example).
+%%
+%% fetch_foo() ->
+%%  Res = emysql:execute(pool1, "select * from foo"),
+%%  Res:as_dict(Res).
+as_dict(Res = #result_packet{}) ->
+    dict:from_list(as_proplist(Res)).
+ 
+%% @spec as_proplist(Result) -> proplist
+%%      Result = #result_packet{}
+%%
+%% @doc package row data as a proplist
+%%
+%% -module(fetch_example).
+%%
+%% fetch_foo() ->
+%%  Res = emysql:execute(pool1, "select * from foo"),
+%%  Res:as_proplist(Res).
+as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when _Cols =:= undefined, 
+							      _Vals =:= undefined ->
+    [];
+as_proplist(Res = #result_packet{field_list=Cols,rows=Vals}) when is_list(Cols), 
+								  Vals =:= undefined ->
+    FieldData = emysql_util:field_names(Res),
+    RowData =  array:to_list(array:new([erlang:length(FieldData)])),
+    emysql_util:dualmap(fun(A,B)->{A,B} end, FieldData, RowData);
+as_proplist(Res = #result_packet{field_list=Cols,rows=Vals}) when is_list(Cols), 
+								  is_list(Vals) ->
+    FieldData = emysql_util:field_names(Res),
+    RowData = case lists:flatten(Vals) of
+		  [] ->
+		      array:to_list(array:new([erlang:length(FieldData)]));
+		  Data ->
+		      Data
+	      end,
+    emysql_util:dualmap(fun(A,B)->{A,B} end, FieldData, RowData).
 
 %% @spec as_record(Result, RecordName, Fields, Fun) -> Result
 %%      Result = #result_packet{}
