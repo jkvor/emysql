@@ -18,3 +18,5 @@ test/*.html
 test/ct_run*
 test/variables-ct*
 test/ct_default.css
+logs/*
+.#*
