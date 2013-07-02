@@ -178,7 +178,7 @@ pool_leak_2(_) ->
     ct:log("Pool available at start: ~p~n", [Pool#pool.available]),
 
     %% preliminary test
-    {[{emysql_connection, _,test_pool,_,_,_,_,_,_,{0,nil}, undefined,true}], 
+    {[{emysql_connection, _,test_pool,_,_,_,_,_,_,{0,nil}, undefined,true, 0, _}],
      []} = Pool#pool.available ,
 
     %% Brief timeout for test
@@ -197,7 +197,7 @@ pool_leak_2(_) ->
     [Pool1] = emysql_conn_mgr:pools(),
     ct:log("Pool available after test: ~p~n", [Pool1#pool.available]),
     case Pool1#pool.available of
-        {[{emysql_connection, _,test_pool,_,_,_,_,_,_,{0,nil}, undefined,true}],
+        {[{emysql_connection, _,test_pool,_,_,_,_,_,_,{0,nil}, undefined,true, 0, _}],
          []} -> ok;
         {[],[]} -> exit(issue9_pool_leak);
         E -> exit({unexpected_error, E})
