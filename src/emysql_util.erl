@@ -1,6 +1,7 @@
 %% Copyright (c) 2009
 %% Bill Warnecke <bill@rupture.com>
 %% Jacob Vorreuter <jacob.vorreuter@gmail.com>
+%% Mike Oxford <moxford@gmail.com>
 %%
 %% Permission is hereby granted, free of charge, to any person
 %% obtaining a copy of this software and associated documentation
@@ -58,11 +59,12 @@ as_dict(Res = #result_packet{}) ->
 as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when _Cols =:= undefined, 
 							      _Vals =:= undefined ->
     [];
-as_proplist(Res = #result_packet{field_list=Cols,rows=Vals}) when is_list(Cols), 
-								  Vals =:= undefined ->
-    FieldData = emysql_util:field_names(Res),
-    RowData =  array:to_list(array:new([erlang:length(FieldData)])),
-    emysql_util:dualmap(fun(A,B)->{A,B} end, FieldData, RowData);
+as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when is_list(_Cols), 
+								  _Vals =:= undefined ->
+    [];
+as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when is_list(_Cols), 
+								  _Vals =:= [] ->
+    [];
 as_proplist(Res = #result_packet{field_list=Cols,rows=Vals}) when is_list(Cols), 
 								  is_list(Vals) ->
     FieldData = emysql_util:field_names(Res),
