@@ -59,7 +59,7 @@ as_dict(Res = #result_packet{}) ->
 as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when _Cols =:= undefined, 
 							      _Vals =:= undefined ->
     [];
-as_proplist(Res = #result_packet{field_list=_Cols,rows=_Vals}) when is_list(_Cols), 
+as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when is_list(_Cols), 
 								  _Vals =:= undefined ->
     [];
 as_proplist(Res = #result_packet{field_list=Cols,rows=Vals}) when is_list(Cols), 
