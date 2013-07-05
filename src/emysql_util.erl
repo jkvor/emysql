@@ -62,6 +62,9 @@ as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when _Cols =:= undefine
 as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when is_list(_Cols), 
 								  _Vals =:= undefined ->
     [];
+as_proplist(#result_packet{field_list=_Cols,rows=_Vals}) when is_list(_Cols), 
+								  _Vals =:= [] ->
+    [];
 as_proplist(Res = #result_packet{field_list=Cols,rows=Vals}) when is_list(Cols), 
 								  is_list(Vals) ->
     FieldData = emysql_util:field_names(Res),
