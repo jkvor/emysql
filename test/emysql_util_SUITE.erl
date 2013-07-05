@@ -63,7 +63,7 @@ end_per_suite(_) ->
 %% Test Cases: Test if emysql_util:as_dict/1 works
 %%--------------------------------------------------------------------
 dict_empty_test(_) ->
-    dict:from_list([{<<"HelloField">>,undefined}]) =:= emysql_util:as_dict(get_empty_test()).
+    dict:from_list([]) =:= emysql_util:as_dict(get_empty_test()).
 
 dict_single_test(_) ->
     dict:from_list([{<<"HelloField">>,<<"Hello">>}]) =:= emysql_util:as_dict(get_single_test()).
@@ -78,7 +78,7 @@ dict_multi_test(_) ->
 %% Test Cases: Test if emysql_util:as_proplist/1 works
 %%--------------------------------------------------------------------
 proplist_empty_test(_) ->
-    [{<<"HelloField">>,undefined}] =:= emysql_util:as_proplist(get_empty_test()).
+    [] =:= emysql_util:as_proplist(get_empty_test()).
 
 proplist_single_test(_) ->
     [{<<"HelloField">>,<<"Hello">>}] =:=  emysql_util:as_proplist(get_single_test()).
