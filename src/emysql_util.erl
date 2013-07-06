@@ -136,12 +136,10 @@ as_record(Result, RecordName, Fields) when is_record(Result, result_packet), is_
 
 %% @spec as_json(Result) -> Result
 %% @doc package row data as erlang json (jsx/jiffy compatible)
-as_json(Result) when is_record(Result, result_packet) ->
+as_json(#result_packet { rows = Rows } = Result) ->
     Fields = emysql_util:field_names(Result),
-    Rows = Result#result_packet.rows,
     [begin
-        {JSRow, _} = lists:mapfoldl( fun(K, [V | T]) -> {{K, json_val(V)}, T} end, Row, Fields),
-        JSRow
+        [{K, json_val(V)} || {K, V} <- lists:zip(Fields, Row)]
     end || Row <- Rows].
 
 json_val(undefined) ->
