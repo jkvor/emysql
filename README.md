@@ -312,6 +312,19 @@ For other record types, see include/emysql.hrl.
 		  io:format("foo: ~p, ~p, ~p~n", [Foo#foo.bar, Foo#foo.baz, Foo#foo.bat])
 	    end || Foo <- Recs].
 
+#### Converting Row Data To JSON
+
+	% emysql_util:as_json(ResultPacket) -> Result
+	% Result = [json()]
+
+	Result = emysql:execute(pool1, <<"select bar, baz from foo">>),
+
+	JSON = emysql_util:as_json(Result).
+	#[[{<<"bar">>,<<"bar_value">>}, {<<"baz">>,<<"baz_value">>}], ...]
+
+Note that you are getting back a list of erlang terms in accordance with EEP-18.
+For actual utf8 binary JSON string you will need external library like [jsx](https://github.com/talentdeficit/jsx) or [jiffy](https://github.com/davisp/jiffy)
+
 #### Loading Data From a File
 
 	emysql:execute(hello_pool,
