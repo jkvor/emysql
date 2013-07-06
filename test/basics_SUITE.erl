@@ -45,6 +45,7 @@ all() ->
      insert_only,
      insert_and_read_back,
      insert_and_read_back_as_recs,
+     insert_and_read_back_as_json,
      select_by_prepared_statement,
 	 delete_non_existant_procedure,
 	 select_by_stored_procedure,
@@ -179,6 +180,26 @@ insert_and_read_back_as_recs(_) ->
 
 	ok.
 	
+%% Test Case: Make an Insert and Select it back, reading out as JSON
+%%--------------------------------------------------------------------
+insert_and_read_back_as_json(_) ->
+
+    emysql:execute(test_pool, <<"DELETE FROM hello_table">>),
+
+    emysql:execute(test_pool,
+        <<"INSERT INTO hello_table SET hello_text = 'Hello World!'">>),
+
+    Result = emysql:execute(test_pool, <<"SELECT * from hello_table">>),
+
+    Recs = emysql_util:as_json(Result),
+
+    % find this output by clicking on the test name, then case name in test/index.html
+    io:format("~p~n", [Recs]),
+
+    % the test
+    Recs = [[{<<"hello_text">>,<<"Hello World!">>}]],
+
+    ok.
 
 %% Test Case: Create a Prepared Statement and make a Select with it
 %%--------------------------------------------------------------------
