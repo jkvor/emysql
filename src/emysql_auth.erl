@@ -52,7 +52,8 @@ recv_greeting(Sock) ->
 		    {Salt, Rest4} = emysql_util:asciz(Rest3),
 		    <<ServerCaps:16/little, Rest5/binary>> = Rest4,
 		    <<ServerLanguage:8/little, ServerStatus:16/little, _:13/binary-unit:8, Rest6/binary>> = Rest5,
-		    {Salt2, <<>>} = emysql_util:asciz(Rest6),
+		    %%{Salt2, <<>>} = emysql_util:asciz(Rest6),
+		    {Salt2, _} = emysql_util:asciz(Rest6),
 			#greeting{
 				protocol_version = ProtocolVersion,
 				server_version = ServerVersion,
